@@ -1,0 +1,51 @@
+{
+  "name": "ai-customer-support",
+  "version": "0.0.1",
+  "private": true,
+  "description": "AI Customer Support Platform — modular monolith with hexagonal architecture.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run build:packages && npm run dev -w @ai-customer-support/api",
+    "dev:web": "npm run dev -w @ai-customer-support/web",
+    "build:packages": "npm run build -w @ai-customer-support/shared && npm run build -w @ai-customer-support/config && npm run build -w @ai-customer-support/contracts",
+    "build": "prisma generate && npm run build:packages && npm run build -w @ai-customer-support/api && npm run build -w @ai-customer-support/web",
+    "start": "npm run start -w @ai-customer-support/api",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "prisma generate && tsc -b --pretty && tsc -p apps/web/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "vitest run --project e2e",
+    "test:watch": "vitest",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@types/node": "^20.17.0",
+    "concurrently": "^9.2.0",
+    "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "prettier": "^3.6.2",
+    "prisma": "^6.13.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.38.0",
+    "vitest": "^3.2.4"
+  }
+}
