@@ -20,6 +20,10 @@ export default defineConfig({
         target: apiTarget,
         changeOrigin: true,
       },
+      '/ready': {
+        target: apiTarget,
+        changeOrigin: true,
+      },
       '/api': {
         target: apiTarget,
         changeOrigin: true,

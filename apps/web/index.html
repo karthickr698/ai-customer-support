@@ -1,9 +1,33 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-primary="indigo" data-secondary="slate" data-font="inter" data-skin="default">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Customer Support</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      (function () {
+        try {
+          var stored = JSON.parse(localStorage.getItem('acs-theme') || '{}');
+          var theme = stored.state || stored;
+          var root = document.documentElement;
+          if (theme.primary) root.setAttribute('data-primary', theme.primary);
+          if (theme.secondary) root.setAttribute('data-secondary', theme.secondary);
+          if (theme.font) root.setAttribute('data-font', theme.font);
+          if (theme.skin) root.setAttribute('data-skin', theme.skin);
+          var mode = theme.mode || 'system';
+          var dark =
+            mode === 'dark' ||
+            (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          root.classList.toggle('dark', dark);
+        } catch (error) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
