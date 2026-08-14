@@ -12,6 +12,9 @@ describe('foundation configuration', () => {
     expect(example).toContain('DATABASE_URL=');
     expect(example).toContain('REDIS_URL=');
     expect(example).toContain('JWT_SECRET=');
+    expect(example).toContain('GOOGLE_CLIENT_ID=');
+    expect(example).toContain('GOOGLE_CLIENT_SECRET=');
+    expect(example).toContain('SMTP_URL=');
     expect(example).toContain('AI_SERVICE_URL=');
     expect(example).toContain('LLM_PROVIDER=');
     expect(example).toContain('LLM_API_KEY=');
@@ -22,5 +25,8 @@ describe('foundation configuration', () => {
 
     expect(schema).toContain('provider = "postgresql"');
     expect(schema).toContain('env("DATABASE_URL")');
+    expect(schema).toContain('model User');
+    expect(schema).toContain('model RefreshSession');
+    expect(schema).toContain('model IdentityAuditLog');
   });
 });

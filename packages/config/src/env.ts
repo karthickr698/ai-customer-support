@@ -5,6 +5,13 @@ const logLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const;
 
 const EXAMPLE_JWT_SECRET = 'change-me-to-a-long-random-secret-key';
 
+function emptyToUndefined(value: unknown): unknown {
+  return value === '' ? undefined : value;
+}
+
+const optionalSecret = z.preprocess(emptyToUndefined, z.string().min(1).optional());
+const optionalUrl = z.preprocess(emptyToUndefined, z.string().url().optional());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(environments).default('development'),
   HOST: z.string().min(1).default('0.0.0.0'),
@@ -25,8 +32,17 @@ const envSchema = z.object({
       'REDIS_URL must be a Redis connection string',
     ),
   JWT_SECRET: z.string().min(32),
+  ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
+  REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(604800),
+  EMAIL_VERIFICATION_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
+  PASSWORD_RESET_TTL_SECONDS: z.coerce.number().int().positive().default(3_600),
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
   AI_SERVICE_URL: z.string().url().default('http://localhost:8000'),
+  EMAIL_FROM: z.string().min(1).default('noreply@localhost'),
+  SMTP_URL: optionalSecret,
+  GOOGLE_CLIENT_ID: optionalSecret,
+  GOOGLE_CLIENT_SECRET: optionalSecret,
+  GOOGLE_REDIRECT_URI: optionalUrl,
 });
 
 export type AppConfig = Omit<z.infer<typeof envSchema>, 'LOG_LEVEL'> & {
@@ -76,4 +92,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   assertProductionSecrets(config);
 
   return config;
+}
+
+export function isGoogleOAuthConfigured(config: AppConfig): boolean {
+  return Boolean(config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET && config.GOOGLE_REDIRECT_URI);
 }

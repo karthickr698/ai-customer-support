@@ -7,7 +7,7 @@ const validEnv = {
   PORT: '3001',
   LOG_LEVEL: 'info',
   DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/ai_customer_support',
-  REDIS_URL: 'redis://localhost:6379',
+  REDIS_URL: 'redis://localhost:6380',
   JWT_SECRET: 'change-me-to-a-long-random-secret-key',
   WEB_ORIGIN: 'http://localhost:5173',
 };
@@ -35,7 +35,24 @@ describe('loadConfig', () => {
     expect(config.PORT).toBe(3000);
     expect(config.WEB_ORIGIN).toBe('http://localhost:5173');
     expect(config.AI_SERVICE_URL).toBe('http://localhost:8000');
-    expect(config.LOG_LEVEL).toBe('debug');
+    expect(config.ACCESS_TOKEN_TTL_SECONDS).toBe(900);
+    expect(config.EMAIL_FROM).toBe('noreply@localhost');
+    expect(config.GOOGLE_CLIENT_ID).toBeUndefined();
+  });
+
+  it('treats empty Google and SMTP settings as unset', () => {
+    const config = loadConfig({
+      ...validEnv,
+      GOOGLE_CLIENT_ID: '',
+      GOOGLE_CLIENT_SECRET: '',
+      GOOGLE_REDIRECT_URI: '',
+      SMTP_URL: '',
+    });
+
+    expect(config.GOOGLE_CLIENT_ID).toBeUndefined();
+    expect(config.GOOGLE_CLIENT_SECRET).toBeUndefined();
+    expect(config.GOOGLE_REDIRECT_URI).toBeUndefined();
+    expect(config.SMTP_URL).toBeUndefined();
   });
 
   it('defaults log level from the environment when unset', () => {
@@ -65,7 +82,7 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...validEnv, DATABASE_URL: 'mysql://localhost/db' })).toThrow(
       ConfigurationError,
     );
-    expect(() => loadConfig({ ...validEnv, REDIS_URL: 'http://localhost:6379' })).toThrow(
+    expect(() => loadConfig({ ...validEnv, REDIS_URL: 'http://localhost:6380' })).toThrow(
       ConfigurationError,
     );
   });

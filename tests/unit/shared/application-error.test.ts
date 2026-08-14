@@ -21,6 +21,7 @@ describe('ApplicationError', () => {
 
     expect(error.code).toBe('RATE_LIMIT_EXCEEDED');
     expect(error.httpStatus).toBe(429);
+    expect(new RateLimitExceededError('slow down', 30).retryAfterSeconds).toBe(30);
   });
 
   it('maps infrastructure failures to HTTP 503', () => {

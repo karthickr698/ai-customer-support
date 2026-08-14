@@ -1,1 +1,6 @@
-export { loadConfig, ConfigurationError, type AppConfig } from './env.js';
+export {
+  loadConfig,
+  ConfigurationError,
+  isGoogleOAuthConfigured,
+  type AppConfig,
+} from './env.js';

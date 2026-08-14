@@ -16,6 +16,13 @@ export class ValidationError extends ApplicationError {
 export class RateLimitExceededError extends ApplicationError {
   readonly code = 'RATE_LIMIT_EXCEEDED';
   readonly httpStatus = 429;
+
+  constructor(
+    message: string,
+    readonly retryAfterSeconds?: number,
+  ) {
+    super(message);
+  }
 }
 
 export class InfrastructureError extends ApplicationError {

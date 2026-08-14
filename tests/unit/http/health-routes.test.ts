@@ -53,10 +53,15 @@ function testConfig(): AppConfig {
     PORT: 3001,
     LOG_LEVEL: 'fatal',
     DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/ai_customer_support',
-    REDIS_URL: 'redis://localhost:6379',
+    REDIS_URL: 'redis://localhost:6380',
     JWT_SECRET: 'a'.repeat(32),
+    ACCESS_TOKEN_TTL_SECONDS: 900,
+    REFRESH_TOKEN_TTL_SECONDS: 604800,
+    EMAIL_VERIFICATION_TTL_SECONDS: 86_400,
+    PASSWORD_RESET_TTL_SECONDS: 3600,
     WEB_ORIGIN: 'http://localhost:5173',
     AI_SERVICE_URL: 'http://localhost:8000',
+    EMAIL_FROM: 'noreply@localhost',
   };
 }
 

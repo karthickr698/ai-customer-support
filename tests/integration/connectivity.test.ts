@@ -12,7 +12,7 @@ loadDotenv({ path: resolve(root, '.env') });
 
 const databaseUrl =
   process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/ai_customer_support';
-const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
+const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6380';
 
 describe('infrastructure connectivity', () => {
   const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
