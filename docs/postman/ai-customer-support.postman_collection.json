@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "c4e8d2b1-7a91-4f3e-8c5a-ai-customer-support",
     "name": "AI Customer Support API",
-    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support — Local** environment.\n3. Keep cookies enabled (Postman → Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in → open `googleAuthorizationUrl` in a browser → after redirect, put the `code` query value into `googleLoginCode` → Complete Google sign-in.",
+    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support — Local** environment.\n3. Keep cookies enabled (Postman → Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in → open `googleAuthorizationUrl` in a browser → after redirect, put the `code` query value into `googleLoginCode` → Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate — copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -416,6 +416,408 @@
                       "pm.test('Google session issued', () => {",
                       "  pm.response.to.have.status(200);",
                       "  pm.expect(pm.response.json()).to.have.nested.property('user.email');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Organizations",
+      "description": "Multi-tenant workspaces. Create/list do not need `x-tenant-id`. All `/:organizationId` routes authenticate, resolve tenant membership, and check RBAC. The path id must match `x-tenant-id` when the header is sent.",
+      "item": [
+        {
+          "name": "Workspace",
+          "item": [
+            {
+              "name": "Create organization",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{organizationName}}\"\n}"
+                },
+                "url": "{{baseUrl}}/api/organizations",
+                "description": "Creates an organization and makes the current user the owner. Requires a session cookie. 201 `{ organization }` including `membership.role` and `membership.permissions`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const organization = pm.response.json().organization;",
+                      "  pm.environment.set('organizationId', organization.id);",
+                      "  pm.environment.set('organizationSlug', organization.slug);",
+                      "  pm.test('Created organization as owner', () => {",
+                      "    pm.expect(organization.membership.role).to.eql('owner');",
+                      "    pm.expect(organization.membership.permissions).to.include('organization.delete');",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List my organizations",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": "{{baseUrl}}/api/organizations",
+                "description": "Lists organizations the authenticated user belongs to, with their role and permissions. Does not include other tenants."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Returns organizations', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.organizations).to.be.an('array');",
+                      "  if (body.organizations.length > 0 && !pm.environment.get('organizationId')) {",
+                      "    pm.environment.set('organizationId', body.organizations[0].id);",
+                      "    pm.environment.set('organizationSlug', body.organizations[0].slug);",
+                      "  }",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get organization",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}",
+                "description": "Returns the organization and the caller's membership. Requires `organization.read`. Cross-tenant ids return 403 `UNAUTHORIZED_ORGANIZATION_ACCESS`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Returns the organization', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  pm.expect(pm.response.json()).to.have.nested.property('organization.id');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update organization",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{organizationName}}\",\n  \"slug\": \"{{organizationSlug}}\"\n}"
+                },
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}",
+                "description": "Updates name and/or slug. Requires `organization.update` (owner or admin). Slug must be 3–48 lowercase letters, numbers, or hyphens."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const organization = pm.response.json().organization;",
+                      "  pm.environment.set('organizationSlug', organization.slug);",
+                      "  pm.test('Organization updated', () => pm.expect(organization.id).to.eql(pm.environment.get('organizationId')));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Leave organization",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": ""
+                },
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/leave",
+                "description": "Removes the current user from the organization. The last owner cannot leave (409 `LAST_OWNER`). Returns 204."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Members",
+          "item": [
+            {
+              "name": "List members",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/members",
+                "description": "Tenant-scoped member list. Requires `organization.read`. Never returns another organization's members."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Returns members for this tenant', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  const members = pm.response.json().members;",
+                      "  pm.expect(members).to.be.an('array');",
+                      "  const other = members.find((member) => member.userId !== members.find((item) => item.role === 'owner')?.userId) || members[0];",
+                      "  if (other) pm.environment.set('membershipId', other.id);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Change member role",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"{{memberRole}}\"\n}"
+                },
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/members/{{membershipId}}",
+                "description": "Changes another member's role. Requires `organization.members.manage`. You cannot change your own role. Only an owner can grant or revoke `owner`. Role: `owner` | `admin` | `agent` | `viewer`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Role updated', () => {",
+                      "    pm.expect(pm.response.json().member.role).to.eql(pm.environment.get('memberRole'));",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Remove member",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/members/{{membershipId}}",
+                "description": "Removes another member. Requires `organization.members.manage`. Cannot remove yourself (use Leave) or the last owner. Returns 204."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invitations",
+          "item": [
+            {
+              "name": "Invite member",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{inviteEmail}}\",\n  \"role\": \"{{inviteRole}}\"\n}"
+                },
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/invitations",
+                "description": "Sends a team invitation. Requires `organization.invitations.manage`. Role must be `admin`, `agent`, or `viewer` (not `owner`). In development the accept URL is logged — copy `?token=` into `invitationToken`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const invitation = pm.response.json().invitation;",
+                      "  pm.environment.set('invitationId', invitation.id);",
+                      "  pm.test('Invitation created', () => {",
+                      "    pm.expect(invitation.email).to.eql(pm.environment.get('inviteEmail').toLowerCase());",
+                      "    pm.expect(invitation.role).to.eql(pm.environment.get('inviteRole'));",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List invitations",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/invitations",
+                "description": "Lists pending invitations for this tenant. Requires `organization.invitations.manage`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Returns pending invitations', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  const invitations = pm.response.json().invitations;",
+                      "  pm.expect(invitations).to.be.an('array');",
+                      "  if (invitations[0]) pm.environment.set('invitationId', invitations[0].id);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Preview invitation",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "url": "{{baseUrl}}/api/invitations/{{invitationToken}}",
+                "description": "Public preview of an invitation (organization name, invited email, role, expiry). No auth. Invalid or expired tokens return 400 `INVALID_INVITATION_TOKEN`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Invitation preview', () => {",
+                      "    pm.expect(pm.response.json().invitation).to.have.property('organizationName');",
+                      "    pm.expect(pm.response.json().invitation).to.have.property('email');",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Accept invitation",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"token\": \"{{invitationToken}}\"\n}"
+                },
+                "url": "{{baseUrl}}/api/invitations/accept",
+                "description": "Accepts the invitation for the signed-in user. The session email must match the invited address. Does not use `x-tenant-id` — tenant comes from the invitation."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const organization = pm.response.json().organization;",
+                      "  pm.environment.set('organizationId', organization.id);",
+                      "  pm.test('Joined organization', () => {",
+                      "    pm.expect(organization.membership.role).to.eql(pm.environment.get('inviteRole'));",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Revoke invitation",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/invitations/{{invitationId}}",
+                "description": "Revokes a pending invitation. Requires `organization.invitations.manage`. Returns 204."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Audit logs",
+          "item": [
+            {
+              "name": "List audit logs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/audit-logs?page={{auditPage}}&pageSize={{auditPageSize}}",
+                "description": "Tenant-scoped audit log. Requires `organization.audit.view` (owner or admin). Query: `page` (min 1), `pageSize` (1–100). Actions include `organization.created`, `organization.member.invited`, `organization.invitation.accepted`, `organization.member.role_changed`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Returns tenant audit page', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.items).to.be.an('array');",
+                      "  pm.expect(body).to.have.property('total');",
+                      "  pm.expect(body).to.have.property('page');",
                       "});"
                     ]
                   }

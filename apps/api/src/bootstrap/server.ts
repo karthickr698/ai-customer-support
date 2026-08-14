@@ -42,5 +42,9 @@ export async function buildServer(
     await deps.identity.register(app);
   }
 
+  if (deps.organizations) {
+    await deps.organizations.register(app);
+  }
+
   return app;
 }

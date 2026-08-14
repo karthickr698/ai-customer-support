@@ -3,6 +3,7 @@ import type { Logger } from '@ai-customer-support/shared';
 import type { AppDependencies } from './dependencies.js';
 import { PythonAIServiceAdapter } from '../modules/ai/adapters/outbound/python-ai/python-ai-service-adapter.js';
 import { composeIdentity } from '../modules/identity/compose-identity.js';
+import { composeOrganizations } from '../modules/organizations/compose-organizations.js';
 import { InMemoryEventBus } from '../shared/infrastructure/events/in-memory-event-bus.js';
 import { InfrastructureHealthChecker } from '../shared/infrastructure/health/infrastructure-health-checker.js';
 import { InMemoryQueue } from '../shared/infrastructure/messaging/in-memory-queue.js';
@@ -34,6 +35,15 @@ export async function initializeInfrastructure(
     logger,
     eventBus,
   });
+  const organizations = composeOrganizations({
+    prisma: database.forRepositoryAdapter(),
+    redis: redis.forAdapter(),
+    config,
+    logger,
+    eventBus,
+    userDirectory: identity.userQuery,
+    authenticate: identity.authenticate,
+  });
 
   return {
     config,
@@ -45,5 +55,6 @@ export async function initializeInfrastructure(
     aiService,
     healthChecker,
     identity,
+    organizations,
   };
 }

@@ -1,2 +1,5 @@
-/** Public surface of the organizations module. Feature commands add use cases and adapters here. */
-export {};
+export type { OrganizationsHttpRegistrar } from './compose-organizations.js';
+export { composeOrganizations } from './compose-organizations.js';
+export { createRequirePermissionPreHandler } from './adapters/inbound/http/require-permission.js';
+export { createResolveTenantPreHandler } from './adapters/inbound/http/resolve-tenant.js';
+export { Permissions, type Permission } from './domain/permissions.js';

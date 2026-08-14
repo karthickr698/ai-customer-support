@@ -28,5 +28,9 @@ describe('foundation configuration', () => {
     expect(schema).toContain('model User');
     expect(schema).toContain('model RefreshSession');
     expect(schema).toContain('model IdentityAuditLog');
+    expect(schema).toContain('model Organization');
+    expect(schema).toContain('model Membership');
+    expect(schema).toContain('model Invitation');
+    expect(schema).toContain('model OrganizationAuditLog');
   });
 });

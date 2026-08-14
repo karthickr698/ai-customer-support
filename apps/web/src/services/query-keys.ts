@@ -24,4 +24,12 @@ export const queryKeys = {
     list: (filters?: Record<string, unknown>) => [...queryKeys.knowledge.all(), 'list', filters] as const,
     detail: (id: string) => [...queryKeys.knowledge.all(), 'detail', id] as const,
   },
+  organizations: {
+    all: () => ['organizations'] as const,
+    list: () => [...queryKeys.organizations.all(), 'list'] as const,
+    detail: (id: string) => [...queryKeys.organizations.all(), 'detail', id] as const,
+    members: (id: string) => [...queryKeys.organizations.all(), id, 'members'] as const,
+    invitations: (id: string) => [...queryKeys.organizations.all(), id, 'invitations'] as const,
+    auditLogs: (id: string) => [...queryKeys.organizations.all(), id, 'audit-logs'] as const,
+  },
 } as const;

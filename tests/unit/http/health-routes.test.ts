@@ -59,6 +59,7 @@ function testConfig(): AppConfig {
     REFRESH_TOKEN_TTL_SECONDS: 604800,
     EMAIL_VERIFICATION_TTL_SECONDS: 86_400,
     PASSWORD_RESET_TTL_SECONDS: 3600,
+    INVITATION_TTL_SECONDS: 604800,
     WEB_ORIGIN: 'http://localhost:5173',
     AI_SERVICE_URL: 'http://localhost:8000',
     EMAIL_FROM: 'noreply@localhost',

@@ -19,7 +19,8 @@ export function LoginPage() {
   const [pending, setPending] = useState(false);
 
   if (user) {
-    return <Navigate replace to="/" />;
+    const next = searchParams.get('next');
+    return <Navigate replace to={safeNextPath(next)} />;
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -102,4 +103,12 @@ function googleErrorMessage(error: string | null): string | undefined {
 
 function toMessage(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
+}
+
+function safeNextPath(next: string | null): string {
+  if (next && next.startsWith('/') && !next.startsWith('//')) {
+    return next;
+  }
+
+  return '/organizations';
 }

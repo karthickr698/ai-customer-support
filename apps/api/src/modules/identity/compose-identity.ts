@@ -16,6 +16,8 @@ import { ConsoleEmailSender } from './adapters/outbound/email/console-email-send
 import { SmtpEmailSender } from './adapters/outbound/email/smtp-email-sender.js';
 import { GoogleOAuthAdapter } from './adapters/outbound/google/google-oauth-adapter.js';
 import { registerIdentityRoutes } from './adapters/inbound/http/identity-routes.js';
+import { createAuthenticatePreHandler } from './adapters/inbound/http/authenticate.js';
+import { IdentityUserQuery } from './application/identity-user-query.js';
 import { PostgresOAuthAccountRepository } from './adapters/outbound/persistence/postgres-oauth-account-repository.js';
 import { PostgresOneTimeTokenRepository } from './adapters/outbound/persistence/postgres-one-time-token-repository.js';
 import { PostgresRefreshSessionRepository } from './adapters/outbound/persistence/postgres-refresh-session-repository.js';
@@ -42,13 +44,18 @@ export type IdentityHttpRegistrar = {
   register(app: FastifyInstance): Promise<void>;
 };
 
+export type IdentityModule = IdentityHttpRegistrar & {
+  readonly userQuery: IdentityUserQuery;
+  readonly authenticate: ReturnType<typeof createAuthenticatePreHandler>;
+};
+
 export function composeIdentity(input: {
   readonly prisma: PrismaClient;
   readonly redis: Redis;
   readonly config: AppConfig;
   readonly logger: Logger;
   readonly eventBus: EventBus;
-}): IdentityHttpRegistrar {
+}): IdentityModule {
   const users = new PostgresUserRepository(input.prisma);
   const refreshSessions = new PostgresRefreshSessionRepository(input.prisma);
   const oneTimeTokens = new PostgresOneTimeTokenRepository(input.prisma);
@@ -189,6 +196,8 @@ export function composeIdentity(input: {
   };
 
   return {
+    userQuery: new IdentityUserQuery(users),
+    authenticate: createAuthenticatePreHandler(tokenIssuer),
     async register(app: FastifyInstance): Promise<void> {
       await registerIdentityRoutes(app, useCases, tokenIssuer, {
         webOrigin: input.config.WEB_ORIGIN,

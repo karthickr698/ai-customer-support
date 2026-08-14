@@ -36,6 +36,7 @@ const envSchema = z.object({
   REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(604800),
   EMAIL_VERIFICATION_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
   PASSWORD_RESET_TTL_SECONDS: z.coerce.number().int().positive().default(3_600),
+  INVITATION_TTL_SECONDS: z.coerce.number().int().positive().default(604_800),
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
   AI_SERVICE_URL: z.string().url().default('http://localhost:8000'),
   EMAIL_FROM: z.string().min(1).default('noreply@localhost'),

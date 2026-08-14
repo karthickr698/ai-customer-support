@@ -1,8 +1,23 @@
 import { isAIServiceHealthResponse } from '@ai-customer-support/contracts';
-import type { Logger } from '@ai-customer-support/shared';
+import type { Logger, RequestContext } from '@ai-customer-support/shared';
 import type { AIServicePort } from '../../../application/ports/ai-service-port.js';
 
 const HEALTH_TIMEOUT_MS = 3_000;
+
+export function pythonAiRequestHeaders(
+  context: Pick<RequestContext, 'requestId' | 'correlationId' | 'tenantId'>,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    'x-request-id': context.requestId,
+    'x-correlation-id': context.correlationId,
+  };
+
+  if (context.tenantId) {
+    headers['x-tenant-id'] = context.tenantId;
+  }
+
+  return headers;
+}
 
 export class PythonAIServiceAdapter implements AIServicePort {
   private readonly baseUrl: string;

@@ -50,7 +50,7 @@ export function VerifyEmailPage() {
   }, [setUser, token]);
 
   if (user) {
-    return <Navigate replace to="/" />;
+    return <Navigate replace to="/organizations" />;
   }
 
   async function resend() {

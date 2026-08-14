@@ -17,6 +17,9 @@ export function RootPlaceholder() {
           <p className="text-sm text-muted-foreground">
             Signed in as <span className="font-medium text-foreground">{user.email}</span>
           </p>
+          <Button asChild>
+            <Link to="/organizations">Organizations</Link>
+          </Button>
           <Button onClick={() => void logout()} type="button" variant="outline">
             Sign out
           </Button>

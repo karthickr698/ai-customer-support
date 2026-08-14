@@ -7,6 +7,12 @@ declare module 'fastify' {
       userId: string;
       email: string;
     };
+    tenantAccess?: {
+      tenantId: string;
+      membershipId: string;
+      role: string;
+      permissions: readonly string[];
+    };
   }
 }
 

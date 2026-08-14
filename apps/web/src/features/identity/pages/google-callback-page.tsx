@@ -39,7 +39,7 @@ export function GoogleCallbackPage() {
   }, [code, setUser]);
 
   if (user) {
-    return <Navigate replace to="/" />;
+    return <Navigate replace to="/organizations" />;
   }
 
   return (
