@@ -4,5 +4,7 @@ export type EventHandler<T extends DomainEvent = DomainEvent> = (event: T) => Pr
 
 export interface EventBus {
   publish(event: DomainEvent): Promise<void>;
-  subscribe(eventName: string, handler: EventHandler): void;
+  subscribe(eventType: string, handler: EventHandler): void;
 }
+
+export type EventBusPort = EventBus;

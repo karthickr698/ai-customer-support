@@ -1,0 +1,37 @@
+---
+description: Database rules. PostgreSQL is the system of record; Prisma stays in repository adapters and never leaks into domain or use cases.
+globs: "**/*.{ts,tsx,prisma},**/prisma/**"
+alwaysApply: false
+---
+
+# Database
+
+Supports `.project-overview.mdc` and `architecture.mdc`.
+
+## System of record
+
+PostgreSQL is the transactional database unless a requirement explicitly justifies another. Redis is not a source of truth for business entities.
+
+## Access path
+
+```
+Domain entity → Repository interface → Prisma repository adapter → PostgreSQL
+```
+
+Never Prisma from controllers, use cases, or domain. Never expose Prisma models through ports.
+
+## Mapping
+
+Adapters translate Prisma records to entities/value objects. Schema changes stay in infrastructure; domain names stay business-oriented.
+
+## Tenancy
+
+Tenant-owned tables are queried with tenant predicates in the adapter. Do not load by id alone if the aggregate is tenant-scoped.
+
+## Transactions and outbox
+
+Persist business state and outbox events in the same transaction. Do not write another module’s tables from this module’s repository.
+
+## Vector data
+
+Embeddings/vector indexes are a separate store behind Python `VectorSearchPort`. They do not replace PostgreSQL for tickets, conversations, or identity. Python AI never uses Prisma. TypeScript never talks to the vector store directly.

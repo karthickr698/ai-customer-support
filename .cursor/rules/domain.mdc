@@ -1,0 +1,44 @@
+---
+description: Domain-layer rules. Business invariants live in entities, value objects, and domain services — never in controllers or Prisma.
+globs: "**/domain/**/*.{ts,tsx,py}"
+alwaysApply: false
+---
+
+# Domain
+
+Supports `.project-overview.mdc` and `architecture.mdc`. This layer is the core business model.
+
+## What belongs here
+
+TypeScript business domain:
+
+- Entities and aggregates (Conversation, Ticket, KnowledgeDocument)
+- Value objects and branded IDs
+- Domain services (assignment, SLA, escalation policy)
+- Domain events (facts that already happened)
+- Domain errors (`InvalidConversationStateError`)
+
+Python AI domain covers AI concepts (retrieval/guardrail outcomes, tool-call intents) — not Conversation/Ticket aggregates, not Prisma models, and not provider SDK types.
+
+Do not put prompts, agents, RAG pipelines, or LLM orchestration in TypeScript domain.
+
+## Invariants
+
+Encode rules in the domain, not in controllers:
+
+- Conversation and ticket state transitions
+- Escalation and agent assignment
+- SLA
+- Knowledge document lifecycle
+
+Reject illegal transitions with domain errors. Do not “fix” them in the API layer.
+
+## Purity
+
+Domain must not depend on Express/Fastify, FastAPI, Prisma, SQLAlchemy, PostgreSQL, Redis, LLM SDKs, LangChain, LangGraph, LlamaIndex, embedding/vector SDKs, external APIs, or queue libraries.
+
+No I/O, no HTTP, no tokens, no prompt strings, no SQL.
+
+## Events
+
+Domain events are past-tense facts: `ConversationEscalated`, `TicketResolved`. They do not perform side effects. Application/adapters publish and consume them.

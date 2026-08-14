@@ -1,0 +1,36 @@
+---
+description: Frontend feature organization. UI talks only to backend APIs/WebSockets — never to Postgres, Redis, or private AI providers.
+globs: "**/*.{tsx,jsx},**/frontend/**/*.{ts,tsx},**/web/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Frontend
+
+Supports `.project-overview.mdc` and `architecture.mdc`.
+
+## Organization
+
+Group by business feature, not by generic page/tech folders only:
+
+- conversations
+- tickets
+- customers
+- knowledge
+- agents
+- analytics
+
+## Data access
+
+The client calls TypeScript backend REST and WebSockets/SSE only. Never connect to PostgreSQL, Prisma, Redis, vector DBs, the Python AI service, or OpenAI/Anthropic keys from the browser.
+
+## Trust
+
+Do not treat UI-side tenant filters or hidden routes as security. Backend enforces authz and isolation. Still hide actions the user cannot perform, but never as the only check.
+
+## Real-time
+
+Subscribe to backend streams for new messages, AI responses, assignment, escalation, ticket updates, typing indicators. Do not invent business state in the socket layer — render what the API already committed.
+
+## AI
+
+No prompts, agents, tool execution, embeddings, or RAG against private providers from the frontend. Python `apps/ai` owns AI implementation. TypeScript exposes APIs; React only adds required UI / API integration.

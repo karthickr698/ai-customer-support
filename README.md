@@ -9,6 +9,7 @@ This repository currently contains the **project foundation only**. Business fea
 - **Apps:** `apps/api` (Fastify + TypeScript), `apps/ai` (Python AI service), and `apps/web` (React + Vite)
 - **Modules (TypeScript):** identity, organizations, customers, conversations, tickets, agents, knowledge, notifications, analytics, integrations
 - **AI (Python):** LLM, RAG, embeddings, prompts, tool calling, guardrails — hexagonal `domain/` → `application/` → `adapters/`
+- **TypeScript AI module:** integration only (`AIServicePort` + `PythonAIServiceAdapter`)
 - **Layout per module:** `domain/` → `application/` → `adapters/` (inbound HTTP/WebSocket/events, outbound persistence/messaging/external)
 - **Packages:** `packages/shared` (Result, DomainError, Logger, RequestContext, Pagination, EventBus), `packages/config` (typed env), `packages/contracts` (API contracts)
 - **Data:** PostgreSQL (Prisma) is the system of record; Redis is for cache, queues, locks, and temporary state
@@ -39,6 +40,7 @@ Required variables are documented in `.env.example`:
 | `PORT` / `HOST`                | API listen address                         |
 | `NODE_ENV`                     | `development` \| `test` \| `production`    |
 | `JWT_SECRET`                   | Auth secret (required; min 32 characters)  |
+| `AI_SERVICE_URL`               | TypeScript API URL for the Python AI service |
 | `LLM_PROVIDER` / `LLM_API_KEY` | Reserved for the Python AI service (not used yet) |
 | `WEB_ORIGIN`                   | CORS origin for the web app                |
 | `LOG_LEVEL`                    | Pino log level                             |
@@ -97,7 +99,7 @@ Production-style API start after `npm run build`:
 npm run start
 ```
 
-The API exposes `GET /health` (checks PostgreSQL and Redis). The Python AI service exposes `GET /health`. There are no business APIs yet.
+The API exposes `GET /health` (liveness) and `GET /ready` (PostgreSQL and Redis). The Python AI service exposes `GET /health`. There are no business APIs yet.
 
 ## Tests and quality
 

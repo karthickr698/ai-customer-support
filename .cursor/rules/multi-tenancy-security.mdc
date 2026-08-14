@@ -1,0 +1,38 @@
+---
+description: Multi-tenancy, authorization, and security. Enforce tenant isolation and permissions on the server; never trust the client or the LLM.
+globs: "**/*.{ts,tsx,py}"
+alwaysApply: false
+---
+
+# Multi-Tenancy and Security
+
+Supports `.project-overview.mdc` and `architecture.mdc`.
+
+## Tenancy
+
+If a resource is tenant-owned, every read/write/search includes tenant context.
+
+- Backend enforces isolation; frontend filtering is not security
+- No cross-tenant fetch, join, or RAG retrieval
+- Repository methods take `tenantId` (or equivalent) explicitly
+- Propagate tenant context from TypeScript to Python on every AI/RAG HTTP call and event
+- Python must never retrieve data across tenants; every AI/RAG operation must carry enough tenant context to isolate results
+
+## Authorization
+
+Authentication ≠ authorization. Check permissions server-side, including AI tool execution.
+
+Examples: `conversation.read`, `conversation.assign`, `conversation.escalate`, `ticket.manage`, `knowledge.manage`, `analytics.view`.
+
+## Secrets
+
+Environment variables only. Document names in `.env.example` with empty/placeholder values. Never hardcode API keys, JWT secrets, DB credentials, LLM keys, or webhook secrets. Never commit `.env`.
+
+## Hardening
+
+- Validate all external input (HTTP, WS, webhooks, queues, files, AI output, provider responses)
+- Rate-limit sensitive APIs
+- Validate webhooks
+- Do not log secrets, tokens, or unnecessary PII
+- Restrict AI tools; authorize each call
+- Protect against prompt injection; model output cannot bypass auth or tenant checks

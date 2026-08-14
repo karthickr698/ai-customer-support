@@ -1,0 +1,37 @@
+---
+description: Inbound API rules for REST, WebSocket/SSE, and webhooks. Controllers stay thin and never contain domain logic or Prisma.
+globs: "**/adapters/inbound/**/*.{ts,tsx,py}"
+alwaysApply: false
+---
+
+# API
+
+Supports `.project-overview.mdc` and `architecture.mdc`. HTTP and WebSocket are transport, not the application.
+
+## Thin handlers
+
+```
+validate input → authenticate → authorize → tenant context → use case → map result
+```
+
+Never: Controller → Prisma, Controller → OpenAI, Controller → state transitions. Python FastAPI inbound adapters in `apps/ai` follow the same rule — they call AI use cases, they do not contain provider SDK calls.
+
+## Validation and errors
+
+Validate every request, webhook, and WebSocket message at the boundary.
+
+Map domain/application errors to HTTP/WebSocket payloads. Do not leak stack traces, Prisma messages, or provider details.
+
+## Auth
+
+Authentication ≠ authorization. Enforce permissions server-side (`conversation.read`, `conversation.assign`, `conversation.escalate`, `ticket.manage`, `knowledge.manage`, `analytics.view`).
+
+## Real-time
+
+WebSockets/SSE for new messages, AI responses, assignment, escalation, ticket updates, typing indicators. Transport code only publishes what use cases/events already decided.
+
+## Async vs sync AI
+
+Do not block the TypeScript request on document processing, embeddings, RAG ingestion, notifications, or other long/retryable work. Accept, enqueue/event, return.
+
+Request-scoped AI (response generation, classification, summarization, AI decisions) may call the Python FastAPI service synchronously over HTTP via `AIServicePort`. Do not implement that AI work in the TypeScript handler.

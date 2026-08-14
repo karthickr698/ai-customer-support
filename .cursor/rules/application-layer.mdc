@@ -1,0 +1,40 @@
+---
+description: Application-layer rules. Use cases orchestrate domain logic, ports, and events without calling Prisma or LLM SDKs.
+globs: "**/{application,agents,orchestration,rag}/**/*.{ts,tsx,py}"
+alwaysApply: false
+---
+
+# Application Layer
+
+Supports `.project-overview.mdc` and `architecture.mdc`. One use case per business operation.
+
+## Use cases
+
+TypeScript examples: `CreateConversation`, `SendCustomerMessage`, `EscalateConversation`, `AssignAgent`, `CreateTicket`, `ResolveTicket`, `AddKnowledgeDocument`, `SendNotification`.
+
+Python AI examples: `GenerateAIResponse`, `SearchKnowledgeBase` (RAG retrieve), classification, summarization, agent/orchestration use cases.
+
+Name them `CreateConversationUseCase`. They coordinate:
+
+1. Load aggregate via a repository port
+2. Run domain logic
+3. Persist via a port
+4. Record/publish application or domain events
+
+They do not parse HTTP, query Prisma, or call OpenAI / LangChain / LangGraph / LlamaIndex.
+
+## Ports
+
+TypeScript: `ConversationRepository`, `TicketRepository`, `KnowledgeRepository`, `AIServicePort`, `NotificationPort`, `EventBusPort`, `QueuePort`, `AuditLogPort`.
+
+Python AI: Protocol/ABC ports `LLMPort`, `EmbeddingPort`, `VectorSearchPort`.
+
+## AI
+
+TypeScript business modules call `AIServicePort`, not an in-process LLM. The TypeScript AI module has no LLM use cases — only the port and `PythonAIServiceAdapter`.
+
+Python AI application/orchestration/agents return a decision or draft. A TypeScript business use case applies state changes. TypeScript application code never imports LLM SDKs, LangChain, LangGraph, or LlamaIndex. Python application code never imports OpenAI, LangChain, LangGraph, or LlamaIndex — only ports.
+
+## Tenancy and authz
+
+Use cases receive `tenantId` and caller identity from the inbound adapter. They must not assume the adapter already filtered rows. Pass tenant scope into repository ports. AI use cases in Python must receive tenant context from the TypeScript call/event and never search across tenants.

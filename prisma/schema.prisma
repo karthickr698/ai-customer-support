@@ -6,3 +6,5 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// Business models are added by feature modules. Prisma stays behind repository adapters.

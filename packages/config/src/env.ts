@@ -1,24 +1,62 @@
 import { z } from 'zod';
 
+const environments = ['development', 'test', 'production'] as const;
+const logLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const;
+
+const EXAMPLE_JWT_SECRET = 'change-me-to-a-long-random-secret-key';
+
 const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  HOST: z.string().default('0.0.0.0'),
-  PORT: z.coerce.number().int().positive().default(3000),
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
-  DATABASE_URL: z.string().min(1),
-  REDIS_URL: z.string().min(1),
+  NODE_ENV: z.enum(environments).default('development'),
+  HOST: z.string().min(1).default('0.0.0.0'),
+  PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  LOG_LEVEL: z.enum(logLevels).optional(),
+  DATABASE_URL: z
+    .string()
+    .min(1)
+    .refine(
+      (value) => value.startsWith('postgresql://') || value.startsWith('postgres://'),
+      'DATABASE_URL must be a PostgreSQL connection string',
+    ),
+  REDIS_URL: z
+    .string()
+    .min(1)
+    .refine(
+      (value) => value.startsWith('redis://') || value.startsWith('rediss://'),
+      'REDIS_URL must be a Redis connection string',
+    ),
   JWT_SECRET: z.string().min(32),
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
-  LLM_PROVIDER: z.string().optional(),
-  LLM_API_KEY: z.string().optional(),
+  AI_SERVICE_URL: z.string().url().default('http://localhost:8000'),
 });
 
-export type AppConfig = z.infer<typeof envSchema>;
+export type AppConfig = Omit<z.infer<typeof envSchema>, 'LOG_LEVEL'> & {
+  readonly LOG_LEVEL: (typeof logLevels)[number];
+};
 
 export class ConfigurationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'ConfigurationError';
+  }
+}
+
+function defaultLogLevel(env: (typeof environments)[number]): AppConfig['LOG_LEVEL'] {
+  if (env === 'production') {
+    return 'info';
+  }
+  if (env === 'test') {
+    return 'error';
+  }
+  return 'debug';
+}
+
+function assertProductionSecrets(config: AppConfig): void {
+  if (config.NODE_ENV !== 'production') {
+    return;
+  }
+
+  if (config.JWT_SECRET === EXAMPLE_JWT_SECRET) {
+    throw new ConfigurationError('JWT_SECRET must not use the example value in production');
   }
 }
 
@@ -30,5 +68,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new ConfigurationError(`Invalid environment configuration: ${JSON.stringify(details)}`);
   }
 
-  return parsed.data;
+  const config: AppConfig = {
+    ...parsed.data,
+    LOG_LEVEL: parsed.data.LOG_LEVEL ?? defaultLogLevel(parsed.data.NODE_ENV),
+  };
+
+  assertProductionSecrets(config);
+
+  return config;
 }

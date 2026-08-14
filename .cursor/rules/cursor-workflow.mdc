@@ -1,0 +1,52 @@
+---
+description: Cursor implementation workflow. Identify module, runtime, domain, use case, and ports before writing adapters or controllers.
+alwaysApply: true
+---
+
+# Cursor Workflow
+
+Supports `.project-overview.mdc` and `architecture.mdc`. Follow this order unless the user explicitly changes the architecture.
+
+## Runtime choice
+
+When implementing an **AI feature**:
+
+- Python code goes under `apps/ai` (orchestration, agents, RAG, embeddings, vector search, LLMs, prompts, tools, guardrails, evaluation)
+- TypeScript only gets the required integration / contract changes (`AIServicePort`, `PythonAIServiceAdapter`, `packages/contracts`)
+- React only gets required UI / API integration
+- Never implement AI logic in TypeScript
+
+When implementing a **normal business feature**:
+
+- TypeScript modular monolith (`apps/api`) remains the primary implementation
+- Do not move business logic into Python
+
+## Before coding
+
+1. Identify the module and **runtime**: TypeScript `apps/api` for Identity, Organizations, Customers, Conversations, Tickets, Agents, Knowledge, Notifications, Analytics, Integrations, and the AI **integration** module; **Python `apps/ai`** for LLM, RAG, embeddings, agents, orchestration, prompts, tools, classification, guardrails, evaluation
+2. Identify domain rules and invariants
+3. Define the use case name
+4. Define ports the use case needs (`AIServicePort` on the TypeScript side; `LLMPort` / `EmbeddingPort` / `VectorSearchPort` in Python)
+5. Implement domain + application in the correct language
+6. Implement adapters (TypeScript: Prisma / `PythonAIServiceAdapter`; Python: FastAPI inbound + provider outbound)
+7. Add events if the work is async or cross-module / cross-runtime (explicit, versionable contracts)
+8. Add validation at every external boundary (including Python→TypeScript AI payloads; Pydantic then TypeScript)
+9. Add tests for the layer you changed (Vitest vs pytest; no live LLM in unit tests)
+10. Add structured observability (ids, AI cost/latency when relevant)
+
+Do not start in controllers. Do not start with Prisma models as the domain. Do not add OpenAI, Anthropic, LangChain, LangGraph, LlamaIndex, embedding SDKs, or vector-DB SDKs to TypeScript.
+
+## Checks before finishing
+
+- Dependency direction: Adapters → Application → Domain
+- No Prisma / LLM SDK in domain or use cases
+- LLM / RAG / prompt / agent code is in Python `apps/ai`, not `apps/api`
+- TypeScript `modules/ai` is integration-only
+- No AI writes to business tables
+- Tenant context propagated TypeScript → Python; permission checks server-side
+- Secrets from env, not source
+- Infrastructure and AI providers could be replaced without rewriting domain / orchestration
+
+## Conflicts
+
+If a request would break these boundaries, follow the architecture and say so. Only skip hexagonal structure when the user explicitly asks. Do not move AI back into TypeScript or split other business modules into microservices unless asked.

@@ -1,0 +1,33 @@
+---
+description: Infrastructure/adapter rules. Adapters implement ports and map between domain entities and Prisma, Redis, queues, and external SDKs.
+globs: "**/adapters/**/*.{ts,tsx,py}"
+alwaysApply: false
+---
+
+# Infrastructure
+
+Supports `.project-overview.mdc` and `architecture.mdc`. Infrastructure is replaceable. Domain is not rewritten when a vendor changes.
+
+## Outbound adapters
+
+Implement application ports only:
+
+- `PostgresConversationRepository` → `ConversationRepository`
+- TypeScript: Prisma/PostgreSQL, Redis, email, WhatsApp, queues, `PythonAIServiceAdapter` (`AIServicePort`)
+- Python AI: LLM / embedding / vector-store providers under `adapters/llm/`, `adapters/embeddings/`, `adapters/vector_store/` — never Prisma. Do not install every provider now.
+
+Map Prisma records ↔ domain entities in the adapter. Never return Prisma models to use cases or domain.
+
+## Inbound adapters
+
+REST, WebSocket, webhooks, queue consumers, event consumers: parse → authorize → use case → map response.
+
+No business rules, no Prisma, no LLM SDKs in inbound adapters. FastAPI handlers in `apps/ai` stay thin the same way. TypeScript inbound adapters must not call OpenAI, LangChain, LangGraph, or LlamaIndex.
+
+## Redis
+
+Use for cache, rate limits, queues, temporary state, distributed locks. Not the primary transactional store.
+
+## Reliability
+
+Important state changes that emit events use the Outbox in the same database transaction. Consumers are idempotent. Do not dual-write business state and a queue without an outbox.

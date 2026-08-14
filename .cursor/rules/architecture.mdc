@@ -1,0 +1,182 @@
+---
+description: Implementation architecture for the AI Customer Support Platform. Enforce hexagonal module layout, ports/adapters, and AI extraction-ready boundaries when writing or changing code.
+alwaysApply: true
+---
+
+# Architecture
+
+Supports `.cursor/rules/.project-overview.mdc`. Preserve these boundaries unless the user explicitly changes the architecture.
+
+## Layout
+
+```
+apps/api/     # TypeScript modular monolith — business modules + AI integration boundary
+apps/ai/      # Python AI service — all AI implementation
+apps/web/     # React frontend
+packages/contracts/  # Cross-runtime DTO / API / event contracts
+```
+
+Keep one TypeScript API deployable (`apps/api`) plus a separately deployable **Python AI service** (`apps/ai`). Organize TypeScript by business module, not by technical layer at the root.
+
+## TypeScript module layout
+
+Each **business** module uses hexagonal layout:
+
+```
+<module>/
+  domain/          # entities, value objects, domain services, domain events, domain errors
+  application/     # use cases, ports, application events, DTOs/commands
+  adapters/
+    inbound/       # HTTP, WebSocket, webhooks, queue/event consumers
+    outbound/      # persistence, Redis, providers, queues, HTTP clients
+```
+
+**Business modules (`apps/api`):** Identity, Organizations, Customers, Conversations, Tickets, Agents, Knowledge Base, Notifications, Analytics, Integrations.
+
+**AI module (`apps/api/src/modules/ai`):** integration boundary only — not an AI implementation:
+
+```
+modules/ai/
+  application/ports/AIServicePort
+  adapters/outbound/python-ai/PythonAIServiceAdapter
+```
+
+No RAG, prompts, agents, embeddings, or provider SDKs in this module.
+
+## Python AI layout
+
+```
+apps/ai/
+├── app/
+│   ├── domain/
+│   ├── application/
+│   ├── adapters/
+│   ├── agents/
+│   ├── orchestration/
+│   ├── rag/
+│   ├── llm/
+│   ├── embeddings/
+│   ├── vector_store/
+│   ├── tools/
+│   ├── prompts/
+│   ├── guardrails/
+│   ├── evaluation/
+│   └── main.py
+├── tests/
+├── pyproject.toml
+└── README.md
+```
+
+Hexagonal dependency direction still applies. Capability packages must not import provider SDKs; those live under `app/adapters/` (for example `adapters/llm/openai/`, `adapters/embeddings/`, `adapters/vector_store/`). Do not install every provider up front.
+
+Stack: Python, FastAPI, Pydantic, async where appropriate.
+
+Do not implement AI/LLM/RAG/agents/prompts inside `apps/api`. Do not create a generic global `services/` architecture. Shared TypeScript code in `packages/shared` is only for truly cross-cutting types: `Result`, `DomainError`, `Logger`, `RequestContext`, `Pagination`, `EventBus`. Cross-runtime shapes live in `packages/contracts`.
+
+## Dependency direction
+
+**Adapters → Application → Domain**
+
+- Domain has no framework, ORM, DB, Redis, queue, HTTP, or AI-provider SDK imports (no Fastify, FastAPI, Prisma, SQLAlchemy, LangChain, LangGraph, LlamaIndex, OpenAI/Anthropic SDKs)
+- Application depends on domain and port interfaces only — never Prisma, Express/Fastify/FastAPI, or provider SDKs
+- Adapters implement ports and may use infrastructure
+- Controllers/handlers stay thin: parse → authorize → call use case → map response
+
+Forbidden:
+
+- Controller → Prisma
+- TypeScript → OpenAI / Anthropic / LangChain / LangGraph / LlamaIndex / embedding SDKs / vector-DB SDKs for AI / prompt orchestration / agents
+- Python AI → Prisma / conversation or ticket tables
+- Controller → business rules
+- Use case → Prisma client or LLM SDK
+- Domain → infrastructure
+- Module A repository/Prisma models imported by Module B
+
+## Module communication
+
+TypeScript modules talk only through:
+
+- Application contracts / public use-case APIs
+- Ports
+- Domain or application events
+
+Never query another module’s tables or Prisma models. Never reach into another module’s `adapters/` or internal domain types to persist or load data.
+
+TypeScript ↔ Python: explicit DTO / API / event contracts only. Do not share internal implementation.
+
+## Use cases and ports
+
+Name use cases and ports after the business operation, not a generic helper.
+
+- Use case: `CreateConversationUseCase`, `EscalateConversationUseCase`
+- Port (TypeScript): `ConversationRepository`, `AIServicePort`, `NotificationPort`, `EventBusPort`, `QueuePort`, `AuditLogPort`
+- Port (Python AI): `LLMPort`, `EmbeddingPort`, `VectorSearchPort` (Protocol/ABC)
+- Adapter: `PostgresConversationRepository`, `PythonAIServiceAdapter` (TS), `OpenAILLMAdapter` (Python)
+
+Avoid `CommonService`, `HelperService`, `DataManager`, `GenericRepository`.
+
+Use cases coordinate domain logic, ports, and events. They do not contain HTTP, Prisma queries, or provider SDK calls.
+
+## Data
+
+- PostgreSQL is the transactional store; Prisma stays inside TypeScript outbound repository adapters
+- Map Prisma records ↔ domain entities in the adapter; domain never sees Prisma types
+- Redis is for cache, rate limits, queues, temp state, locks — not primary business data
+- Tenant-owned rows are isolated in the backend on every tenant-scoped operation
+- Vector indexes live in Python behind `VectorSearchPort`
+
+## Events and async
+
+Events are past-tense facts (`ConversationEscalated`, `AIResponseRequested`). Use cases are requested actions. TypeScript owns business events; Python consumes AI-related events and may publish AI processing facts. Contracts must be versionable.
+
+**Synchronous HTTP** (TypeScript API → FastAPI): AI response generation, classification, summarization, AI decisions.
+
+**Asynchronous** (event bus / queue → Python worker → event back to TypeScript): document processing, embeddings, RAG ingestion, long-running AI, batch AI.
+
+Do not block customer HTTP on long/retryable work. For important workflows, persist via Outbox in the same transaction as the state change. Consumers must be idempotent.
+
+## AI boundary
+
+```
+Conversation (or other TS module)
+  → AIServicePort (TypeScript)
+  → PythonAIServiceAdapter (HTTP or queue)
+  → Python inbound (FastAPI / worker)
+  → AI application / orchestration / agents / RAG
+  → LLMPort / EmbeddingPort / VectorSearchPort
+  → Python outbound adapter
+  → provider
+```
+
+- TypeScript never imports LLM SDKs, LangChain, LangGraph, LlamaIndex, or Python AI internals
+- Python AI never writes business tables or Prisma
+- Python AI may recommend; a TypeScript business use case applies state changes
+- RAG stays in Python: parse → chunk → embed → vector store → retrieve → context → prompt → LLM → validate
+- TypeScript Knowledge module owns `KnowledgeDocument`, ownership, tenant, permissions, lifecycle
+- Tool calls: Python LLM request → TypeScript validates/authorizes → TypeScript use case → domain → tool result → Python LLM
+- Never give the LLM raw database or infrastructure access
+- Never trust LLM output; schema-validate structured output (Pydantic in Python, then again at the TypeScript boundary) before business logic uses it
+- Propagate tenant context on every AI/RAG call; Python must never retrieve across tenants
+
+## Inbound adapters
+
+REST, WebSocket/SSE, webhooks, and queue consumers only translate transport into use-case calls.
+
+Real-time transport is not business logic. Frontend talks only to TypeScript backend APIs/WebSockets — never to Postgres, Redis, private AI providers, or Python AI directly.
+
+## Implementation routing
+
+- **AI feature:** implement in `apps/ai`. TypeScript gets integration/contract changes only. React gets UI/API integration only.
+- **Business feature:** implement in the TypeScript modular monolith. Do not move business logic into Python.
+
+## Implementation order
+
+1. Module and domain rules (and runtime: `apps/api` vs `apps/ai`)
+2. Use case
+3. Ports
+4. Domain + application
+5. Adapters
+6. Events if needed
+7. Validation, tests, observability
+
+Do not start in controllers.

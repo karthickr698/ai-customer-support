@@ -1,14 +1,18 @@
 import type { AppConfig } from '@ai-customer-support/config';
 import type { EventBus, Logger } from '@ai-customer-support/shared';
-import type { PrismaClient } from '@prisma/client';
-import type { Redis } from 'ioredis';
+import type { AIServicePort } from '../modules/ai/application/ports/ai-service-port.js';
+import type { DatabasePort } from '../shared/application/ports/database-port.js';
 import type { QueuePort } from '../shared/application/ports/queue-port.js';
+import type { RedisPort } from '../shared/application/ports/redis-port.js';
+import type { InfrastructureHealthChecker } from '../shared/infrastructure/health/infrastructure-health-checker.js';
 
 export interface AppDependencies {
   readonly config: AppConfig;
   readonly logger: Logger;
-  readonly prisma: PrismaClient;
-  readonly redis: Redis;
+  readonly database: DatabasePort;
+  readonly redis: RedisPort;
   readonly eventBus: EventBus;
   readonly queue: QueuePort;
+  readonly aiService: AIServicePort;
+  readonly healthChecker: InfrastructureHealthChecker;
 }

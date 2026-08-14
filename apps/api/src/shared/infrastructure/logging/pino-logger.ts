@@ -1,5 +1,31 @@
+import type { AppConfig } from '@ai-customer-support/config';
 import type { Logger } from '@ai-customer-support/shared';
-import type { Logger as PinoBaseLogger } from 'pino';
+import pino, { type Logger as PinoBaseLogger } from 'pino';
+
+export function createRootLogger(config: AppConfig): PinoBaseLogger {
+  return pino({
+    level: config.LOG_LEVEL,
+    base: { service: 'api' },
+    redact: {
+      paths: [
+        'password',
+        'token',
+        'secret',
+        'authorization',
+        'jwt',
+        'apiKey',
+        'api_key',
+        'DATABASE_URL',
+        'REDIS_URL',
+        'JWT_SECRET',
+      ],
+      censor: '[redacted]',
+    },
+    ...(config.NODE_ENV === 'development'
+      ? { transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'SYS:standard' } } }
+      : {}),
+  });
+}
 
 export class PinoLogger implements Logger {
   constructor(private readonly pino: PinoBaseLogger) {}
@@ -22,5 +48,9 @@ export class PinoLogger implements Logger {
 
   child(bindings: Record<string, unknown>): Logger {
     return new PinoLogger(this.pino.child(bindings));
+  }
+
+  unwrap(): PinoBaseLogger {
+    return this.pino;
   }
 }

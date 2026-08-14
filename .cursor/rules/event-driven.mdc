@@ -1,0 +1,50 @@
+---
+description: Event-driven rules. Events are past-tense facts; use cases are commands. Prefer Outbox and idempotent consumers. TypeScript owns business events.
+globs: "**/{domain,application,adapters,agents,orchestration,rag}/**/*.{ts,tsx,py}"
+alwaysApply: false
+---
+
+# Event-Driven
+
+Supports `.project-overview.mdc` and `architecture.mdc`.
+
+## Commands vs events
+
+- Use case / command = requested action (`EscalateConversation`)
+- Event = fact that already happened (`ConversationEscalatedEvent`)
+
+Do not name events like commands (`EscalateConversationEvent`).
+
+## Ownership
+
+The TypeScript backend owns business events. Python consumes AI-related events and may publish AI processing facts. Do not share internal event classes across runtimes; use explicit, versionable contracts in `packages/contracts`.
+
+TypeScript publishes (examples): `KnowledgeDocumentUploaded`, `KnowledgeDocumentProcessingRequested`, `AIResponseRequested`, `ConversationMessageReceived`, plus business facts such as `ConversationCreated`, `MessageReceived`, `MessageSent`, `ConversationEscalated`, `AgentAssigned`, `TicketCreated`, `TicketResolved`, `NotificationRequested`.
+
+Python may publish (examples): `AIResponseGenerated`, `KnowledgeDocumentProcessed`, `AIProcessingFailed`.
+
+## Sync vs async with Python
+
+**Synchronous HTTP** (not events): AI response generation, classification, summarization, AI decisions.
+
+**Asynchronous events / queue**: document processing, embeddings, RAG ingestion, long-running AI, batch AI.
+
+```
+TypeScript → event bus / queue → Python AI worker → processing → event → TypeScript
+```
+
+Do not generate LLM responses, embeddings, or RAG indexes inside TypeScript consumers.
+
+## Outbox
+
+```
+DB transaction → business state change → outbox row → publisher → consumer
+```
+
+Consumers must be idempotent (dedupe on event id / business key). Do not assume at-least-once delivery is exactly-once. Python consumers are idempotent the same way.
+
+## Module communication
+
+Prefer events when modules should not be synchronously coupled. Do not read another module’s tables from a consumer; call that module’s application contract or port. Python must not query Prisma or TypeScript tables; TypeScript must not reach into Python internals.
+
+Every AI-related event must carry enough tenant context for isolation.

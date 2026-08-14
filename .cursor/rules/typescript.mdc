@@ -1,0 +1,53 @@
+---
+description: TypeScript conventions that keep hexagonal boundaries type-safe. Ports are interfaces; domain types never leak Prisma, HTTP, or LLM SDK types.
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# TypeScript
+
+Supports `.project-overview.mdc` and `architecture.mdc`. Prefer explicit types over convenience.
+
+AI (LLM, RAG, embeddings, prompts, agents, orchestration) is **not** implemented in TypeScript. `apps/api/src/modules/ai` is an integration boundary only: `AIServicePort` and `PythonAIServiceAdapter`. Cross-runtime shapes live in `packages/contracts`.
+
+Do not add OpenAI, Anthropic, LangChain, LangGraph, LlamaIndex, embedding SDK, or vector-DB-for-AI types to this codebase.
+
+## Strictness
+
+- Enable/keep strict TypeScript. Do not use `any`. Use `unknown` and narrow at boundaries.
+- Do not use `as` to cast Prisma/HTTP/AI-contract types into domain types. Map in adapters.
+- Prefer `readonly` on value objects and use-case input DTOs.
+
+## Ports and implementations
+
+Define ports as interfaces in the application layer. Adapters implement them.
+
+```typescript
+// application/ports/conversation-repository.ts
+export interface ConversationRepository {
+  findById(id: ConversationId, tenantId: TenantId): Promise<Conversation | null>;
+  save(conversation: Conversation): Promise<void>;
+}
+```
+
+Domain and application import the interface, never the Prisma client or adapter class.
+
+## Types by layer
+
+- Domain: entities, value objects, branded IDs, domain events, domain errors
+- Application: commands/queries, use-case results, port interfaces
+- Adapters: Prisma models, HTTP request/response shapes, SDK payloads
+
+Never export Prisma generated types from a repository port. Map to domain entities inside the adapter.
+
+## Errors and results
+
+Use typed domain/application errors. Do not throw raw `Error` for business failures.
+
+Shared helpers stay generic (`Result`, `DomainError`). Do not put business unions in `shared/`.
+
+## Imports
+
+No circular imports between modules. A module may depend on another module’s public application contract or events only — not its Prisma schema, adapters, or internal domain files.
+
+Do not import Python packages, FastAPI types, or AI provider SDKs from TypeScript. Other modules call `AIServicePort`; they do not implement AI.

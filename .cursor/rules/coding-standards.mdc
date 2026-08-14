@@ -1,0 +1,114 @@
+---
+description: Coding standards for the AI Customer Support Platform. Enforce naming, validation, errors, auth, observability, and tests that keep business logic independent of infrastructure.
+alwaysApply: true
+---
+
+# Coding Standards
+
+Supports `.cursor/rules/.project-overview.mdc`. Follow `.cursor/rules/architecture.mdc` for layout and boundaries. These rules apply when writing or changing code.
+
+## Naming
+
+Use business-specific names. Suffix by role:
+
+| Role | Pattern | Example |
+|---|---|---|
+| Use case | `<Verb><Noun>UseCase` | `CreateConversationUseCase` |
+| Repository port | `<Noun>Repository` | `ConversationRepository` |
+| Other port | `<Capability>Port` | `AIServicePort`, `LLMPort`, `EventBusPort` |
+| Adapter | `<Tech><Noun>` | `PostgresConversationRepository`, `PythonAIServiceAdapter` |
+| Event | `<Noun><PastTense>Event` | `ConversationEscalatedEvent` |
+| Domain error | `<Noun><Problem>Error` | `InvalidConversationStateError` |
+| Permission | `<resource>.<action>` | `conversation.escalate` |
+
+Avoid `CommonService`, `HelperService`, `DataManager`, `GenericRepository`, and catch-all `utils` for business logic.
+
+## Controllers and handlers
+
+Inbound adapters stay thin: validate input → authenticate/authorize → call one use case → map the result.
+
+Never put state transitions, SLA, assignment, escalation, RAG, prompt, or agent logic in controllers, WebSocket handlers, or webhook handlers.
+
+## Validation
+
+Validate every external boundary before domain/application logic runs:
+
+- HTTP, WebSocket, webhooks
+- Queue/event messages
+- Uploaded files
+- External API responses
+- AI structured output
+
+Never trust LLM output. Schema-validate it in Python (Pydantic) and again at the TypeScript boundary before a business use case consumes it. Reject or safely degrade invalid AI payloads; do not pass them through.
+
+## Errors
+
+Throw or return domain/application errors, not raw infrastructure exceptions:
+
+- `ConversationNotFoundError`
+- `UnauthorizedConversationAccessError`
+- `InvalidConversationStateError`
+- `TicketNotFoundError`
+- `AIProviderError`
+- `RateLimitExceededError`
+
+Map these at the inbound adapter. Clients never receive stack traces, Prisma messages, provider payloads, or internal paths.
+
+## Auth and tenancy
+
+Authentication and authorization are separate. Check permissions server-side on every protected operation.
+
+Enforce tenant context on every tenant-scoped read/write, including RAG retrieval. Propagate tenant context from TypeScript to Python on every AI/RAG call. Never rely on frontend filters. Never return or search across tenants.
+
+## Security
+
+- Secrets only via environment variables; document keys in `.env.example` with no real values
+- Never hardcode API keys, JWT secrets, DB credentials, LLM keys, or webhook secrets
+- Rate-limit sensitive APIs
+- Validate webhooks
+- Do not log secrets, tokens, raw prompts with PII, or unnecessary customer content
+- Restrict AI tools to an explicit allowlist; authorize each tool call before executing a use case
+- Guard against prompt injection; never let model output bypass validation or auth
+
+## AI coding rules
+
+- Implement AI in Python (`apps/ai`): orchestration, agents, RAG, embeddings, vector search, LLMs, prompts, tools, guardrails, evaluation
+- TypeScript `modules/ai` is integration-only: `AIServicePort` + `PythonAIServiceAdapter` + contracts
+- TypeScript must not import or use OpenAI SDK, Anthropic SDK, LangChain, LangGraph, LlamaIndex, embedding SDKs, vector-DB SDKs for AI, prompt orchestration, or AI agents
+- TypeScript does not import Python AI internals; communicate via HTTP, queues/events, and `packages/contracts`
+- Python AI adapters do not mutate business state or call Prisma
+- Tool flow: Python LLM request → TypeScript validates/authorizes → TypeScript use case → domain → return tool result to Python
+- Keep prompts, tool schemas, and model IDs out of TypeScript domain entities; they live in Python
+- Schema-validate AI output in Python (Pydantic) and again at the TypeScript boundary
+- Do not install every AI provider up front; adapters are chosen later
+- AI feature → Python; business feature → TypeScript. Do not invert that.
+
+## Observability
+
+Use structured logs with a correlation id. Include when known: `requestId`, `tenantId`, `conversationId`, `messageId`, `eventId`, `jobId`.
+
+For AI calls also log model, token usage, latency, and cost — not full prompts or completions unless explicitly required and redacted.
+
+## Tests
+
+Colocate tests with the layer they protect:
+
+- Unit: entities, value objects, domain services, use cases
+- Integration: repositories, queues, outbound adapters
+- E2E/API: auth, authorization, tenant isolation, contracts, core workflows
+- TypeScript (Vitest): domain, application, API, repositories, integration, event processing; tool authorization and invalid-AI-payload rejection at `AIServicePort`
+- Python (pytest): AI domain, orchestration, agents, RAG, retrieval, prompts, tool calling, guardrails, LLM adapters, AI evaluation; fake `LLMPort` / `EmbeddingPort` / `VectorSearchPort`
+
+Do not test Prisma internals through domain tests. Do not hit real LLM providers in unit tests; fake ports. Do not put prompt, LangChain, LangGraph, or LlamaIndex tests in `apps/api`.
+
+## Frontend
+
+Organize by feature (`conversations`, `tickets`, `customers`, `knowledge`, `agents`, `analytics`). Call TypeScript backend APIs/WebSockets only. No direct database, Redis, Python AI, or private AI-provider access from the client. No AI logic in React.
+
+## Shared code
+
+Add to shared only if it is cross-cutting: `Result`, `DomainError`, `Logger`, `RequestContext`, `Pagination`, `EventBus` (`packages/shared`). Cross-runtime DTO / API / event contracts belong in `packages/contracts`. Module-specific helpers stay in that module.
+
+## Config
+
+Read runtime config from the environment. Fail fast on missing required secrets in production. Never commit `.env`.

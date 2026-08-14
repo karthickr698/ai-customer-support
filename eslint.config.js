@@ -12,6 +12,8 @@ export default defineConfig(
       '**/build/**',
       '**/coverage/**',
       '**/node_modules/**',
+      '**/.venv/**',
+      '**/venv/**',
       '**/*.tsbuildinfo',
       'apps/web/src/components/ui/**',
     ],

@@ -1,0 +1,50 @@
+---
+description: Hexagonal (ports and adapters) rules per module. Dependency direction is Adapters → Application → Domain.
+globs: "**/{domain,application,adapters,agents,orchestration,rag,llm,embeddings,vector_store,tools,prompts,guardrails,evaluation}/**/*.{ts,tsx,py}"
+alwaysApply: false
+---
+
+# Hexagonal Architecture
+
+Supports `.project-overview.mdc` and `architecture.mdc`. Every TypeScript **business** module and the Python AI service uses hexagonal dependency rules.
+
+TypeScript business modules:
+
+```
+<module>/
+  domain/
+  application/
+  adapters/
+    inbound/
+    outbound/
+```
+
+The TypeScript `modules/ai` package is an **integration boundary**, not an AI domain. It only needs `application/ports` (`AIServicePort`) and `adapters/outbound/python-ai` (`PythonAIServiceAdapter`).
+
+Python AI (`apps/ai/app/`): `domain/`, `application/`, and `adapters/` are the hexagonal layers. Capability packages (`agents/`, `orchestration/`, `rag/`, `llm/`, `embeddings/`, `vector_store/`, `tools/`, `prompts/`, `guardrails/`, `evaluation/`) are application/domain logic and must not import provider SDKs.
+
+## Dependency rule
+
+**Adapters → Application → Domain**
+
+| Layer | May import | Must not import |
+|---|---|---|
+| Domain | domain only | Fastify, FastAPI, Prisma, SQLAlchemy, Redis, queues, LLM SDKs, LangChain, LangGraph, LlamaIndex, HTTP |
+| Application / AI capability packages | domain + port interfaces | Prisma, FastAPI, Fastify, provider SDKs |
+| Adapters | application ports + domain types to map | other modules’ adapters or Prisma models |
+
+## Ports
+
+Infrastructure implements interfaces defined by inner layers. If a use case needs I/O, add a port first, then an adapter.
+
+## Inbound vs outbound
+
+- Inbound: REST, WebSocket, webhooks, queue/event consumers — call use cases
+- Outbound (TypeScript): Postgres/Prisma, Redis, email, WhatsApp, queues, `PythonAIServiceAdapter`
+- Outbound (Python AI): LLM, embeddings, vector DB under `adapters/llm/`, `adapters/embeddings/`, `adapters/vector_store/` — never Prisma
+
+Controllers stay thin. Never Controller → Prisma, Controller → OpenAI, or Controller → business rules. LLM / embedding / vector SDKs belong only in Python AI outbound adapters. Do not install every provider now.
+
+## Modules
+
+Do not flatten the app into global `services/` or `repositories/`. Keep logic inside the owning module. Cross-module access is contracts, ports, or events only. TypeScript ↔ Python uses `packages/contracts`, not shared internals.

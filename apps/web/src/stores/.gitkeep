@@ -1,0 +1,1 @@
+# Zustand stores for client-only UI state. Server state belongs in TanStack Query.

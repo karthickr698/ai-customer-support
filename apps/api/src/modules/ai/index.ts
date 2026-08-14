@@ -1,12 +1,3 @@
-export type {
-  LLMCompletionRequest,
-  LLMCompletionResult,
-  LLMMessage,
-  LLMPort,
-} from './application/ports/llm-port.js';
-export type { EmbeddingPort, EmbeddingRequest } from './application/ports/embedding-port.js';
-export type {
-  VectorSearchHit,
-  VectorSearchPort,
-  VectorSearchRequest,
-} from './application/ports/vector-search-port.js';
+/** Public surface of the TypeScript AI integration module. Not an AI implementation. */
+export type { AIServicePort } from './application/ports/ai-service-port.js';
+export { PythonAIServiceAdapter } from './adapters/outbound/python-ai/python-ai-service-adapter.js';

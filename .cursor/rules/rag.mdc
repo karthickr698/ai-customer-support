@@ -1,0 +1,52 @@
+---
+description: RAG pipeline rules. The pipeline runs in the Python AI service; Knowledge in TypeScript owns documents. Always tenant-scope retrieval and validate LLM answers.
+globs: "apps/ai/**/*.py,**/{ai,knowledge}/**/*.{py,ts,tsx}"
+alwaysApply: false
+---
+
+# RAG
+
+Supports `.project-overview.mdc` and `architecture.mdc`. All RAG implementation belongs in the **Python AI service** (`apps/ai`). The TypeScript Knowledge module owns document business concepts only.
+
+## Ownership
+
+TypeScript Knowledge module:
+
+- `KnowledgeDocument`
+- document ownership
+- tenant ownership
+- document permissions
+- document lifecycle
+
+Python AI:
+
+- document processing → parsing → chunking → embeddings → vector storage → retrieval → context construction → prompt construction → LLM → response validation
+
+Do not implement parsing, chunking, embeddings, vector search, prompt construction, or RAG orchestration in TypeScript.
+
+## Pipeline
+
+```
+Document → Parse → Chunk → Embed → Vector Store → Retrieve
+  → Context construction → Prompt construction → LLM → Validate Response
+```
+
+Each I/O step is a Python port (`EmbeddingPort`, `VectorSearchPort`, parsers). Adapters own vendor SDKs. Capability code lives under `apps/ai/app/rag/` (and related packages); provider clients live under `apps/ai/app/adapters/`.
+
+## Isolation
+
+Propagate tenant context from TypeScript on every RAG operation. Retrieval is tenant-scoped. Never search or return another organization’s chunks. Do not rely on the prompt to “only use this tenant.” Filter in the vector query.
+
+## Trust
+
+Never trust retrieved text or the LLM answer as business truth. Schema-validate structured output (Pydantic) in Python, then validate again at the TypeScript boundary before a business use case uses it. Guard against prompt injection in documents and user messages.
+
+## Async vs sync
+
+Parsing, embedding, and indexing are asynchronous: TypeScript publishes `KnowledgeDocumentUploaded` / `KnowledgeDocumentProcessingRequested`; Python consumes, indexes, and may publish `KnowledgeDocumentProcessed` or `AIProcessingFailed`. HTTP upload in TypeScript must not wait on embedding.
+
+Request-scoped retrieval used to generate an AI response, classify, summarize, or decide may run over synchronous HTTP from TypeScript to FastAPI.
+
+## State
+
+RAG/AI does not write ticket or conversation tables. Indexing adapters write only to the vector store. Knowledge processing state is updated via TypeScript knowledge ports/APIs — never Prisma from Python.

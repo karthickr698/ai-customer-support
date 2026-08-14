@@ -1,47 +1,59 @@
 import { loadConfig } from '@ai-customer-support/config';
-import pino from 'pino';
+import type { FastifyInstance } from 'fastify';
 import type { AppDependencies } from './dependencies.js';
+import { initializeApplication } from './initialize-application.js';
+import { initializeInfrastructure } from './initialize-infrastructure.js';
+import { loadLocalEnv } from './load-env.js';
 import { buildServer } from './server.js';
 import { shutdown } from './shutdown.js';
-import { InMemoryEventBus } from '../shared/infrastructure/events/in-memory-event-bus.js';
-import { PinoLogger } from '../shared/infrastructure/logging/pino-logger.js';
-import { InMemoryQueue } from '../shared/infrastructure/messaging/in-memory-queue.js';
-import { createPrismaClient } from '../shared/infrastructure/persistence/prisma.js';
-import { createRedisClient } from '../shared/infrastructure/redis/redis-client.js';
+import { createRootLogger, PinoLogger } from '../shared/infrastructure/logging/pino-logger.js';
+
+loadLocalEnv();
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const pinoLogger = pino({
-    level: config.LOG_LEVEL,
-    ...(config.NODE_ENV !== 'production'
-      ? { transport: { target: 'pino-pretty', options: { colorize: true } } }
-      : {}),
-  });
-  const logger = new PinoLogger(pinoLogger);
+  const rootLogger = createRootLogger(config);
+  const logger = new PinoLogger(rootLogger);
 
-  const deps: AppDependencies = {
-    config,
-    logger,
-    prisma: createPrismaClient(),
-    redis: createRedisClient(config.REDIS_URL),
-    eventBus: new InMemoryEventBus(),
-    queue: new InMemoryQueue(),
-  };
+  const deps = await initializeInfrastructure(config, logger);
+  initializeApplication(deps);
 
-  const app = await buildServer(deps);
+  const app = await buildServer(deps, rootLogger);
+  registerProcessHandlers(app, deps);
+
+  await app.listen({ host: config.HOST, port: config.PORT });
+  logger.info('API listening', { host: config.HOST, port: config.PORT, env: config.NODE_ENV });
+}
+
+function registerProcessHandlers(app: FastifyInstance, deps: AppDependencies): void {
+  let shuttingDown = false;
 
   const onSignal = (signal: string): void => {
-    void shutdown(signal, app, deps);
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+
+    void shutdown(signal, app, deps).then(
+      () => process.exit(0),
+      (error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Unknown shutdown error';
+        deps.logger.error('Error during shutdown', { message });
+        process.exit(1);
+      },
+    );
   };
 
   process.on('SIGINT', () => onSignal('SIGINT'));
   process.on('SIGTERM', () => onSignal('SIGTERM'));
-
-  await deps.prisma.$connect();
-  await deps.redis.connect();
-
-  await app.listen({ host: config.HOST, port: config.PORT });
-  logger.info('API listening', { host: config.HOST, port: config.PORT });
+  process.on('uncaughtException', (error: Error) => {
+    deps.logger.error('Uncaught exception', { message: error.message });
+    onSignal('uncaughtException');
+  });
+  process.on('unhandledRejection', (reason: unknown) => {
+    const message = reason instanceof Error ? reason.message : 'Unhandled promise rejection';
+    deps.logger.error('Unhandled rejection', { message });
+  });
 }
 
 main().catch((error: unknown) => {

@@ -7,6 +7,7 @@ This package is the **foundation only**. Agents, RAG, LLM calls, embeddings, vec
 ## Boundaries
 
 - Hexagonal layout: `domain/` → `application/` → `adapters/`
+- Application ports: `LLMPort`, `EmbeddingPort`, `VectorSearchPort` (no provider SDKs)
 - Capability packages (`agents/`, `orchestration/`, `rag/`, `llm/`, `embeddings/`, `vector_store/`, `tools/`, `prompts/`, `guardrails/`, `evaluation/`) must not import provider SDKs
 - FastAPI lives in inbound adapters; provider SDKs will live under `adapters/outbound/`
 - This service does not write TypeScript business tables or use Prisma

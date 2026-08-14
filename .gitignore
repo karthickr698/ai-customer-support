@@ -51,8 +51,12 @@ Thumbs.db
 *.swo
 *~
 
+# Cursor local state; keep versioned architecture rules
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+
 # Tooling caches
 .eslintcache
 .turbo
 .cache
-.cursor

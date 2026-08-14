@@ -1,0 +1,43 @@
+---
+description: Testing strategy by layer. Unit-test domain and use cases with fake ports; integration-test adapters; never call real LLM providers in unit tests.
+globs: "**/*.{spec,test}.{ts,tsx},**/test/**/*.{ts,tsx},**/tests/**/*.{ts,tsx,py},**/test_*.py,**/*_test.py"
+alwaysApply: false
+---
+
+# Testing
+
+Supports `.project-overview.mdc` and `architecture.mdc`. Tests follow the same boundaries as production code.
+
+## TypeScript
+
+Cover: domain, application, API, repositories, integration, event processing.
+
+Also: tool allowlist/authorization and rejection of invalid AI payloads at `AIServicePort`. Do not unit-test prompts, agents, RAG graphs, LangChain, LangGraph, or LlamaIndex in `apps/api`.
+
+TypeScript: Vitest.
+
+## Python
+
+Cover: AI domain, orchestration, agents, RAG, retrieval, prompts, tool calling, guardrails, LLM adapters, AI evaluation.
+
+Python AI (`apps/ai`): pytest. Fake `LLMPort` / `EmbeddingPort` / `VectorSearchPort`. Do not require real LLM calls in normal unit tests.
+
+## Unit
+
+Domain entities, value objects, domain services, use cases, business rules (TypeScript) and AI domain/orchestration (Python).
+
+Fake ports. Do not boot Postgres, Redis, or HTTP. Do not import Prisma or LLM SDKs.
+
+## Integration
+
+TypeScript: repository adapters, database, queues, outbound adapters including `PythonAIServiceAdapter`. Assert mapping between Prisma records and domain entities, tenant predicates, and idempotent consumers.
+
+Python: LLM / embedding / vector adapters with fakes or explicit provider contract tests — not TypeScript Prisma.
+
+## E2E / API
+
+Authentication, authorization, tenant isolation, API contracts, important workflows (create conversation, escalate, ticket resolve). Cross-runtime checks: TypeScript requests or enqueues AI work; Python returns a validated payload; TypeScript applies business state.
+
+## Rule
+
+A failing domain test should not require a running database. A TypeScript domain test that needs Prisma is in the wrong layer. A Python AI domain test that needs OpenAI is in the wrong layer.

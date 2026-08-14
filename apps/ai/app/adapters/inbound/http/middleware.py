@@ -18,6 +18,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         request_id = request.headers.get("x-request-id") or str(uuid4())
         correlation_id = request.headers.get("x-correlation-id") or request_id
         tenant_id = request.headers.get("x-tenant-id")
+        # Tenant context is supplied by the TypeScript API, not by browsers.
 
         token = bind_request_context(
             RequestContext(

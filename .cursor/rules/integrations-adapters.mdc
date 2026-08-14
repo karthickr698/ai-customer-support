@@ -1,0 +1,31 @@
+---
+description: External integration adapters (email, WhatsApp, webhooks, third-party APIs). Keep vendor SDKs in outbound adapters behind ports.
+globs: "**/integrations/**/*.{ts,tsx,py},**/adapters/**/*.{ts,tsx,py}"
+alwaysApply: false
+---
+
+# Integration Adapters
+
+Supports `.project-overview.mdc` and `architecture.mdc`. Third parties are adapters, not domain.
+
+## Placement
+
+- Outbound (TypeScript): email, WhatsApp, CRM, billing, other HTTP APIs, **`PythonAIServiceAdapter`** — implement `NotificationPort`, `AIServicePort`, or a named integration port
+- Outbound (Python AI): LLM, embedding, and vector-DB vendor SDKs only — implement `LLMPort`, `EmbeddingPort`, `VectorSearchPort` under `adapters/llm/`, `adapters/embeddings/`, `adapters/vector_store/`
+- Inbound: provider webhooks — verify signature, validate payload, then call a use case
+
+TypeScript business modules do not import WhatsApp, email, or LLM vendor SDKs. TypeScript must not use OpenAI SDK, Anthropic SDK, LangChain, LangGraph, LlamaIndex, embedding SDKs, or vector-DB SDKs for AI. Those belong only in Python AI outbound adapters. Do not install every provider now.
+
+## Webhooks
+
+Validate authenticity before processing. Treat payloads as untrusted. Map to a command; do not persist raw vendor schemas as domain entities.
+
+## Reliability
+
+Call external APIs from jobs/consumers with retries and idempotency keys. Do not block customer HTTP on slow providers unless the use case is inherently synchronous.
+
+## Mapping
+
+Keep vendor DTOs inside the adapter. Translate to domain/application types at the boundary. Fail with typed errors (`AIProviderError`, integration-specific application errors), not SDK exceptions bubbling to clients.
+
+The TypeScript AI client maps HTTP/queue payloads to application types using `packages/contracts`. Python maps provider SDK payloads to application types. Neither side leaks vendor schemas or internal types across the process boundary.

@@ -12,6 +12,7 @@ describe('foundation configuration', () => {
     expect(example).toContain('DATABASE_URL=');
     expect(example).toContain('REDIS_URL=');
     expect(example).toContain('JWT_SECRET=');
+    expect(example).toContain('AI_SERVICE_URL=');
     expect(example).toContain('LLM_PROVIDER=');
     expect(example).toContain('LLM_API_KEY=');
   });

@@ -1,0 +1,114 @@
+---
+description: AI is a Python service. LLM/RAG/agents/tools live in apps/ai behind ports; TypeScript only hosts AIServicePort and PythonAIServiceAdapter. AI never writes business state.
+globs: "apps/ai/**/*.py,**/ai/**/*.{py,ts,tsx}"
+alwaysApply: false
+---
+
+# AI Orchestrator
+
+Supports `.project-overview.mdc` and `architecture.mdc`. AI is a **Python service** (`apps/ai`), not a TypeScript implementation.
+
+The TypeScript modular monolith remains the core application. `apps/api/src/modules/ai` is **only** the integration boundary required to talk to Python.
+
+## TypeScript integration boundary
+
+Allowed in `apps/api`:
+
+```
+modules/ai/
+  application/ports/AIServicePort
+  adapters/outbound/python-ai/PythonAIServiceAdapter
+```
+
+Plus versionable DTO / API / event contracts (`packages/contracts`).
+
+TypeScript must NOT contain or depend on: OpenAI SDK, Anthropic SDK, LangChain, LangGraph, LlamaIndex, embedding SDKs, vector database SDKs for AI, prompt orchestration, or AI agents.
+
+## Python layout
+
+```
+apps/ai/
+├── app/
+│   ├── domain/
+│   ├── application/
+│   ├── adapters/
+│   ├── agents/
+│   ├── orchestration/
+│   ├── rag/
+│   ├── llm/
+│   ├── embeddings/
+│   ├── vector_store/
+│   ├── tools/
+│   ├── prompts/
+│   ├── guardrails/
+│   ├── evaluation/
+│   └── main.py
+├── tests/
+├── pyproject.toml
+└── README.md
+```
+
+Stack: Python, FastAPI, Pydantic, async where appropriate.
+
+Hexagonal direction: **Adapters → Application → Domain**. Domain, application, agents, orchestration, RAG, prompts, tools, and guardrails must not import FastAPI, LangChain, LangGraph, LlamaIndex, OpenAI, Anthropic, or other provider SDKs. FastAPI belongs in inbound adapters only.
+
+Provider SDKs live only under adapters (choose later; do not install every provider now):
+
+```
+apps/ai/app/adapters/
+├── llm/openai/
+├── llm/anthropic/
+├── llm/ollama/
+├── embeddings/
+└── vector_store/
+```
+
+Python naming: snake_case files (`generate_ai_response.py`); class names stay business-specific (`GenerateAIResponseUseCase`, `LLMPort`, `OpenAILLMAdapter`).
+
+## Communication
+
+**Synchronous HTTP** — TypeScript API → FastAPI. Use for AI response generation, classification, summarization, AI decisions.
+
+**Asynchronous** — TypeScript → event bus / queue → Python worker → event → TypeScript. Use for document processing, embeddings, RAG ingestion, long-running AI, batch AI.
+
+```
+Conversation (TS) → AIServicePort → PythonAIServiceAdapter
+  → Python inbound → application / orchestration / agents
+  → LLMPort / EmbeddingPort / VectorSearchPort → provider adapter
+```
+
+Do not share Python or TypeScript internals. Use explicit contracts. `apps/ai` must remain independently deployable.
+
+## Allowed in Python AI
+
+AI orchestration, agents, RAG, embeddings, vector search, LLM integrations, prompts, tools, guardrails, classification, summarization, sentiment, escalation recommendations, AI evaluation/testing.
+
+## Forbidden
+
+- Any of the above AI implementation in `apps/api` or `apps/web`
+- Python AI → Prisma / TypeScript business database
+- AI mutating Conversation/Ticket aggregates directly
+- Unvalidated model output entering TypeScript domain logic
+- Cross-tenant retrieval
+- Installing or wiring every LLM provider “just in case”
+
+Correct: Python AI → Decision/result → TypeScript business use case → Domain → Event.
+
+## Tool calling
+
+Tools are an explicit allowlist: `getCustomerDetails`, `getOrderDetails`, `createTicket`, `updateTicket`, `checkRefundStatus`, `handoffToAgent`.
+
+```
+Python LLM → tool request → TypeScript validates → authorize
+  → TypeScript application use case → domain → tool result → Python LLM
+```
+
+Never give the model database, Redis, or raw infrastructure access. Mutating tools run only in TypeScript.
+
+## Tenant context
+
+Every AI/RAG request and event must carry tenant context from TypeScript. Python must never retrieve across tenants.
+
+## Extraction
+
+`apps/ai` is a separate service boundary. Keep its public surface as HTTP / queue / event contracts plus application use cases. Do not fold AI back into the Node process.
