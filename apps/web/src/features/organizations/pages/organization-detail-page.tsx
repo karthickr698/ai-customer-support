@@ -100,9 +100,14 @@ export function OrganizationDetailPage() {
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10">
       <PageHeader
         actions={
-          <Button asChild variant="outline">
-            <Link to="/organizations">All organizations</Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link to={`/organizations/${organizationId}/knowledge`}>Knowledge</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/organizations">All organizations</Link>
+            </Button>
+          </div>
         }
         description={current ? `Signed in as ${current.membership.role}` : 'Loading workspace…'}
         title={current?.name ?? 'Organization'}

@@ -3,6 +3,7 @@ import { Conversation, type ConversationSnapshot } from '../../../domain/convers
 import { parseConversationChannel } from '../../../domain/conversation-channel.js';
 import { createConversationId, type ConversationId } from '../../../domain/conversation-id.js';
 import { parseConversationStatus } from '../../../domain/conversation-status.js';
+import { isMessageAuthorType } from '../../../domain/message.js';
 import type {
   ConversationRepository,
   ConversationSearchFilter,
@@ -20,7 +21,9 @@ type ConversationRecord = {
   channel: string;
   lastMessageAt: Date | null;
   lastMessagePreview: string | null;
+  lastMessageAuthorType: string | null;
   createdByUserId: string | null;
+  widgetSessionId: string | null;
   createdAt: Date;
   updatedAt: Date;
   tags: readonly { name: string }[];
@@ -56,6 +59,8 @@ export class PostgresConversationRepository implements ConversationRepository {
           channel: data.channel,
           lastMessageAt: data.lastMessageAt,
           lastMessagePreview: data.lastMessagePreview,
+          lastMessageAuthorType: data.lastMessageAuthorType,
+          widgetSessionId: data.widgetSessionId,
           updatedAt: data.updatedAt,
         },
       });
@@ -110,6 +115,24 @@ export class PostgresConversationRepository implements ConversationRepository {
       total,
     };
   }
+
+  async listEscalationCandidates(
+    tenantId: string,
+    options?: { readonly assignedAgentId?: string; readonly limit?: number },
+  ): Promise<Conversation[]> {
+    const records = await this.prisma.conversation.findMany({
+      where: {
+        organizationId: tenantId,
+        status: { in: ['open', 'pending'] },
+        ...(options?.assignedAgentId ? { assignedAgentId: options.assignedAgentId } : {}),
+      },
+      include: { tags: { orderBy: { name: 'asc' } } },
+      orderBy: { updatedAt: 'asc' },
+      take: options?.limit ?? 500,
+    });
+
+    return records.map(toConversation);
+  }
 }
 
 function toSearchWhere(filter: ConversationSearchFilter): Prisma.ConversationWhereInput {
@@ -119,6 +142,7 @@ function toSearchWhere(filter: ConversationSearchFilter): Prisma.ConversationWhe
   return {
     organizationId: filter.tenantId,
     ...(filter.status ? { status: filter.status } : {}),
+    ...(filter.widgetSessionId ? { widgetSessionId: filter.widgetSessionId } : {}),
     ...(assigned === 'unassigned'
       ? { assignedAgentId: null }
       : assigned
@@ -154,7 +178,12 @@ function toConversation(record: ConversationRecord): Conversation {
     tags: record.tags.map((tag) => tag.name),
     lastMessageAt: record.lastMessageAt ?? undefined,
     lastMessagePreview: record.lastMessagePreview ?? undefined,
+      lastMessageAuthorType:
+      record.lastMessageAuthorType && isMessageAuthorType(record.lastMessageAuthorType)
+        ? record.lastMessageAuthorType
+        : undefined,
     createdByUserId: record.createdByUserId ?? undefined,
+    widgetSessionId: record.widgetSessionId ?? undefined,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
@@ -175,7 +204,9 @@ function toRecord(snapshot: ConversationSnapshot): Prisma.ConversationUncheckedC
     channel: snapshot.channel,
     lastMessageAt: snapshot.lastMessageAt ?? null,
     lastMessagePreview: snapshot.lastMessagePreview ?? null,
+    lastMessageAuthorType: snapshot.lastMessageAuthorType ?? null,
     createdByUserId: snapshot.createdByUserId ?? null,
+    widgetSessionId: snapshot.widgetSessionId ?? null,
     createdAt: snapshot.createdAt,
     updatedAt: snapshot.updatedAt,
   };

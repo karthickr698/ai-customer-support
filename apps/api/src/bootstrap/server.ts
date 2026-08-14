@@ -1,5 +1,7 @@
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
+import multipart from '@fastify/multipart';
+import websocket from '@fastify/websocket';
 import Fastify, { LogController, type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import type { Logger as PinoBaseLogger } from 'pino';
 import type { AppDependencies } from './dependencies.js';
@@ -23,10 +25,25 @@ export async function buildServer(
   });
 
   await app.register(cors, {
-    origin: deps.config.WEB_ORIGIN,
+    origin: (origin, callback) => {
+      if (!origin || origin === deps.config.WEB_ORIGIN) {
+        callback(null, true);
+        return;
+      }
+
+      // Widget embeds run on customer origins. Allowed origins are enforced per tenant.
+      callback(null, true);
+    },
     credentials: true,
   });
   await app.register(cookie);
+  await app.register(multipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024,
+      files: 1,
+    },
+  });
+  await app.register(websocket);
 
   registerRequestCorrelation(app);
   app.setErrorHandler(httpErrorHandler);
@@ -46,8 +63,24 @@ export async function buildServer(
     await deps.organizations.register(app);
   }
 
+  if (deps.agents) {
+    await deps.agents.register(app);
+  }
+
   if (deps.conversations) {
     await deps.conversations.register(app);
+  }
+
+  if (deps.knowledge) {
+    await deps.knowledge.register(app);
+  }
+
+  if (deps.onboarding) {
+    await deps.onboarding.register(app);
+  }
+
+  if (deps.widget) {
+    await deps.widget.register(app);
   }
 
   return app;

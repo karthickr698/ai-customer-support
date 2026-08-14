@@ -1,0 +1,5 @@
+export const SYSTEM_ACTOR_ID = 'system';
+export const REALTIME_REPLAY_LIMIT = 100;
+export const REALTIME_STREAM_MAXLEN = 1_000;
+export const ESCALATION_EVALUATION_INTERVAL_MS = 30_000;
+export const MAX_ESCALATION_CANDIDATES = 500;

@@ -21,7 +21,7 @@ export const createConversationBodySchema = z.object({
     .min(1, 'Subject is required')
     .max(200, 'Subject must be at most 200 characters')
     .optional(),
-  channel: z.enum(['web', 'email', 'api']).optional(),
+  channel: z.enum(['web', 'email', 'api', 'widget']).optional(),
   tags: z.array(z.string().trim().min(1).max(32)).max(20).optional(),
   assignedAgentId: uuidSchema.optional(),
   initialMessage: z
@@ -63,8 +63,10 @@ export const sendMessageBodySchema = z.object({
     .string()
     .trim()
     .min(1, 'Message body is required')
-    .max(10_000, 'Message body must be at most 10000 characters'),
+    .max(10_000, 'Message body must be at most 10000 characters')
+    .optional(),
   authorType: z.enum(['customer', 'agent']).optional(),
+  attachmentIds: z.array(z.string().uuid()).max(5).optional(),
 });
 
 export const addConversationNoteBodySchema = z.object({

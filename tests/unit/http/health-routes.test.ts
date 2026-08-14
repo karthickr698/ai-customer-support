@@ -39,6 +39,34 @@ class FakeAIService implements AIServicePort {
   async isReady(): Promise<boolean> {
     return true;
   }
+
+  async generateBusinessProfile(): Promise<never> {
+    throw new Error('not implemented');
+  }
+
+  async generateSupportTonePresets(): Promise<never> {
+    throw new Error('not implemented');
+  }
+
+  async generateInitialAgentSettings(): Promise<never> {
+    throw new Error('not implemented');
+  }
+
+  async runOnboardingSetup(): Promise<never> {
+    throw new Error('not implemented');
+  }
+
+  async *streamSupportReply(): AsyncIterable<never> {
+    throw new Error('not implemented');
+  }
+
+  async ingestKnowledgeDocument(): Promise<never> {
+    throw new Error('not implemented');
+  }
+
+  async deleteIndexedKnowledgeDocument(): Promise<never> {
+    throw new Error('not implemented');
+  }
 }
 
 class FakeEventBus implements EventBus {
@@ -60,6 +88,9 @@ function testConfig(): AppConfig {
     EMAIL_VERIFICATION_TTL_SECONDS: 86_400,
     PASSWORD_RESET_TTL_SECONDS: 3600,
     INVITATION_TTL_SECONDS: 604800,
+    WIDGET_SESSION_TTL_SECONDS: 2592000,
+    ATTACHMENT_STORAGE_DIR: './data/attachments',
+    KNOWLEDGE_STORAGE_DIR: './data/knowledge',
     WEB_ORIGIN: 'http://localhost:5173',
     AI_SERVICE_URL: 'http://localhost:8000',
     EMAIL_FROM: 'noreply@localhost',

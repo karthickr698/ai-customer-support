@@ -1,2 +1,3 @@
-/** Public surface of the agents module. Feature commands add use cases and adapters here. */
-export {};
+export type { AgentsModule } from './compose-agents.js';
+export { composeAgents } from './compose-agents.js';
+export { AgentPresenceQuery } from './application/agent-presence-query.js';

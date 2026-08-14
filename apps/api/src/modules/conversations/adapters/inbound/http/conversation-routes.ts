@@ -9,6 +9,7 @@ import type { RequestSecurityContext } from '../../../application/dtos.js';
 import type { AddConversationNoteUseCase } from '../../../application/use-cases/add-conversation-note-use-case.js';
 import type { AddConversationTagUseCase } from '../../../application/use-cases/add-conversation-tag-use-case.js';
 import type { AssignConversationUseCase } from '../../../application/use-cases/assign-conversation-use-case.js';
+import type { AssignToAvailableAgentUseCase } from '../../../application/use-cases/assign-to-available-agent-use-case.js';
 import type { ChangeConversationStatusUseCase } from '../../../application/use-cases/change-conversation-status-use-case.js';
 import type { CreateConversationUseCase } from '../../../application/use-cases/create-conversation-use-case.js';
 import type { EscalateConversationUseCase } from '../../../application/use-cases/escalate-conversation-use-case.js';
@@ -19,7 +20,9 @@ import type { ListMessagesUseCase } from '../../../application/use-cases/list-me
 import type { RemoveConversationTagUseCase } from '../../../application/use-cases/remove-conversation-tag-use-case.js';
 import type { SendMessageUseCase } from '../../../application/use-cases/send-message-use-case.js';
 import type { UnassignConversationUseCase } from '../../../application/use-cases/unassign-conversation-use-case.js';
+import type { GetConversationAttachmentUseCase, UploadConversationAttachmentUseCase } from '../../../application/use-cases/attachment-use-cases.js';
 import { UnauthorizedError } from '../../../domain/errors.js';
+import { readUploadedFile } from './read-uploaded-file.js';
 import {
   addConversationNoteBodySchema,
   addConversationTagBodySchema,
@@ -39,6 +42,7 @@ export type ConversationHttpUseCases = {
   readonly getConversation: GetConversationUseCase;
   readonly changeConversationStatus: ChangeConversationStatusUseCase;
   readonly assignConversation: AssignConversationUseCase;
+  readonly assignToAvailableAgent: AssignToAvailableAgentUseCase;
   readonly unassignConversation: UnassignConversationUseCase;
   readonly escalateConversation: EscalateConversationUseCase;
   readonly addConversationTag: AddConversationTagUseCase;
@@ -47,6 +51,8 @@ export type ConversationHttpUseCases = {
   readonly listMessages: ListMessagesUseCase;
   readonly addConversationNote: AddConversationNoteUseCase;
   readonly listConversationNotes: ListConversationNotesUseCase;
+  readonly uploadConversationAttachment: UploadConversationAttachmentUseCase;
+  readonly getConversationAttachment: GetConversationAttachmentUseCase;
 };
 
 export type AuthenticatePreHandler = (
@@ -154,6 +160,20 @@ export async function registerConversationRoutes(
   );
 
   app.post(
+    '/api/organizations/:organizationId/conversations/:conversationId/assign/available',
+    { preHandler: [...tenantAuth, requireAssign] },
+    async (request, reply) => {
+      const result = await useCases.assignToAvailableAgent.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        conversationId: routeParam(request, 'conversationId'),
+        security: securityContext(request),
+      });
+      return reply.status(200).send(result);
+    },
+  );
+
+  app.post(
     '/api/organizations/:organizationId/conversations/:conversationId/unassign',
     { preHandler: [...tenantAuth, requireAssign] },
     async (request, reply) => {
@@ -238,6 +258,7 @@ export async function registerConversationRoutes(
         conversationId: routeParam(request, 'conversationId'),
         body: body.body,
         authorType: body.authorType,
+        attachmentIds: body.attachmentIds,
         security: securityContext(request),
       });
       return reply.status(201).send(result);
@@ -272,6 +293,42 @@ export async function registerConversationRoutes(
         security: securityContext(request),
       });
       return reply.status(201).send(result);
+    },
+  );
+
+  app.post(
+    '/api/organizations/:organizationId/conversations/:conversationId/attachments',
+    { preHandler: [...tenantAuth, requireWrite] },
+    async (request, reply) => {
+      const file = await readUploadedFile(request);
+      const result = await useCases.uploadConversationAttachment.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        conversationId: routeParam(request, 'conversationId'),
+        fileName: file.fileName,
+        contentType: file.contentType,
+        bytes: file.bytes,
+        security: securityContext(request),
+      });
+      return reply.status(201).send(result);
+    },
+  );
+
+  app.get(
+    '/api/organizations/:organizationId/conversations/:conversationId/attachments/:attachmentId',
+    { preHandler: [...tenantAuth, requireRead] },
+    async (request, reply) => {
+      const result = await useCases.getConversationAttachment.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        conversationId: routeParam(request, 'conversationId'),
+        attachmentId: routeParam(request, 'attachmentId'),
+      });
+      return reply
+        .header('content-type', result.contentType)
+        .header('content-disposition', `attachment; filename="${encodeURIComponent(result.fileName)}"`)
+        .status(200)
+        .send(result.bytes);
     },
   );
 }

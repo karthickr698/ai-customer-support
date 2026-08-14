@@ -36,7 +36,12 @@ Configuration is read from the environment (and the repository-root `.env` when 
 | `AI_PORT`      | Listen port (default `8000`)                 |
 | `AI_LOG_LEVEL` | `debug` \| `info` \| `warning` \| `error`    |
 
-Do not put LLM keys in source. They will be required when a provider adapter is added.
+| `LLM_PROVIDER` | `openai` for Chat Completions, empty/`heuristic` for local setup without a key |
+| `LLM_API_KEY`  | Provider secret (required in production when `LLM_PROVIDER=openai`) |
+| `LLM_MODEL`    | Chat model id (default `gpt-4o-mini`) |
+| `LLM_BASE_URL` | OpenAI-compatible base URL (default `https://api.openai.com/v1`) |
+
+Do not put LLM keys in source. The TypeScript API calls `POST /v1/onboarding/setup` (and the granular generate endpoints).
 
 ## Run
 

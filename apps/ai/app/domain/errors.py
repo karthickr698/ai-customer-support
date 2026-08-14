@@ -22,3 +22,61 @@ class AIProviderError(AIError):
 class RateLimitExceededError(AIError):
     code = "RATE_LIMIT_EXCEEDED"
     status_code = 429
+
+
+class TenantContextRequiredError(AIError):
+    code = "TENANT_CONTEXT_REQUIRED"
+    status_code = 400
+
+    def __init__(self, message: str = "Tenant context is required") -> None:
+        super().__init__(message)
+
+
+class InvalidAIOutputError(AIError):
+    code = "INVALID_AI_OUTPUT"
+    status_code = 502
+
+    def __init__(self, message: str = "The AI service returned an invalid payload") -> None:
+        super().__init__(message)
+
+
+class InvalidOnboardingInputError(AIError):
+    code = "INVALID_ONBOARDING_INPUT"
+    status_code = 400
+
+
+class DocumentParseError(AIError):
+    code = "DOCUMENT_PARSE_ERROR"
+    status_code = 400
+
+    def __init__(self, message: str = "The document could not be parsed") -> None:
+        super().__init__(message)
+
+
+class UnsupportedDocumentKindError(AIError):
+    code = "UNSUPPORTED_DOCUMENT_KIND"
+    status_code = 400
+
+    def __init__(self, message: str = "This document type is not supported") -> None:
+        super().__init__(message)
+
+
+class EmptyDocumentError(AIError):
+    code = "EMPTY_DOCUMENT"
+    status_code = 400
+
+    def __init__(self, message: str = "The document did not contain extractable text") -> None:
+        super().__init__(message)
+
+
+class UnsafeUrlError(AIError):
+    code = "UNSAFE_URL"
+    status_code = 400
+
+    def __init__(self, message: str = "This URL cannot be fetched for ingestion") -> None:
+        super().__init__(message)
+
+
+class InvalidIngestionInputError(AIError):
+    code = "INVALID_INGESTION_INPUT"
+    status_code = 400

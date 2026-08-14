@@ -25,6 +25,13 @@ export class PostgresMessageRepository implements MessageRepository {
     await this.prisma.message.create({ data });
   }
 
+  async findById(tenantId: string, messageId: string): Promise<Message | null> {
+    const record = await this.prisma.message.findFirst({
+      where: { id: messageId, organizationId: tenantId },
+    });
+    return record ? toMessage(record) : null;
+  }
+
   async listByConversation(
     tenantId: string,
     conversationId: ConversationId,
@@ -49,6 +56,20 @@ export class PostgresMessageRepository implements MessageRepository {
       page: page.page,
       pageSize: page.pageSize,
     };
+  }
+
+  async listRecent(
+    tenantId: string,
+    conversationId: ConversationId,
+    limit: number,
+  ): Promise<Message[]> {
+    const records = await this.prisma.message.findMany({
+      where: { organizationId: tenantId, conversationId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    return records.reverse().map(toMessage);
   }
 }
 

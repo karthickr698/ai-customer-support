@@ -48,4 +48,25 @@ describe('PythonAIServiceAdapter', () => {
 
     await expect(adapter.isReady()).resolves.toBe(false);
   });
+
+  it('rejects invalid knowledge ingestion payloads', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ status: 'processed' }));
+    const adapter = new PythonAIServiceAdapter('http://localhost:8000', silentLogger, fetchImpl);
+
+    await expect(
+      adapter.ingestKnowledgeDocument(
+        { tenantId: 'tenant-1', requestId: 'req-1', correlationId: 'corr-1' },
+        {
+          schemaVersion: 1,
+          documentId: 'doc-1',
+          kind: 'article',
+          version: 1,
+          title: 'Policy',
+          replacePreviousVersion: false,
+          content: 'Refunds take five days.',
+          contentEncoding: 'utf8',
+        },
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_AI_PAYLOAD' });
+  });
 });

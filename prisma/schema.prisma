@@ -32,10 +32,17 @@ model Organization {
   createdAt DateTime @map("created_at")
   updatedAt DateTime @map("updated_at")
 
-  memberships   Membership[]
-  invitations   Invitation[]
-  auditLogs     OrganizationAuditLog[]
-  conversations Conversation[]
+  memberships     Membership[]
+  invitations     Invitation[]
+  auditLogs       OrganizationAuditLog[]
+  conversations   Conversation[]
+  escalationRules EscalationRule[]
+  onboarding      OrganizationOnboarding?
+  knowledgeSources KnowledgeSource[]
+  knowledgeDocuments KnowledgeDocument[]
+  widgetConfiguration WidgetConfiguration?
+  widgetSessions  WidgetSession[]
+  messageAttachments MessageAttachment[]
 
   @@map("organizations")
 }
@@ -166,21 +173,26 @@ model Conversation {
   status             String
   assignedAgentId    String?   @map("assigned_agent_id") @db.Uuid
   channel            String
-  lastMessageAt      DateTime? @map("last_message_at")
-  lastMessagePreview String?   @map("last_message_preview")
-  createdByUserId    String?   @map("created_by_user_id") @db.Uuid
-  createdAt          DateTime  @map("created_at")
-  updatedAt          DateTime  @map("updated_at")
+  lastMessageAt         DateTime? @map("last_message_at")
+  lastMessagePreview    String?   @map("last_message_preview")
+  lastMessageAuthorType String?   @map("last_message_author_type")
+  createdByUserId       String?   @map("created_by_user_id") @db.Uuid
+  widgetSessionId       String?   @map("widget_session_id") @db.Uuid
+  createdAt             DateTime  @map("created_at")
+  updatedAt             DateTime  @map("updated_at")
 
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  widgetSession WidgetSession?    @relation(fields: [widgetSessionId], references: [id], onDelete: SetNull)
   messages     Message[]
   notes        ConversationNote[]
   tags         ConversationTag[]
+  attachments  MessageAttachment[]
 
   @@index([organizationId, updatedAt])
   @@index([organizationId, status])
   @@index([organizationId, assignedAgentId])
   @@index([organizationId, customerEmail])
+  @@index([organizationId, widgetSessionId])
   @@map("conversations")
 }
 
@@ -194,6 +206,7 @@ model Message {
   createdAt      DateTime @map("created_at")
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  attachments  MessageAttachment[]
 
   @@index([conversationId, createdAt])
   @@index([organizationId, createdAt])
@@ -226,4 +239,163 @@ model ConversationTag {
   @@unique([conversationId, name])
   @@index([organizationId, name])
   @@map("conversation_tags")
+}
+
+model EscalationRule {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  enabled        Boolean  @default(true)
+  triggerType    String   @map("trigger_type")
+  triggerMinutes Int?     @map("trigger_minutes")
+  keywords       String[] @default([])
+  action         String
+  priority       Int      @default(100)
+  createdAt      DateTime @map("created_at")
+  updatedAt      DateTime @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, enabled, priority])
+  @@map("escalation_rules")
+}
+
+model OrganizationOnboarding {
+  id              String   @id @db.Uuid
+  organizationId  String   @unique @map("organization_id") @db.Uuid
+  status          String
+  businessProfile Json?    @map("business_profile")
+  tonePresets     Json?    @map("tone_presets")
+  selectedToneId  String?  @map("selected_tone_id")
+  agentSettings   Json?    @map("agent_settings")
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @map("created_at")
+  updatedAt       DateTime @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_onboardings")
+}
+
+model KnowledgeSource {
+  id              String   @id @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  type            String
+  name            String
+  url             String?
+  description     String?
+  status          String
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @map("created_at")
+  updatedAt       DateTime @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documents    KnowledgeDocument[]
+
+  @@index([organizationId, createdAt])
+  @@map("knowledge_sources")
+}
+
+model KnowledgeDocument {
+  id              String    @id @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  sourceId        String?   @map("source_id") @db.Uuid
+  kind            String
+  title           String
+  sourceUri       String?   @map("source_uri")
+  mediaType       String?   @map("media_type")
+  fileName        String?   @map("file_name")
+  storageKey      String?   @map("storage_key")
+  articleText     String?   @map("article_text")
+  checksum        String?
+  status          String
+  version         Int       @default(1)
+  chunkCount      Int       @default(0) @map("chunk_count")
+  embeddingModel  String?   @map("embedding_model")
+  parser          String?
+  failureCode     String?   @map("failure_code")
+  failureMessage  String?   @map("failure_message")
+  indexedAt       DateTime? @map("indexed_at")
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @map("created_at")
+  updatedAt       DateTime  @map("updated_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  source       KnowledgeSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, sourceId])
+  @@map("knowledge_documents")
+}
+
+model WidgetConfiguration {
+  id                String   @id @db.Uuid
+  organizationId    String   @unique @map("organization_id") @db.Uuid
+  publicKey         String   @unique @map("public_key")
+  enabled           Boolean  @default(true)
+  title             String
+  greeting          String
+  primaryColor      String   @map("primary_color")
+  position          String
+  launcherText      String   @map("launcher_text")
+  collectEmail      Boolean  @map("collect_email")
+  allowAnonymous    Boolean  @map("allow_anonymous")
+  allowAttachments  Boolean  @map("allow_attachments")
+  aiEnabled         Boolean  @map("ai_enabled")
+  offlineMessage    String   @map("offline_message")
+  allowedOrigins    String[] @default([]) @map("allowed_origins")
+  createdAt         DateTime @map("created_at")
+  updatedAt         DateTime @map("updated_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sessions     WidgetSession[]
+
+  @@map("widget_configurations")
+}
+
+model WidgetSession {
+  id                     String    @id @db.Uuid
+  organizationId         String    @map("organization_id") @db.Uuid
+  widgetConfigurationId  String    @map("widget_configuration_id") @db.Uuid
+  visitorId              String    @map("visitor_id")
+  kind                   String
+  email                  String?
+  name                   String?
+  customerId             String?   @map("customer_id") @db.Uuid
+  tokenHash              String    @unique @map("token_hash")
+  expiresAt              DateTime  @map("expires_at")
+  lastSeenAt             DateTime  @map("last_seen_at")
+  revokedAt              DateTime? @map("revoked_at")
+  createdAt              DateTime  @map("created_at")
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  widget       WidgetConfiguration @relation(fields: [widgetConfigurationId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  attachments   MessageAttachment[]
+
+  @@index([organizationId, visitorId])
+  @@index([organizationId, expiresAt])
+  @@map("widget_sessions")
+}
+
+model MessageAttachment {
+  id               String   @id @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  conversationId   String   @map("conversation_id") @db.Uuid
+  messageId        String?  @map("message_id") @db.Uuid
+  widgetSessionId  String?  @map("widget_session_id") @db.Uuid
+  fileName         String   @map("file_name")
+  contentType      String   @map("content_type")
+  byteSize         Int      @map("byte_size")
+  storageKey       String   @map("storage_key")
+  createdAt        DateTime @map("created_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message      Message?         @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  widgetSession WidgetSession?  @relation(fields: [widgetSessionId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, conversationId])
+  @@index([messageId])
+  @@map("message_attachments")
 }

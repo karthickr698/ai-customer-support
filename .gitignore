@@ -56,7 +56,8 @@ Thumbs.db
 !.cursor/rules/
 !.cursor/rules/**
 
-# Tooling caches
+# Local attachment storage
+data/
 .eslintcache
 .turbo
 .cache

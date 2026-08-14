@@ -1,0 +1,99 @@
+import type { DomainEvent } from '@ai-customer-support/shared';
+
+export class KnowledgeSourceRegisteredEvent implements DomainEvent {
+  readonly eventName = 'KnowledgeSourceRegistered';
+
+  constructor(
+    readonly eventId: string,
+    readonly occurredAt: Date,
+    readonly tenantId: string,
+    readonly knowledgeSourceId: string,
+    readonly sourceType: string,
+    readonly actorId: string,
+    readonly correlationId?: string,
+  ) {}
+}
+
+export class KnowledgeSourceRemovedEvent implements DomainEvent {
+  readonly eventName = 'KnowledgeSourceRemoved';
+
+  constructor(
+    readonly eventId: string,
+    readonly occurredAt: Date,
+    readonly tenantId: string,
+    readonly knowledgeSourceId: string,
+    readonly actorId: string,
+    readonly correlationId?: string,
+  ) {}
+}
+
+export class KnowledgeDocumentUploadedEvent implements DomainEvent {
+  readonly eventName = 'KnowledgeDocumentUploaded';
+
+  constructor(
+    readonly eventId: string,
+    readonly occurredAt: Date,
+    readonly tenantId: string,
+    readonly documentId: string,
+    readonly kind: string,
+    readonly version: number,
+    readonly actorId: string,
+    readonly correlationId?: string,
+  ) {}
+}
+
+export class KnowledgeDocumentProcessingRequestedEvent implements DomainEvent {
+  readonly eventName = 'KnowledgeDocumentProcessingRequested';
+
+  constructor(
+    readonly eventId: string,
+    readonly occurredAt: Date,
+    readonly tenantId: string,
+    readonly documentId: string,
+    readonly version: number,
+    readonly replacePreviousVersion: boolean,
+    readonly actorId: string,
+    readonly correlationId?: string,
+  ) {}
+}
+
+export class KnowledgeDocumentProcessedEvent implements DomainEvent {
+  readonly eventName = 'KnowledgeDocumentProcessed';
+
+  constructor(
+    readonly eventId: string,
+    readonly occurredAt: Date,
+    readonly tenantId: string,
+    readonly documentId: string,
+    readonly version: number,
+    readonly chunkCount: number,
+    readonly correlationId?: string,
+  ) {}
+}
+
+export class KnowledgeDocumentRemovedEvent implements DomainEvent {
+  readonly eventName = 'KnowledgeDocumentRemoved';
+
+  constructor(
+    readonly eventId: string,
+    readonly occurredAt: Date,
+    readonly tenantId: string,
+    readonly documentId: string,
+    readonly actorId: string,
+    readonly correlationId?: string,
+  ) {}
+}
+
+export class AIProcessingFailedEvent implements DomainEvent {
+  readonly eventName = 'AIProcessingFailed';
+
+  constructor(
+    readonly eventId: string,
+    readonly occurredAt: Date,
+    readonly tenantId: string,
+    readonly documentId: string,
+    readonly version: number,
+    readonly failureCode: string,
+    readonly correlationId?: string,
+  ) {}
+}

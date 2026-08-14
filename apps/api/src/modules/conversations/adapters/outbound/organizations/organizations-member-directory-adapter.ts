@@ -21,4 +21,12 @@ export class OrganizationsMemberDirectoryAdapter implements OrganizationMemberDi
       role: member.role,
     };
   }
+
+  async listActiveMembers(tenantId: string): Promise<OrganizationMemberRecord[]> {
+    const members = await this.members.listActiveMembers(tenantId);
+    return members.map((member) => ({
+      userId: member.userId,
+      role: member.role,
+    }));
+  }
 }

@@ -5,6 +5,7 @@ import {
   InvalidConversationStateError,
   InvalidConversationSubjectError,
   TooManyConversationTagsError,
+  UnauthorizedConversationAccessError,
 } from './errors.js';
 import { parseConversationChannel, type ConversationChannel } from './conversation-channel.js';
 import { createConversationId, type ConversationId } from './conversation-id.js';
@@ -16,7 +17,7 @@ import {
 } from './conversation-status.js';
 import { ConversationTag } from './conversation-tag.js';
 import { CustomerContact } from './customer-contact.js';
-import type { Message } from './message.js';
+import type { Message, MessageAuthorType } from './message.js';
 
 const MAX_TAGS = 20;
 
@@ -30,9 +31,11 @@ export type ConversationSnapshot = {
   readonly status: ConversationStatus;
   readonly assignedAgentId: string | undefined;
   readonly channel: ConversationChannel;
+  readonly widgetSessionId: string | undefined;
   readonly tags: readonly string[];
   readonly lastMessageAt: Date | undefined;
   readonly lastMessagePreview: string | undefined;
+  readonly lastMessageAuthorType: MessageAuthorType | undefined;
   readonly createdByUserId: string | undefined;
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -47,9 +50,11 @@ export class Conversation {
     private statusValue: ConversationStatus,
     private assignedAgentIdValue: string | undefined,
     private channelValue: ConversationChannel,
+    private widgetSessionIdValue: string | undefined,
     private tagsValue: ConversationTag[],
     private lastMessageAtValue: Date | undefined,
     private lastMessagePreviewValue: string | undefined,
+    private lastMessageAuthorTypeValue: MessageAuthorType | undefined,
     readonly createdByUserId: string | undefined,
     readonly createdAt: Date,
     private updatedAtValue: Date,
@@ -61,6 +66,7 @@ export class Conversation {
     readonly now: Date;
     readonly subject?: string;
     readonly channel?: string;
+    readonly widgetSessionId?: string;
     readonly createdByUserId?: string;
     readonly id?: ConversationId;
   }): Conversation {
@@ -72,7 +78,9 @@ export class Conversation {
       'open',
       undefined,
       parseConversationChannel(input.channel ?? 'web'),
+      input.widgetSessionId,
       [],
+      undefined,
       undefined,
       undefined,
       input.createdByUserId,
@@ -94,9 +102,11 @@ export class Conversation {
       parseConversationStatus(snapshot.status),
       snapshot.assignedAgentId,
       parseConversationChannel(snapshot.channel),
+      snapshot.widgetSessionId,
       snapshot.tags.map((tag) => ConversationTag.parse(tag)),
       snapshot.lastMessageAt,
       snapshot.lastMessagePreview,
+      snapshot.lastMessageAuthorType,
       snapshot.createdByUserId,
       snapshot.createdAt,
       snapshot.updatedAt,
@@ -123,6 +133,10 @@ export class Conversation {
     return this.channelValue;
   }
 
+  get widgetSessionId(): string | undefined {
+    return this.widgetSessionIdValue;
+  }
+
   get tags(): readonly ConversationTag[] {
     return this.tagsValue;
   }
@@ -133,6 +147,10 @@ export class Conversation {
 
   get lastMessagePreview(): string | undefined {
     return this.lastMessagePreviewValue;
+  }
+
+  get lastMessageAuthorType(): MessageAuthorType | undefined {
+    return this.lastMessageAuthorTypeValue;
   }
 
   get updatedAt(): Date {
@@ -147,10 +165,25 @@ export class Conversation {
     return this.organizationId === tenantId;
   }
 
+  assertOwnedByWidgetSession(sessionId: string): void {
+    if (this.widgetSessionIdValue !== sessionId) {
+      throw new UnauthorizedConversationAccessError();
+    }
+  }
+
   assertCanAcceptMessage(): void {
     if (this.isClosed) {
       throw new ConversationClosedError();
     }
+  }
+
+  canGenerateAiReply(): boolean {
+    return this.statusValue === 'open' || this.statusValue === 'pending';
+  }
+
+  identifyCustomer(customer: CustomerContact, now: Date): void {
+    this.customerValue = customer;
+    this.updatedAtValue = now;
   }
 
   transitionTo(status: ConversationStatus, now: Date): void {
@@ -206,6 +239,7 @@ export class Conversation {
     this.assertCanAcceptMessage();
     this.lastMessageAtValue = message.createdAt;
     this.lastMessagePreviewValue = message.preview();
+    this.lastMessageAuthorTypeValue = message.authorType;
     this.updatedAtValue = now;
   }
 
@@ -220,9 +254,11 @@ export class Conversation {
       status: this.statusValue,
       assignedAgentId: this.assignedAgentIdValue,
       channel: this.channelValue,
+      widgetSessionId: this.widgetSessionIdValue,
       tags: this.tagsValue.map((tag) => tag.value),
       lastMessageAt: this.lastMessageAtValue,
       lastMessagePreview: this.lastMessagePreviewValue,
+      lastMessageAuthorType: this.lastMessageAuthorTypeValue,
       createdByUserId: this.createdByUserId,
       createdAt: this.createdAt,
       updatedAt: this.updatedAtValue,

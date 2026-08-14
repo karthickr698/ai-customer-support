@@ -1,10 +1,12 @@
 from app.application.ports import (
     EmbeddingPort,
     EmbeddingRequest,
+    EmbeddingResult,
     LLMCompletionRequest,
     LLMCompletionResult,
     LLMMessage,
     LLMPort,
+    LLMStreamChunk,
     VectorSearchHit,
     VectorSearchPort,
     VectorSearchRequest,
@@ -21,11 +23,15 @@ class FakeLLM:
             completion_tokens=1,
         )
 
+    async def stream(self, request: LLMCompletionRequest):
+        result = await self.complete(request)
+        yield LLMStreamChunk(delta=result.content, done=True, result=result)
+
 
 class FakeEmbeddings:
-    async def embed(self, request: EmbeddingRequest) -> tuple[tuple[float, ...], ...]:
+    async def embed(self, request: EmbeddingRequest) -> EmbeddingResult:
         assert request.tenant_id == "tenant-1"
-        return ((0.1, 0.2),)
+        return EmbeddingResult(vectors=((0.1, 0.2),), model="fake", dimensions=2)
 
 
 class FakeVectorSearch:
@@ -55,5 +61,5 @@ async def test_embedding_and_vector_ports_require_tenant_scope() -> None:
         VectorSearchRequest(tenant_id="tenant-1", query="hello", limit=5)
     )
 
-    assert vectors == ((0.1, 0.2),)
+    assert vectors.vectors == ((0.1, 0.2),)
     assert hits[0].id == "chunk-1"

@@ -13,6 +13,15 @@ declare module 'fastify' {
       role: string;
       permissions: readonly string[];
     };
+    widgetSession?: {
+      sessionId: string;
+      organizationId: string;
+      visitorId: string;
+      kind: 'anonymous' | 'customer';
+      email?: string;
+      name?: string;
+      customerId?: string;
+    };
   }
 }
 

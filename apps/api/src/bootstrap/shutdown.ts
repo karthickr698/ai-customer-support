@@ -8,6 +8,11 @@ export async function shutdown(
 ): Promise<void> {
   deps.logger.info('Shutting down', { signal });
 
+  deps.agents?.stop();
+  if (deps.conversations) {
+    await deps.conversations.stop();
+  }
+
   await app.close();
   await deps.queue.close();
   await deps.redis.disconnect();

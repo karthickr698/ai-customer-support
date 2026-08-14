@@ -2,11 +2,13 @@ import type {
   ConversationAssigneeDto,
   ConversationDto,
   ConversationNoteDto,
+  MessageAttachmentDto,
   MessageDto,
 } from '@ai-customer-support/contracts';
 import type { Conversation } from '../domain/conversation.js';
 import type { ConversationNote } from '../domain/conversation-note.js';
 import type { Message } from '../domain/message.js';
+import type { MessageAttachment } from '../domain/message-attachment.js';
 import type { DirectoryUser } from './ports/user-directory-port.js';
 
 export type RequestSecurityContext = {
@@ -33,6 +35,7 @@ export function toConversationDto(
     assignedAgentId: snapshot.assignedAgentId ?? null,
     assignedAgent: assignee ? toAssigneeDto(assignee) : null,
     channel: snapshot.channel,
+    widgetSessionId: snapshot.widgetSessionId ?? null,
     tags: snapshot.tags,
     lastMessageAt: snapshot.lastMessageAt?.toISOString() ?? null,
     lastMessagePreview: snapshot.lastMessagePreview ?? null,
@@ -42,7 +45,23 @@ export function toConversationDto(
   };
 }
 
-export function toMessageDto(message: Message): MessageDto {
+export function toAttachmentDto(attachment: MessageAttachment): MessageAttachmentDto {
+  const snapshot = attachment.toSnapshot();
+  return {
+    id: snapshot.id,
+    conversationId: snapshot.conversationId,
+    messageId: snapshot.messageId ?? null,
+    fileName: snapshot.fileName,
+    contentType: snapshot.contentType,
+    byteSize: snapshot.byteSize,
+    createdAt: snapshot.createdAt.toISOString(),
+  };
+}
+
+export function toMessageDto(
+  message: Message,
+  attachments: readonly MessageAttachment[] = [],
+): MessageDto {
   const snapshot = message.toSnapshot();
   return {
     id: snapshot.id,
@@ -50,6 +69,7 @@ export function toMessageDto(message: Message): MessageDto {
     authorType: snapshot.authorType,
     authorId: snapshot.authorId ?? null,
     body: snapshot.body,
+    attachments: attachments.map(toAttachmentDto),
     createdAt: snapshot.createdAt.toISOString(),
   };
 }

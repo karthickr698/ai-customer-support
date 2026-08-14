@@ -2,13 +2,17 @@
   "info": {
     "_postman_id": "c4e8d2b1-7a91-4f3e-8c5a-ai-customer-support",
     "name": "AI Customer Support API",
-    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support — Local** environment.\n3. Keep cookies enabled (Postman → Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in → open `googleAuthorizationUrl` in a browser → after redirect, put the `code` query value into `googleLoginCode` → Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate — copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` → `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.",
+    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support — Local** environment.\n3. Keep cookies enabled (Postman → Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in → open `googleAuthorizationUrl` in a browser → after redirect, put the `code` query value into `googleLoginCode` → Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate — copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign / assign available, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\n**Realtime, presence, and escalation rules**\nWebSocket: `GET {{wsUrl}}/api/organizations/:organizationId/realtime?lastEventId=&access_token=` (session cookie or `access_token` query). On connect the server sends `connected`, missed `event`s, and `presence.snapshot`. Client messages: `heartbeat`, `resume`, `presence.set`, `subscribe` / `unsubscribe`.\nHTTP catch-up: `GET .../realtime/events?after=`.\nPresence: list/set/heartbeat under `/agents/presence`.\nEscalation rules: CRUD + `POST .../evaluate`. Assign available picks an online owner/admin/agent (round-robin).\n\n**Onboarding / knowledge**\nTenant routes under `/api/organizations/:organizationId/onboarding` and `/knowledge/sources`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Run onboarding setup (saves profile, tones, agent settings; optional knowledge sources)\n2. Or step through Generate business profile → Generate tone presets → Select tone → Generate agent settings\n3. Register extra knowledge sources (URL, help center, sitemap, text, file)\nPermissions: `organization.update` for LLM setup (admin+), `knowledge.manage` to register sources (agent+), `organization.read` to view.\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` → `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.\n\n**Widget**\nStaff: `GET/PATCH /api/organizations/:organizationId/widget` and `POST .../rotate-key` (session cookies + `x-tenant-id`). Public embed: `GET /api/widget/:publicKey/config`, then `POST /api/widget/:publicKey/sessions` (anonymous or email/name). Send `sessionToken` as `Authorization: Bearer` on `/api/widget/sessions/*` and `/api/widget/conversations*`.\n1. Get widget configuration (saves `widgetPublicKey`)\n2. Create anonymous session (saves `widgetSessionToken`) or Create customer session\n3. Start widget conversation (saves `widgetConversationId`)\n4. Send message, or stream AI reply (`text/event-stream`)\n5. Upload attachment (form-data `file`) then send `attachmentIds`\nTenant isolation: sessions, conversations, attachments, and AI calls are scoped to the organization behind the public key. Allowed origins are enforced when configured.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
       "value": "http://localhost:3000"
+    },
+    {
+      "key": "wsUrl",
+      "value": "ws://localhost:3000"
     }
   ],
   "auth": {
@@ -313,7 +317,9 @@
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
-                    "exec": ["pm.test('Logged out', () => pm.response.to.have.status(204));"]
+                    "exec": [
+                      "pm.test('Logged out', () => pm.response.to.have.status(204));"
+                    ]
                   }
                 }
               ]
@@ -1142,6 +1148,41 @@
               ]
             },
             {
+              "name": "Assign to available agent",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/assign/available",
+                "description": "Assigns the conversation to the next online owner, admin, or agent (round-robin). Requires `conversation.assign`. Returns 409 `NO_AVAILABLE_AGENT` when nobody is online."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const conversation = pm.response.json().conversation;",
+                      "  if (conversation.assignedAgentId) pm.environment.set('assignedAgentId', conversation.assignedAgentId);",
+                      "  pm.test('Assigned to an agent', () => {",
+                      "    pm.expect(conversation.assignedAgentId).to.be.a('string');",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "name": "Unassign conversation",
               "request": {
                 "method": "POST",
@@ -1468,6 +1509,1268 @@
                   }
                 }
               ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Agent presence",
+      "item": [
+        {
+          "name": "List agent presence",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/agents/presence",
+            "description": "Lists owner/admin/agent presence for the tenant (`online`, `away`, `busy`, `offline`). Requires `conversation.read`. Also pushed on the realtime socket as `presence.snapshot` / `agent.presence_changed`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Returns presence list', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().items).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set own presence",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/agents/presence",
+            "description": "Sets the current member's presence to `online`, `away`, or `busy`. Requires `conversation.read`. Broadcast over WebSocket.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"{{presenceStatus}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.test('Presence updated', () => {",
+                  "    pm.expect(pm.response.json().presence.status).to.eql(pm.environment.get('presenceStatus'));",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Presence heartbeat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/agents/presence/heartbeat",
+            "description": "Refreshes the current member's last-seen time so they are not marked offline. Prefer the WebSocket `heartbeat` message while connected. Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Escalation rules",
+      "item": [
+        {
+          "name": "Create escalation rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/escalation-rules",
+            "description": "Creates a tenant rule. Requires `conversation.escalate`.\nTriggers: `unanswered_for` / `unassigned_for` (need `triggerMinutes`), `assigned_agent_offline`, `keyword_match` (need `keywords`).\nActions: `escalate`, `escalate_and_unassign`, `assign_available` (falls back to escalate if nobody is online).\nLower `priority` runs first (1–1000, default 100). Time-based rules are evaluated every 30s and via Evaluate now.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Unanswered 15 minutes\",\n  \"enabled\": true,\n  \"triggerType\": \"unanswered_for\",\n  \"triggerMinutes\": 15,\n  \"action\": \"escalate\",\n  \"priority\": 100\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const rule = pm.response.json().rule;",
+                  "  pm.environment.set('escalationRuleId', rule.id);",
+                  "  pm.test('Rule created', () => {",
+                  "    pm.expect(rule.triggerType).to.eql('unanswered_for');",
+                  "    pm.expect(rule.enabled).to.eql(true);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List escalation rules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/escalation-rules",
+            "description": "Lists escalation rules for the tenant, lowest priority first. Requires `conversation.read`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Returns rules', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.items).to.be.an('array');",
+                  "  if (body.items[0]) pm.environment.set('escalationRuleId', body.items[0].id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update escalation rule",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/escalation-rules/{{escalationRuleId}}",
+            "description": "Updates name, enabled, trigger, action, or priority. Requires `conversation.escalate`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"triggerMinutes\": 10,\n  \"action\": \"escalate_and_unassign\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.test('Rule updated', () => {",
+                  "    pm.expect(pm.response.json().rule.id).to.eql(pm.environment.get('escalationRuleId'));",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Evaluate escalation rules now",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/escalation-rules/evaluate",
+            "description": "Runs due time-based and assigned-agent-offline rules for this tenant immediately. Requires `conversation.escalate`. Keyword rules apply automatically when a customer message is received."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Evaluated', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.have.property('applied');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete escalation rule",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/escalation-rules/{{escalationRuleId}}",
+            "description": "Deletes an escalation rule. Requires `conversation.escalate`. Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Realtime",
+      "item": [
+        {
+          "name": "Replay missed events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/realtime/events?after={{lastRealtimeEventId}}&limit=100",
+            "description": "HTTP catch-up after disconnect. Pass the last `eventId` (Redis stream id) as `after`. Requires `conversation.read`.\nIf `resyncRequired` is true the retained window was trimmed — reload inbox via List conversations.\nThe WebSocket also replays on connect (`?lastEventId=`) and on a `resume` client message."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Returns realtime page', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.items).to.be.an('array');",
+                  "  pm.expect(body).to.have.property('resyncRequired');",
+                  "  if (body.lastEventId) pm.environment.set('lastRealtimeEventId', body.lastEventId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Open realtime WebSocket",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{wsUrl}}/api/organizations/{{organizationId}}/realtime?lastEventId={{lastRealtimeEventId}}",
+            "description": "Upgrade to WebSocket (Postman: New → WebSocket request, then paste this URL). Auth: session cookie, `Authorization: Bearer`, or `access_token` query.\n\nServer messages: `connected`, `event`, `presence.snapshot`, `resync_required`, `pong`, `error`.\nEvents: `conversation.created` | `message_received` | `message_sent` | `status_changed` | `escalated` | `assigned` | `unassigned` | `note_added` | `agent.presence_changed`.\n\nClient JSON:\n`{\"type\":\"heartbeat\"}`\n`{\"type\":\"resume\",\"lastEventId\":\"{{lastRealtimeEventId}}\"}`\n`{\"type\":\"presence.set\",\"status\":\"online\"}`\n`{\"type\":\"subscribe\",\"conversationId\":\"{{conversationId}}\"}`\n`{\"type\":\"unsubscribe\"}`\n\nReconnect: send the last `event.eventId` as `lastEventId` (query or `resume`). If the server replies `resync_required`, call Replay missed events / List conversations."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Onboarding",
+      "item": [
+        {
+          "name": "Run onboarding setup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/onboarding/setup",
+            "description": "LLM-driven one-shot setup. Generates a business profile, support-tone presets, and initial agent settings, then persists them. Optional knowledgeSources are registered in the Knowledge module. Requires `organization.update`. Python AI must be running (`AI_SERVICE_URL`).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"{{organizationName}}\",\n  \"description\": \"{{companyDescription}}\",\n  \"websiteUrl\": \"{{knowledgeSourceUrl}}\",\n  \"industry\": \"SaaS\",\n  \"extraNotes\": \"We sell project management software to small teams.\",\n  \"selectedToneId\": \"friendly\",\n  \"knowledgeSources\": [\n    {\n      \"type\": \"url\",\n      \"name\": \"Help center\",\n      \"url\": \"{{knowledgeSourceUrl}}\",\n      \"description\": \"Public help articles\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const onboarding = pm.response.json().onboarding;",
+                  "  pm.test('Onboarding persisted', () => {",
+                  "    pm.expect(onboarding.businessProfile).to.be.an('object');",
+                  "    pm.expect(onboarding.tonePresets).to.be.an('array');",
+                  "    pm.expect(onboarding.agentSettings).to.be.an('object');",
+                  "  });",
+                  "  if (onboarding.selectedToneId) pm.environment.set('selectedToneId', onboarding.selectedToneId);",
+                  "  if (onboarding.knowledgeSources && onboarding.knowledgeSources[0]) {",
+                  "    pm.environment.set('knowledgeSourceId', onboarding.knowledgeSources[0].id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get onboarding",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/onboarding",
+            "description": "Returns persisted business profile, tone presets, agent settings, and registered knowledge sources. Requires `organization.read`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Returns onboarding', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.onboarding).to.have.property('status');",
+                  "  pm.expect(body.onboarding.knowledgeSources).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate business profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/onboarding/business-profile",
+            "description": "Calls the Python AI service to generate a structured business-profile schema from a free-text description, then persists it. Requires `organization.update`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyName\": \"{{organizationName}}\",\n  \"description\": \"{{companyDescription}}\",\n  \"websiteUrl\": \"{{knowledgeSourceUrl}}\",\n  \"industry\": \"SaaS\",\n  \"extraNotes\": \"Primary customers are small operations teams.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.test('Profile generated', () => {",
+                  "    pm.expect(pm.response.json().businessProfile.companyName).to.be.a('string');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get business profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/onboarding/business-profile",
+            "description": "Returns the persisted business profile. 404 if it has not been generated yet. Requires `organization.read`."
+          }
+        },
+        {
+          "name": "Generate support-tone presets",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/onboarding/tone-presets",
+            "description": "LLM-generates the five support-tone presets (professional, friendly, empathetic, concise, playful) for the current business profile and persists them. Requires a business profile first and `organization.update`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test('Tones generated', () => pm.expect(body.items).to.be.an('array').that.is.not.empty);",
+                  "  if (body.selectedToneId) pm.environment.set('selectedToneId', body.selectedToneId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List support-tone presets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/onboarding/tone-presets",
+            "description": "Lists persisted support-tone presets and the selected tone. Requires `organization.read`."
+          }
+        },
+        {
+          "name": "Select support tone",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/onboarding/tone-presets",
+            "description": "Persists the selected support-tone preset id. Requires `organization.update`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selectedToneId\": \"{{selectedToneId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Generate initial agent settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/onboarding/agent-settings",
+            "description": "LLM-generates initial AI agent settings from the business profile, selected tone, and registered knowledge sources, then persists them. Requires `organization.update`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.test('Agent settings generated', () => {",
+                  "    pm.expect(pm.response.json().agentSettings.assistantName).to.be.a('string');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get agent settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/onboarding/agent-settings",
+            "description": "Returns persisted AI agent settings. 404 if they have not been generated yet. Requires `organization.read`."
+          }
+        },
+        {
+          "name": "Update agent settings",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/onboarding/agent-settings",
+            "description": "Patches persisted agent settings (greeting, instructions, autonomy, and so on). Requires `organization.update`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"greeting\": \"Hi, thanks for reaching out — how can I help today?\",\n  \"maxAutonomyTurns\": 8,\n  \"collectContactInfo\": true\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Knowledge",
+      "item": [
+        {
+          "name": "Register knowledge source",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/sources",
+            "description": "Registers a knowledge source for later RAG ingestion. Types: `url`, `help_center`, `sitemap`, `text`, `file`. URL types require `url`. Text requires `description`. Requires `knowledge.manage`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"url\",\n  \"name\": \"Help center\",\n  \"url\": \"{{knowledgeSourceUrl}}\",\n  \"description\": \"Public product help articles\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const source = pm.response.json().source;",
+                  "  pm.environment.set('knowledgeSourceId', source.id);",
+                  "  pm.test('Source registered', () => pm.expect(source.status).to.eql('registered'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List knowledge sources",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/sources",
+            "description": "Lists registered knowledge sources for the tenant. Requires `organization.read`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Returns sources', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.items).to.be.an('array');",
+                  "  if (body.items[0]) pm.environment.set('knowledgeSourceId', body.items[0].id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete knowledge source",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/sources/{{knowledgeSourceId}}",
+            "description": "Removes a registered knowledge source. Requires `knowledge.manage`. Returns 204."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Widget",
+      "item": [
+        {
+          "name": "Staff configuration",
+          "item": [
+            {
+              "name": "Get widget configuration",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/widget",
+                "description": "Creates default widget settings if none exist, then returns them including the public embed key. Requires `organization.read`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const widget = pm.response.json().widget;",
+                      "  pm.environment.set('widgetPublicKey', widget.publicKey);",
+                      "  pm.test('Widget config returned', () => pm.expect(widget.publicKey).to.be.a('string'));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update widget configuration",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/widget",
+                "description": "Updates embed appearance, anonymous/identified sessions, attachments, AI replies, and allowed origins. Requires `organization.update`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": true,\n  \"title\": \"{{widgetTitle}}\",\n  \"greeting\": \"Hi — how can we help today?\",\n  \"primaryColor\": \"{{widgetPrimaryColor}}\",\n  \"position\": \"right\",\n  \"launcherText\": \"Help\",\n  \"collectEmail\": true,\n  \"allowAnonymous\": true,\n  \"allowAttachments\": true,\n  \"aiEnabled\": true,\n  \"offlineMessage\": \"We are away right now. Leave a message and we will get back to you.\",\n  \"allowedOrigins\": []\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const widget = pm.response.json().widget;",
+                      "  pm.environment.set('widgetPublicKey', widget.publicKey);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Rotate widget public key",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/widget/rotate-key",
+                "description": "Issues a new public embed key. Existing widget sessions stay valid. Requires `organization.update`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  pm.environment.set('widgetPublicKey', pm.response.json().widget.publicKey);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Public sessions",
+          "item": [
+            {
+              "name": "Get public widget config",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/{{widgetPublicKey}}/config",
+                "description": "Public embed bootstrap. No staff session required. Origin is checked against allowedOrigins when that list is non-empty."
+              }
+            },
+            {
+              "name": "Create anonymous session",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/{{widgetPublicKey}}/sessions",
+                "description": "Starts an anonymous visitor session. Returns `sessionToken` once — send it as `Authorization: Bearer` or `x-widget-session` on later widget calls.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"visitorId\": \"{{widgetVisitorId}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.environment.set('widgetSessionToken', body.sessionToken);",
+                      "  pm.test('Anonymous session', () => pm.expect(body.session.kind).to.eql('anonymous'));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create customer session",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/{{widgetPublicKey}}/sessions",
+                "description": "Starts an identified customer session with email and name.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"visitorId\": \"{{widgetVisitorId}}\",\n  \"email\": \"{{customerEmail}}\",\n  \"name\": \"{{customerName}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  pm.environment.set('widgetSessionToken', body.sessionToken);",
+                      "  pm.test('Customer session', () => pm.expect(body.session.kind).to.eql('customer'));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get current widget session",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{widgetSessionToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/sessions/me",
+                "description": "Returns the active widget session for the bearer token."
+              }
+            },
+            {
+              "name": "Identify widget session",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{widgetSessionToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/sessions/identify",
+                "description": "Converts an anonymous session into a customer session and updates that visitor's conversations in this tenant.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"name\": \"{{customerName}}\"\n}"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Conversations",
+          "item": [
+            {
+              "name": "Start widget conversation",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{widgetSessionToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/conversations",
+                "description": "Opens a tenant-scoped widget conversation for the current session. Optional first message.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"subject\": \"{{conversationSubject}}\",\n  \"message\": \"{{messageBody}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const conversation = pm.response.json().conversation;",
+                      "  pm.environment.set('widgetConversationId', conversation.id);",
+                      "  pm.environment.set('conversationId', conversation.id);",
+                      "  pm.test('Widget channel', () => pm.expect(conversation.channel).to.eql('widget'));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List widget conversations",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{widgetSessionToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/conversations?page={{conversationPage}}&pageSize={{conversationPageSize}}",
+                "description": "Lists conversations owned by this widget session in its tenant only."
+              }
+            },
+            {
+              "name": "Get widget conversation",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{widgetSessionToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/conversations/{{widgetConversationId}}",
+                "description": "Returns a conversation if it belongs to the current session and tenant."
+              }
+            },
+            {
+              "name": "Change widget conversation status",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{widgetSessionToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/conversations/{{widgetConversationId}}/status",
+                "description": "Visitor lifecycle: `open`, `resolved`, or `closed`. Closed conversations reject new messages until reopened to `open`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"resolved\"\n}"
+                }
+              }
+            },
+            {
+              "name": "List widget messages",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{widgetSessionToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/conversations/{{widgetConversationId}}/messages?page={{conversationPage}}&pageSize={{conversationPageSize}}",
+                "description": "Lists messages and attachments for the session-owned conversation."
+              }
+            },
+            {
+              "name": "Send widget message",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{widgetSessionToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/conversations/{{widgetConversationId}}/messages",
+                "description": "Saves a customer message without streaming an AI reply. Optional `attachmentIds` from a prior upload.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"body\": \"{{messageBody}}\",\n  \"attachmentIds\": []\n}"
+                }
+              }
+            },
+            {
+              "name": "Send widget message and stream AI reply",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "text/event-stream"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{widgetSessionToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/conversations/{{widgetConversationId}}/messages/stream",
+                "description": "Saves the customer message then streams SSE events: `message`, `delta`, `done`, `error`. AI replies are tenant-scoped via the TypeScript API to the Python AI service. Skip AI when the widget has AI disabled or the conversation is closed/escalated.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"body\": \"{{messageBody}}\"\n}"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Attachments",
+          "item": [
+            {
+              "name": "Upload widget attachment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{widgetSessionToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/conversations/{{widgetConversationId}}/attachments",
+                "description": "Multipart upload (`file`). Allowed types: PNG, JPEG, WebP, GIF, PDF, plain text. Max 5MB. Isolated to the session's tenant and conversation.",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('widgetAttachmentId', pm.response.json().attachment.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Download widget attachment",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{widgetSessionToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/conversations/{{widgetConversationId}}/attachments/{{widgetAttachmentId}}",
+                "description": "Downloads an attachment if it belongs to this session's conversation and tenant."
+              }
+            },
+            {
+              "name": "Upload staff attachment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/attachments",
+                "description": "Staff multipart upload onto a tenant conversation. Requires `conversation.write`.",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Download staff attachment",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/attachments/{{widgetAttachmentId}}",
+                "description": "Staff download. Requires `conversation.read`. Tenant isolation is enforced on every lookup."
+              }
             }
           ]
         }

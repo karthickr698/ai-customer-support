@@ -135,10 +135,11 @@ export class CreateConversationUseCase {
       }
     }
 
-    const assignee = conversation.assignedAgentId
-      ? await this.users.findById(conversation.assignedAgentId)
+    const latest = (await this.conversations.findById(actor.tenantId, conversation.id)) ?? conversation;
+    const assignee = latest.assignedAgentId
+      ? await this.users.findById(latest.assignedAgentId)
       : null;
 
-    return { conversation: toConversationDto(conversation, assignee) };
+    return { conversation: toConversationDto(latest, assignee) };
   }
 }

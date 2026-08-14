@@ -110,3 +110,17 @@ export class ConversationNoteAddedEvent implements DomainEvent {
     readonly correlationId?: string,
   ) {}
 }
+
+export class AttachmentUploadedEvent implements DomainEvent {
+  readonly eventName = 'AttachmentUploaded';
+
+  constructor(
+    readonly eventId: string,
+    readonly occurredAt: Date,
+    readonly tenantId: string,
+    readonly conversationId: string,
+    readonly attachmentId: string,
+    readonly actorId: string,
+    readonly correlationId?: string,
+  ) {}
+}

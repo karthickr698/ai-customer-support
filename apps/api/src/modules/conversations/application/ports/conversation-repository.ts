@@ -8,6 +8,7 @@ export type ConversationSearchFilter = {
   readonly status?: ConversationStatus;
   readonly assignedAgentId?: string | 'unassigned';
   readonly tag?: string;
+  readonly widgetSessionId?: string;
 };
 
 export interface ConversationRepository {
@@ -17,4 +18,8 @@ export interface ConversationRepository {
     filter: ConversationSearchFilter,
     page: { readonly page: number; readonly pageSize: number },
   ): Promise<{ readonly items: Conversation[]; readonly total: number }>;
+  listEscalationCandidates(
+    tenantId: string,
+    options?: { readonly assignedAgentId?: string; readonly limit?: number },
+  ): Promise<Conversation[]>;
 }

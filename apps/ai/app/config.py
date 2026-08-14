@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, ValidationError, field_validator
+from pydantic import AliasChoices, Field, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.domain.errors import ConfigurationError
@@ -26,6 +26,7 @@ class Settings(BaseSettings):
         env_file=_env_files(),
         env_file_encoding="utf-8",
         extra="ignore",
+        populate_by_name=True,
     )
 
     env: Environment = "development"
@@ -33,6 +34,38 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, gt=0, lt=65536)
     log_level: LogLevel = "info"
     service_name: str = "ai"
+    llm_provider: str = Field(
+        default="",
+        validation_alias=AliasChoices("LLM_PROVIDER", "AI_LLM_PROVIDER"),
+    )
+    llm_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("LLM_API_KEY", "AI_LLM_API_KEY"),
+    )
+    llm_model: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices("LLM_MODEL", "AI_LLM_MODEL"),
+    )
+    llm_base_url: str = Field(
+        default="https://api.openai.com/v1",
+        validation_alias=AliasChoices("LLM_BASE_URL", "AI_LLM_BASE_URL"),
+    )
+    embedding_provider: str = Field(
+        default="",
+        validation_alias=AliasChoices("EMBEDDING_PROVIDER", "AI_EMBEDDING_PROVIDER"),
+    )
+    embedding_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("EMBEDDING_API_KEY", "AI_EMBEDDING_API_KEY"),
+    )
+    embedding_model: str = Field(
+        default="text-embedding-3-small",
+        validation_alias=AliasChoices("EMBEDDING_MODEL", "AI_EMBEDDING_MODEL"),
+    )
+    embedding_base_url: str = Field(
+        default="https://api.openai.com/v1",
+        validation_alias=AliasChoices("EMBEDDING_BASE_URL", "AI_EMBEDDING_BASE_URL"),
+    )
 
     @field_validator("host")
     @classmethod

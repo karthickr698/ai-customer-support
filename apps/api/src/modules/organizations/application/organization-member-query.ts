@@ -26,4 +26,15 @@ export class OrganizationMemberQuery {
       status: membership.status,
     };
   }
+
+  async listActiveMembers(tenantId: string): Promise<OrganizationMemberProfile[]> {
+    const memberships = await this.memberships.listByOrganization(createOrganizationId(tenantId));
+    return memberships
+      .filter((membership) => membership.isActive)
+      .map((membership) => ({
+        userId: membership.userId,
+        role: membership.role,
+        status: membership.status,
+      }));
+  }
 }

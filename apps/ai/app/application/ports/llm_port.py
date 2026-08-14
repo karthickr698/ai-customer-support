@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
@@ -13,6 +14,8 @@ class LLMCompletionRequest:
     messages: tuple[LLMMessage, ...]
     correlation_id: str
     tenant_id: str
+    json_mode: bool = False
+    temperature: float = 0.2
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,7 +26,16 @@ class LLMCompletionResult:
     completion_tokens: int
 
 
+@dataclass(frozen=True, slots=True)
+class LLMStreamChunk:
+    delta: str
+    done: bool = False
+    result: LLMCompletionResult | None = None
+
+
 class LLMPort(Protocol):
     """Outbound LLM capability. Provider SDKs implement this in adapters."""
 
     async def complete(self, request: LLMCompletionRequest) -> LLMCompletionResult: ...
+
+    def stream(self, request: LLMCompletionRequest) -> AsyncIterator[LLMStreamChunk]: ...
