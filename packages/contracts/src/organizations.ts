@@ -9,6 +9,7 @@ export const ORGANIZATION_PERMISSIONS = [
   'organization.invitations.manage',
   'organization.audit.view',
   'conversation.read',
+  'conversation.write',
   'conversation.assign',
   'conversation.escalate',
   'ticket.manage',
@@ -123,7 +124,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-export function isOrganizationWithMembershipDto(value: unknown): value is OrganizationWithMembershipDto {
+export function isOrganizationWithMembershipDto(
+  value: unknown,
+): value is OrganizationWithMembershipDto {
   if (!isRecord(value) || !isRecord(value.membership)) {
     return false;
   }

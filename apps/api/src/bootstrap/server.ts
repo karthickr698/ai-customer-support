@@ -46,5 +46,9 @@ export async function buildServer(
     await deps.organizations.register(app);
   }
 
+  if (deps.conversations) {
+    await deps.conversations.register(app);
+  }
+
   return app;
 }

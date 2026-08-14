@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "c4e8d2b1-7a91-4f3e-8c5a-ai-customer-support",
     "name": "AI Customer Support API",
-    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support — Local** environment.\n3. Keep cookies enabled (Postman → Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in → open `googleAuthorizationUrl` in a browser → after redirect, put the `code` query value into `googleLoginCode` → Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate — copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.",
+    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support — Local** environment.\n3. Keep cookies enabled (Postman → Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in → open `googleAuthorizationUrl` in a browser → after redirect, put the `code` query value into `googleLoginCode` → Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate — copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` → `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -36,7 +36,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "url": "{{baseUrl}}/health",
             "description": "Process liveness. Returns 200 even if PostgreSQL or Redis are down."
@@ -59,7 +62,10 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "url": "{{baseUrl}}/ready",
             "description": "Infrastructure readiness for PostgreSQL and Redis. 200 when both are up, 503 otherwise."
@@ -93,8 +99,14 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -125,8 +137,14 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -141,8 +159,14 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -176,8 +200,14 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -206,7 +236,10 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "url": "{{baseUrl}}/api/auth/me",
                 "description": "Returns the authenticated user. Requires a valid `access_token` cookie or `Authorization: Bearer` access token."
@@ -231,7 +264,10 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -260,7 +296,10 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -274,9 +313,7 @@
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
-                    "exec": [
-                      "pm.test('Logged out', () => pm.response.to.have.status(204));"
-                    ]
+                    "exec": ["pm.test('Logged out', () => pm.response.to.have.status(204));"]
                   }
                 }
               ]
@@ -291,8 +328,14 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -321,8 +364,14 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -356,7 +405,10 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -386,7 +438,10 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "url": "{{baseUrl}}/api/auth/google/callback?code={{googleOAuthCode}}&state={{googleOAuthState}}",
                 "description": "Google redirects here after consent. The API exchanges the OAuth code, then redirects to the web app with a one-time login code. Normally invoked by Google, not Postman. Disable auto-follow redirects to inspect the Location header."
@@ -397,8 +452,14 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -438,8 +499,14 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -473,7 +540,10 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "url": "{{baseUrl}}/api/organizations",
                 "description": "Lists organizations the authenticated user belongs to, with their role and permissions. Does not include other tenants."
@@ -503,8 +573,14 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}",
                 "description": "Returns the organization and the caller's membership. Requires `organization.read`. Cross-tenant ids return 403 `UNAUTHORIZED_ORGANIZATION_ACCESS`."
@@ -529,9 +605,18 @@
               "request": {
                 "method": "PATCH",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -561,8 +646,14 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -582,8 +673,14 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/members",
                 "description": "Tenant-scoped member list. Requires `organization.read`. Never returns another organization's members."
@@ -611,9 +708,18 @@
               "request": {
                 "method": "PATCH",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -643,8 +749,14 @@
               "request": {
                 "method": "DELETE",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/members/{{membershipId}}",
                 "description": "Removes another member. Requires `organization.members.manage`. Cannot remove yourself (use Leave) or the last owner. Returns 204."
@@ -660,9 +772,18 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -695,8 +816,14 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/invitations",
                 "description": "Lists pending invitations for this tenant. Requires `organization.invitations.manage`."
@@ -723,7 +850,10 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "url": "{{baseUrl}}/api/invitations/{{invitationToken}}",
                 "description": "Public preview of an invitation (organization name, invited email, role, expiry). No auth. Invalid or expired tokens return 400 `INVALID_INVITATION_TOKEN`."
@@ -750,8 +880,14 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
@@ -783,8 +919,14 @@
               "request": {
                 "method": "DELETE",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/invitations/{{invitationId}}",
                 "description": "Revokes a pending invitation. Requires `organization.invitations.manage`. Returns 204."
@@ -800,8 +942,14 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "x-tenant-id", "value": "{{organizationId}}" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/audit-logs?page={{auditPage}}&pageSize={{auditPageSize}}",
                 "description": "Tenant-scoped audit log. Requires `organization.audit.view` (owner or admin). Query: `page` (min 1), `pageSize` (1–100). Actions include `organization.created`, `organization.member.invited`, `organization.invitation.accepted`, `organization.member.role_changed`."
@@ -818,6 +966,503 @@
                       "  pm.expect(body.items).to.be.an('array');",
                       "  pm.expect(body).to.have.property('total');",
                       "  pm.expect(body).to.have.property('page');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Conversations",
+      "item": [
+        {
+          "name": "Inbox",
+          "item": [
+            {
+              "name": "Create conversation",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations",
+                "description": "Creates an open conversation for a customer. Requires `conversation.write`. Optional: subject, channel (`web` | `email` | `api`), tags, assignedAgentId, initialMessage, initialMessageAuthor (`customer` | `agent`).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customerEmail\": \"{{customerEmail}}\",\n  \"customerName\": \"{{customerName}}\",\n  \"subject\": \"{{conversationSubject}}\",\n  \"channel\": \"web\",\n  \"tags\": [\"{{conversationTag}}\"],\n  \"initialMessage\": \"{{messageBody}}\",\n  \"initialMessageAuthor\": \"customer\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const conversation = pm.response.json().conversation;",
+                      "  pm.environment.set('conversationId', conversation.id);",
+                      "  if (conversation.assignedAgentId) pm.environment.set('assignedAgentId', conversation.assignedAgentId);",
+                      "  pm.test('Conversation created', () => {",
+                      "    pm.expect(conversation.status).to.eql('open');",
+                      "    pm.expect(conversation.customerEmail).to.eql(pm.environment.get('customerEmail').toLowerCase());",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List and search conversations",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations?page={{conversationPage}}&pageSize={{conversationPageSize}}&q={{conversationSearch}}&status={{conversationStatus}}&assignedAgentId={{assignedAgentId}}&tag={{conversationTag}}",
+                "description": "Paginated inbox search. Requires `conversation.read`. Query: `page`, `pageSize` (1–100), `q` (subject, customer, tags, message body), `status`, `assignedAgentId` (user id or `unassigned`), `tag`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Returns conversation page', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.items).to.be.an('array');",
+                      "  pm.expect(body).to.have.property('total');",
+                      "  if (body.items[0]) pm.environment.set('conversationId', body.items[0].id);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get conversation",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}",
+                "description": "Loads one tenant-scoped conversation with tags and assignee. Requires `conversation.read`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Returns conversation', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  const conversation = pm.response.json().conversation;",
+                      "  pm.expect(conversation.id).to.eql(pm.environment.get('conversationId'));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Assignment & status",
+          "item": [
+            {
+              "name": "Assign conversation",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/assign",
+                "description": "Assigns an active owner, admin, or agent in this organization. Requires `conversation.assign`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"assignedAgentId\": \"{{assignedAgentId}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Assigned', () => {",
+                      "    pm.expect(pm.response.json().conversation.assignedAgentId).to.eql(pm.environment.get('assignedAgentId'));",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Unassign conversation",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/unassign",
+                "description": "Clears the assignee. Requires `conversation.assign`."
+              }
+            },
+            {
+              "name": "Change conversation status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/status",
+                "description": "Transitions status. Requires `conversation.write`. Allowed: `open`, `pending`, `resolved`, `closed`. Use Escalate for `escalated`. Closed conversations cannot accept messages until reopened to `open`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"{{conversationStatus}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Status updated', () => {",
+                      "    pm.expect(pm.response.json().conversation.status).to.eql(pm.environment.get('conversationStatus'));",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Escalate conversation",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/escalate",
+                "description": "Escalates an `open` or `pending` conversation. Requires `conversation.escalate`. Optional reason (max 500).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Needs specialist review\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Escalated', () => {",
+                      "    pm.expect(pm.response.json().conversation.status).to.eql('escalated');",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Tags",
+          "item": [
+            {
+              "name": "Add tag",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/tags",
+                "description": "Adds a tag (1–32 lowercase letters, numbers, or hyphens; max 20 tags). Requires `conversation.write`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"{{conversationTag}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Tag present', () => {",
+                      "    pm.expect(pm.response.json().conversation.tags).to.include(pm.environment.get('conversationTag'));",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Remove tag",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/tags/{{conversationTag}}",
+                "description": "Removes a tag from the conversation. Requires `conversation.write`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Messages",
+          "item": [
+            {
+              "name": "Send message",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/messages",
+                "description": "Adds a message. Requires `conversation.write`. `authorType` defaults to `agent` (use `customer` to log a customer reply). Closed conversations return 409 `CONVERSATION_CLOSED`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"body\": \"{{messageBody}}\",\n  \"authorType\": \"agent\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const message = pm.response.json().message;",
+                      "  pm.environment.set('messageId', message.id);",
+                      "  pm.test('Message sent', () => {",
+                      "    pm.expect(message.body).to.eql(pm.environment.get('messageBody'));",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List messages",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/messages?page={{conversationPage}}&pageSize={{conversationPageSize}}",
+                "description": "Paginated messages in chronological order. Requires `conversation.read`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Returns messages page', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.items).to.be.an('array');",
+                      "  if (body.items[0]) pm.environment.set('messageId', body.items[0].id);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Notes",
+          "item": [
+            {
+              "name": "Add internal note",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/notes",
+                "description": "Adds an internal note (not a customer-visible message). Requires `conversation.write`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"body\": \"{{noteBody}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const note = pm.response.json().note;",
+                      "  pm.environment.set('noteId', note.id);",
+                      "  pm.test('Note created', () => {",
+                      "    pm.expect(note.body).to.eql(pm.environment.get('noteBody'));",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List notes",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/notes?page={{conversationPage}}&pageSize={{conversationPageSize}}",
+                "description": "Paginated internal notes. Requires `conversation.read`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Returns notes page', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.items).to.be.an('array');",
+                      "  if (body.items[0]) pm.environment.set('noteId', body.items[0].id);",
                       "});"
                     ]
                   }

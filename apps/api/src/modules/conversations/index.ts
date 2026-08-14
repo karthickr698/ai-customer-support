@@ -1,2 +1,2 @@
-/** Public surface of the conversations module. Feature commands add use cases and adapters here. */
-export {};
+export type { ConversationsHttpRegistrar } from './compose-conversations.js';
+export { composeConversations } from './compose-conversations.js';

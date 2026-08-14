@@ -15,6 +15,31 @@ export {
   type VerifyEmailRequest,
 } from './identity.js';
 export {
+  CONVERSATION_CHANNELS,
+  CONVERSATION_STATUSES,
+  MESSAGE_AUTHOR_TYPES,
+  type AddConversationNoteRequest,
+  type AddConversationTagRequest,
+  type AssignConversationRequest,
+  type ChangeConversationStatusRequest,
+  type ConversationAssigneeDto,
+  type ConversationChannel,
+  type ConversationDto,
+  type ConversationListResponse,
+  type ConversationNoteDto,
+  type ConversationNoteListResponse,
+  type ConversationNoteResponse,
+  type ConversationResponse,
+  type ConversationStatus,
+  type CreateConversationRequest,
+  type EscalateConversationRequest,
+  type MessageAuthorType,
+  type MessageDto,
+  type MessageListResponse,
+  type MessageResponse,
+  type SendMessageRequest,
+} from './conversations.js';
+export {
   isOrganizationWithMembershipDto,
   ORGANIZATION_PERMISSIONS,
   ORGANIZATION_ROLES,
@@ -39,4 +64,3 @@ export {
   type OrganizationWithMembershipDto,
   type UpdateOrganizationRequest,
 } from './organizations.js';
-

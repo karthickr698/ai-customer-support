@@ -1,6 +1,7 @@
 import type { AppConfig } from '@ai-customer-support/config';
 import type { EventBus, Logger } from '@ai-customer-support/shared';
 import type { AIServicePort } from '../modules/ai/application/ports/ai-service-port.js';
+import type { ConversationsHttpRegistrar } from '../modules/conversations/compose-conversations.js';
 import type { IdentityHttpRegistrar } from '../modules/identity/compose-identity.js';
 import type { OrganizationsHttpRegistrar } from '../modules/organizations/compose-organizations.js';
 import type { DatabasePort } from '../shared/application/ports/database-port.js';
@@ -19,4 +20,5 @@ export interface AppDependencies {
   readonly healthChecker: InfrastructureHealthChecker;
   readonly identity?: IdentityHttpRegistrar;
   readonly organizations?: OrganizationsHttpRegistrar;
+  readonly conversations?: ConversationsHttpRegistrar;
 }

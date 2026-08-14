@@ -1,0 +1,12 @@
+import type { Page, PageRequest } from '@ai-customer-support/shared';
+import type { ConversationId } from '../../domain/conversation-id.js';
+import type { Message } from '../../domain/message.js';
+
+export interface MessageRepository {
+  save(message: Message): Promise<void>;
+  listByConversation(
+    tenantId: string,
+    conversationId: ConversationId,
+    page: PageRequest,
+  ): Promise<Page<Message>>;
+}

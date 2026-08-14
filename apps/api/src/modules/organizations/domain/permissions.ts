@@ -6,6 +6,7 @@ export const Permissions = {
   ORGANIZATION_INVITATIONS_MANAGE: 'organization.invitations.manage',
   ORGANIZATION_AUDIT_VIEW: 'organization.audit.view',
   CONVERSATION_READ: 'conversation.read',
+  CONVERSATION_WRITE: 'conversation.write',
   CONVERSATION_ASSIGN: 'conversation.assign',
   CONVERSATION_ESCALATE: 'conversation.escalate',
   TICKET_MANAGE: 'ticket.manage',
@@ -28,12 +29,17 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly Permission[]> =
   agent: [
     Permissions.ORGANIZATION_READ,
     Permissions.CONVERSATION_READ,
+    Permissions.CONVERSATION_WRITE,
     Permissions.CONVERSATION_ASSIGN,
     Permissions.CONVERSATION_ESCALATE,
     Permissions.TICKET_MANAGE,
     Permissions.KNOWLEDGE_MANAGE,
   ],
-  viewer: [Permissions.ORGANIZATION_READ, Permissions.CONVERSATION_READ, Permissions.ANALYTICS_VIEW],
+  viewer: [
+    Permissions.ORGANIZATION_READ,
+    Permissions.CONVERSATION_READ,
+    Permissions.ANALYTICS_VIEW,
+  ],
 };
 
 export function isOrganizationRole(value: string): value is OrganizationRole {

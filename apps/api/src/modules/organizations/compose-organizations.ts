@@ -20,6 +20,7 @@ import {
   type AuthenticatePreHandler,
 } from './adapters/inbound/http/organization-routes.js';
 import { LoadTenantMembershipService } from './application/load-tenant-membership-service.js';
+import { OrganizationMemberQuery } from './application/organization-member-query.js';
 import type { InvitationEmailPort } from './application/ports/invitation-email-port.js';
 import type { UserDirectoryPort } from './application/ports/user-directory-port.js';
 import { AcceptInvitationUseCase } from './application/use-cases/accept-invitation-use-case.js';
@@ -42,6 +43,11 @@ export type OrganizationsHttpRegistrar = {
   register(app: FastifyInstance): Promise<void>;
 };
 
+export type OrganizationsModule = OrganizationsHttpRegistrar & {
+  readonly resolveTenantAccess: ResolveTenantAccessUseCase;
+  readonly memberQuery: OrganizationMemberQuery;
+};
+
 export function composeOrganizations(input: {
   readonly prisma: PrismaClient;
   readonly redis: Redis;
@@ -50,7 +56,7 @@ export function composeOrganizations(input: {
   readonly eventBus: EventBus;
   readonly userDirectory: UserDirectoryPort;
   readonly authenticate: AuthenticatePreHandler;
-}): OrganizationsHttpRegistrar {
+}): OrganizationsModule {
   const organizations = new PostgresOrganizationRepository(input.prisma);
   const memberships = new PostgresMembershipRepository(input.prisma);
   const invitations = new PostgresInvitationRepository(input.prisma);
@@ -142,6 +148,8 @@ export function composeOrganizations(input: {
   };
 
   return {
+    resolveTenantAccess: useCases.resolveTenantAccess,
+    memberQuery: new OrganizationMemberQuery(memberships),
     async register(app: FastifyInstance): Promise<void> {
       await registerOrganizationRoutes(app, useCases, input.authenticate);
     },
