@@ -5,3 +5,8 @@ coverage
 package-lock.json
 *.tsbuildinfo
 prisma/migrations
+.venv
+venv
+__pycache__
+.pytest_cache
+*.egg-info

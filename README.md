@@ -1,18 +1,19 @@
 # AI Customer Support
 
-Modular monolith for AI-assisted customer support. Hexagonal (ports and adapters) modules, event-driven workflows, and a separate in-process AI boundary that can be extracted later.
+Modular monolith for AI-assisted customer support. Hexagonal (ports and adapters) modules, event-driven workflows, and a **Python AI service** (`apps/ai`) for LLM, RAG, and embeddings. The TypeScript API (`apps/api`) never talks to LLM providers directly.
 
 This repository currently contains the **project foundation only**. Business features (auth, conversations, tickets, RAG, and so on) are added through feature-wise commands.
 
 ## Architecture
 
-- **Apps:** `apps/api` (Fastify + TypeScript) and `apps/web` (React + Vite)
-- **Modules:** identity, organizations, customers, conversations, tickets, agents, knowledge, ai, notifications, analytics, integrations
+- **Apps:** `apps/api` (Fastify + TypeScript), `apps/ai` (Python AI service), and `apps/web` (React + Vite)
+- **Modules (TypeScript):** identity, organizations, customers, conversations, tickets, agents, knowledge, notifications, analytics, integrations
+- **AI (Python):** LLM, RAG, embeddings, prompts, tool calling, guardrails — hexagonal `domain/` → `application/` → `adapters/`
 - **Layout per module:** `domain/` → `application/` → `adapters/` (inbound HTTP/WebSocket/events, outbound persistence/messaging/external)
 - **Packages:** `packages/shared` (Result, DomainError, Logger, RequestContext, Pagination, EventBus), `packages/config` (typed env), `packages/contracts` (API contracts)
 - **Data:** PostgreSQL (Prisma) is the system of record; Redis is for cache, queues, locks, and temporary state
 
-See [docs/architecture.md](docs/architecture.md) for boundaries and the AI extraction path.
+See [docs/architecture.md](docs/architecture.md) for boundaries and the Python AI service.
 
 ## Local setup
 
@@ -20,6 +21,7 @@ See [docs/architecture.md](docs/architecture.md) for boundaries and the AI extra
 
 - Node.js 20+
 - npm 10+
+- Python 3.12+
 - Docker (for PostgreSQL and Redis)
 
 ### Environment configuration
@@ -37,9 +39,10 @@ Required variables are documented in `.env.example`:
 | `PORT` / `HOST`                | API listen address                         |
 | `NODE_ENV`                     | `development` \| `test` \| `production`    |
 | `JWT_SECRET`                   | Auth secret (required; min 32 characters)  |
-| `LLM_PROVIDER` / `LLM_API_KEY` | Reserved for the AI adapter (not used yet) |
+| `LLM_PROVIDER` / `LLM_API_KEY` | Reserved for the Python AI service (not used yet) |
 | `WEB_ORIGIN`                   | CORS origin for the web app                |
 | `LOG_LEVEL`                    | Pino log level                             |
+| `AI_ENV` / `AI_HOST` / `AI_PORT` / `AI_LOG_LEVEL` | Python AI service (`apps/ai`) |
 
 Never commit `.env`.
 
@@ -76,13 +79,25 @@ npm run dev:api
 npm run dev:web
 ```
 
+Python AI service (http://localhost:8000):
+
+```bash
+cd apps/ai
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+python -m app.main
+```
+
+`GET /health` on the AI service returns `{ "status": "ok", "service": "ai" }`. See [apps/ai/README.md](apps/ai/README.md).
+
 Production-style API start after `npm run build`:
 
 ```bash
 npm run start
 ```
 
-The API exposes `GET /health` (checks PostgreSQL and Redis). There are no business APIs yet.
+The API exposes `GET /health` (checks PostgreSQL and Redis). The Python AI service exposes `GET /health`. There are no business APIs yet.
 
 ## Tests and quality
 
@@ -94,6 +109,12 @@ npm test
 npm run test:unit
 npm run test:integration
 npm run test:e2e
+```
+
+Python AI service:
+
+```bash
+cd apps/ai && pytest
 ```
 
 ## Scripts

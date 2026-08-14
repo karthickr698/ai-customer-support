@@ -9,6 +9,20 @@ build/
 # Test / coverage
 coverage/
 .vitest/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.installed.cfg
 
 # Environment
 .env

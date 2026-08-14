@@ -1,30 +1,33 @@
 # Architecture
 
-The platform is a **modular monolith** with **hexagonal (ports and adapters)** modules. One backend deployable; the AI module is an in-process boundary that can be extracted later.
+The platform is a **modular monolith** for the TypeScript core (`apps/api`) plus a **Python AI service** (`apps/ai`). Both use **hexagonal (ports and adapters)** modules. LLM, RAG, embeddings, and prompts live in Python — never in TypeScript.
 
 ## Dependency direction
 
 **Adapters → Application → Domain**
 
-Domain has no Fastify, Prisma, Redis, queue, or LLM SDK imports. Use cases talk to ports. Adapters implement ports.
+Domain has no Fastify, FastAPI, Prisma, SQLAlchemy, Redis, queue, or LLM SDK imports. Use cases talk to ports. Adapters implement ports.
 
 ## Backend modules
 
-`apps/api/src/modules/`: identity, organizations, customers, conversations, tickets, agents, knowledge, ai, notifications, analytics, integrations.
+`apps/api/src/modules/`: identity, organizations, customers, conversations, tickets, agents, knowledge, notifications, analytics, integrations.
 
-Modules communicate through public application contracts, ports, or events — never another module’s Prisma models or adapters.
+`apps/ai/`: Python AI service (same hexagonal layout: `domain/` → `application/` → `adapters/`).
+
+Modules communicate through public application contracts, ports, or events — never another module’s Prisma models or adapters. Cross-runtime calls go through HTTP, queues, or events. TypeScript uses `AIServicePort`; Python uses `LLMPort`, `EmbeddingPort`, `VectorSearchPort`.
 
 ## AI boundary
 
 ```
-Conversation (or other module) → AI application → AI port → AI adapter → LLM / embedding / vector provider
+Conversation (TS) → AIServicePort (TS) → HTTP/queue adapter (TS)
+  → Python inbound adapter → AI application → LLM/embedding/vector port → provider adapter
 ```
 
-Ports already defined: `LLMPort`, `EmbeddingPort`, `VectorSearchPort`. Provider SDKs stay in AI outbound adapters. AI does not write business tables.
+Provider SDKs stay in Python AI outbound adapters. TypeScript never imports OpenAI, Anthropic, or LangChain. Python AI does not write business tables.
 
 ## Data
 
-PostgreSQL is the system of record (Prisma behind repository adapters). Redis is for cache, rate limits, queues, locks, and temporary state.
+PostgreSQL is the system of record (Prisma behind TypeScript repository adapters). Redis is for cache, rate limits, queues, locks, and temporary state. Vector search lives behind Python ports.
 
 ## Shared code
 
