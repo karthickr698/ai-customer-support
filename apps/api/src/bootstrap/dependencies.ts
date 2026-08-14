@@ -1,6 +1,7 @@
 import type { AppConfig } from '@ai-customer-support/config';
 import type { EventBus, Logger } from '@ai-customer-support/shared';
 import type { AIServicePort } from '../modules/ai/application/ports/ai-service-port.js';
+import type { IdentityHttpRegistrar } from '../modules/identity/compose-identity.js';
 import type { DatabasePort } from '../shared/application/ports/database-port.js';
 import type { QueuePort } from '../shared/application/ports/queue-port.js';
 import type { RedisPort } from '../shared/application/ports/redis-port.js';
@@ -15,4 +16,5 @@ export interface AppDependencies {
   readonly queue: QueuePort;
   readonly aiService: AIServicePort;
   readonly healthChecker: InfrastructureHealthChecker;
+  readonly identity?: IdentityHttpRegistrar;
 }

@@ -1,4 +1,4 @@
-import { ApplicationError, DomainError } from '@ai-customer-support/shared';
+import { ApplicationError, DomainError, RateLimitExceededError } from '@ai-customer-support/shared';
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 
 export interface HttpErrorBody {
@@ -67,6 +67,10 @@ export async function httpErrorHandler(
     request.log.error({ err: error }, 'Unhandled error');
   } else {
     request.log.warn({ code: mapped.body.error.code }, 'Request failed');
+  }
+
+  if (error instanceof RateLimitExceededError && error.retryAfterSeconds !== undefined) {
+    reply.header('retry-after', String(error.retryAfterSeconds));
   }
 
   await reply.status(mapped.statusCode).send(mapped.body);

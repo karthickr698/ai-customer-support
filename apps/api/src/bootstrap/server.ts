@@ -1,4 +1,5 @@
 import cors from '@fastify/cors';
+import cookie from '@fastify/cookie';
 import Fastify, { LogController, type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import type { Logger as PinoBaseLogger } from 'pino';
 import type { AppDependencies } from './dependencies.js';
@@ -12,6 +13,7 @@ export async function buildServer(
 ): Promise<FastifyInstance> {
   const app: FastifyInstance = Fastify({
     loggerInstance: rootLogger as FastifyBaseLogger,
+    trustProxy: true,
     genReqId: () => crypto.randomUUID(),
     requestIdHeader: 'x-request-id',
     logController: new LogController({
@@ -22,7 +24,9 @@ export async function buildServer(
 
   await app.register(cors, {
     origin: deps.config.WEB_ORIGIN,
+    credentials: true,
   });
+  await app.register(cookie);
 
   registerRequestCorrelation(app);
   app.setErrorHandler(httpErrorHandler);
@@ -33,6 +37,10 @@ export async function buildServer(
   });
 
   registerHealthRoutes(app, deps.healthChecker);
+
+  if (deps.identity) {
+    await deps.identity.register(app);
+  }
 
   return app;
 }

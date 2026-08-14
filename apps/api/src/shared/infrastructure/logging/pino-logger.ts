@@ -18,6 +18,8 @@ export function createRootLogger(config: AppConfig): PinoBaseLogger {
         'DATABASE_URL',
         'REDIS_URL',
         'JWT_SECRET',
+        'GOOGLE_CLIENT_SECRET',
+        'SMTP_URL',
       ],
       censor: '[redacted]',
     },

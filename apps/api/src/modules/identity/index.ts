@@ -1,2 +1,2 @@
-/** Public surface of the identity module. Feature commands add use cases and adapters here. */
-export {};
+export type { IdentityHttpRegistrar } from './compose-identity.js';
+export { composeIdentity } from './compose-identity.js';

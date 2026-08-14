@@ -2,6 +2,7 @@ import type { AppConfig } from '@ai-customer-support/config';
 import type { Logger } from '@ai-customer-support/shared';
 import type { AppDependencies } from './dependencies.js';
 import { PythonAIServiceAdapter } from '../modules/ai/adapters/outbound/python-ai/python-ai-service-adapter.js';
+import { composeIdentity } from '../modules/identity/compose-identity.js';
 import { InMemoryEventBus } from '../shared/infrastructure/events/in-memory-event-bus.js';
 import { InfrastructureHealthChecker } from '../shared/infrastructure/health/infrastructure-health-checker.js';
 import { InMemoryQueue } from '../shared/infrastructure/messaging/in-memory-queue.js';
@@ -26,6 +27,13 @@ export async function initializeInfrastructure(
 
   const healthChecker = new InfrastructureHealthChecker(database, redis);
   const aiService = new PythonAIServiceAdapter(config.AI_SERVICE_URL, logger);
+  const identity = composeIdentity({
+    prisma: database.forRepositoryAdapter(),
+    redis: redis.forAdapter(),
+    config,
+    logger,
+    eventBus,
+  });
 
   return {
     config,
@@ -36,5 +44,6 @@ export async function initializeInfrastructure(
     queue,
     aiService,
     healthChecker,
+    identity,
   };
 }

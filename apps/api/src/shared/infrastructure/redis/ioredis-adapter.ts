@@ -30,6 +30,14 @@ export class IoRedisAdapter implements RedisPort {
     }
   }
 
+  /**
+   * Redis client for outbound adapters constructed in the composition root.
+   * Domain and use cases must not import this.
+   */
+  forAdapter(): Redis {
+    return this.client;
+  }
+
   async isReady(): Promise<boolean> {
     try {
       const pong = await this.client.ping();
