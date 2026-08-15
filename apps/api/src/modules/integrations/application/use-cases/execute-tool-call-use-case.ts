@@ -74,7 +74,13 @@ export class ExecuteToolCallUseCase {
     try {
       const executed =
         definition.executionKind === 'http'
-          ? await this.executeHttp(actor.tenantId, asHttpToolName(definition.name), args, definition.retry)
+          ? await this.executeHttpOrLocal(
+              actor.tenantId,
+              actor.actorId,
+              asHttpToolName(definition.name),
+              args,
+              definition.retry,
+            )
           : {
               data: await this.platform.execute({
                 tenantId: actor.tenantId,
@@ -115,6 +121,36 @@ export class ExecuteToolCallUseCase {
     await this.invocations.save(invocation);
     await this.publish(invocation, input.security.correlationId);
     return { invocation: toInvocationDto(invocation) };
+  }
+
+  private async executeHttpOrLocal(
+    tenantId: string,
+    actorId: string,
+    toolName: Extract<ToolName, 'getOrderDetails' | 'checkRefundStatus'>,
+    args: Record<string, unknown>,
+    retry: { timeoutMs: number; maxAttempts: number; backoffMs: number },
+  ): Promise<{
+    data: Record<string, unknown>;
+    attemptCount: number;
+    credentialId?: string;
+    connectorId?: string;
+  }> {
+    if (toolName === 'getOrderDetails') {
+      try {
+        const local = await this.platform.execute({
+          tenantId,
+          actorId,
+          toolName,
+          arguments: args,
+        });
+        if (local.found === true) {
+          return { data: local, attemptCount: 1 };
+        }
+      } catch {
+        // Tenant catalog miss or lookup failure — the HTTP connector may still succeed.
+      }
+    }
+    return this.executeHttp(tenantId, toolName, args, retry);
   }
 
   private async executeHttp(

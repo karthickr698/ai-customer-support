@@ -63,6 +63,14 @@ export async function buildServer(
     await deps.organizations.register(app);
   }
 
+  if (deps.customers) {
+    await deps.customers.register(app);
+  }
+
+  if (deps.tickets) {
+    await deps.tickets.register(app);
+  }
+
   if (deps.agents) {
     await deps.agents.register(app);
   }

@@ -5,6 +5,8 @@ import type { PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
 import type { Redis } from 'ioredis';
 import type { AIServicePort } from '../ai/application/ports/ai-service-port.js';
+import type { BusinessDataLookupPort } from '../customers/index.js';
+import type { TicketToolPort } from '../tickets/index.js';
 import type { ResolveTenantAccessUseCase } from '../organizations/application/use-cases/resolve-tenant-access-use-case.js';
 import { createAuthenticatePublicApiPreHandler } from './adapters/inbound/http/authenticate-public-api.js';
 import {
@@ -105,6 +107,8 @@ export function composeIntegrations(input: {
   readonly aiService: AIServicePort;
   readonly authenticate: AuthenticatePreHandler;
   readonly resolveTenantAccess: ResolveTenantAccessUseCase;
+  readonly businessDataLookup?: BusinessDataLookupPort;
+  readonly ticketTools?: TicketToolPort;
 }): IntegrationsModule {
   const tenantAccess = new OrganizationsTenantAccessAdapter(input.resolveTenantAccess);
   const clock = new SystemClock();
@@ -133,7 +137,7 @@ export function composeIntegrations(input: {
     cipher,
     new FetchHttpToolInvoker(),
     oauthExchange,
-    new InProcessPlatformToolHandler(),
+    new InProcessPlatformToolHandler(input.businessDataLookup, input.ticketTools),
     clock,
     input.eventBus,
   );

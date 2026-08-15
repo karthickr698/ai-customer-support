@@ -13,7 +13,10 @@ from app.domain.errors import InvalidToolCallError, UnknownToolError
 TOOL_CALL_SCHEMA_VERSION = 1
 ToolName = Literal[
     "getCustomerDetails",
+    "getProductDetails",
     "getOrderDetails",
+    "getShipmentDetails",
+    "getReturnDetails",
     "createTicket",
     "updateTicket",
     "checkRefundStatus",
@@ -21,7 +24,10 @@ ToolName = Literal[
 ]
 TOOL_NAMES: tuple[ToolName, ...] = (
     "getCustomerDetails",
+    "getProductDetails",
     "getOrderDetails",
+    "getShipmentDetails",
+    "getReturnDetails",
     "createTicket",
     "updateTicket",
     "checkRefundStatus",
@@ -46,8 +52,47 @@ class GetCustomerDetailsArgs(_StrictModel):
         return self
 
 
+class GetProductDetailsArgs(_StrictModel):
+    productId: str | None = Field(default=None)
+    sku: str | None = Field(default=None, min_length=1, max_length=80)
+
+    @model_validator(mode="after")
+    def require_identity(self) -> GetProductDetailsArgs:
+        if not self.productId and not self.sku:
+            raise ValueError("Provide productId or sku")
+        if self.productId:
+            UUID(self.productId)
+        return self
+
+
 class GetOrderDetailsArgs(_StrictModel):
     orderId: str = Field(min_length=1, max_length=80)
+
+
+class GetShipmentDetailsArgs(_StrictModel):
+    shipmentId: str | None = Field(default=None)
+    trackingNumber: str | None = Field(default=None, min_length=1, max_length=80)
+
+    @model_validator(mode="after")
+    def require_identity(self) -> GetShipmentDetailsArgs:
+        if not self.shipmentId and not self.trackingNumber:
+            raise ValueError("Provide shipmentId or trackingNumber")
+        if self.shipmentId:
+            UUID(self.shipmentId)
+        return self
+
+
+class GetReturnDetailsArgs(_StrictModel):
+    returnId: str | None = Field(default=None)
+    orderId: str | None = Field(default=None, min_length=1, max_length=80)
+
+    @model_validator(mode="after")
+    def require_identity(self) -> GetReturnDetailsArgs:
+        if not self.returnId and not self.orderId:
+            raise ValueError("Provide returnId or orderId")
+        if self.returnId:
+            UUID(self.returnId)
+        return self
 
 
 class CreateTicketArgs(_StrictModel):
@@ -92,7 +137,10 @@ class HandoffToAgentArgs(_StrictModel):
 
 ARGUMENT_MODELS: dict[ToolName, type[BaseModel]] = {
     "getCustomerDetails": GetCustomerDetailsArgs,
+    "getProductDetails": GetProductDetailsArgs,
     "getOrderDetails": GetOrderDetailsArgs,
+    "getShipmentDetails": GetShipmentDetailsArgs,
+    "getReturnDetails": GetReturnDetailsArgs,
     "createTicket": CreateTicketArgs,
     "updateTicket": UpdateTicketArgs,
     "checkRefundStatus": CheckRefundStatusArgs,
@@ -101,7 +149,10 @@ ARGUMENT_MODELS: dict[ToolName, type[BaseModel]] = {
 
 TOOL_DESCRIPTIONS: dict[ToolName, str] = {
     "getCustomerDetails": "Look up a tenant-scoped customer by id or email.",
-    "getOrderDetails": "Fetch order details from the tenant commerce connector.",
+    "getProductDetails": "Look up a tenant-scoped product by id or SKU.",
+    "getOrderDetails": "Fetch order details from tenant records or the commerce connector.",
+    "getShipmentDetails": "Look up a tenant-scoped shipment by id or tracking number.",
+    "getReturnDetails": "Look up a tenant-scoped return by id or order id.",
     "createTicket": "Open a support ticket. TypeScript executes this mutation.",
     "updateTicket": "Update ticket status or add a note. TypeScript executes this mutation.",
     "checkRefundStatus": "Check refund status through the tenant commerce connector.",

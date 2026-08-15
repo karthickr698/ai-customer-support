@@ -9,6 +9,7 @@ export async function shutdown(
   deps.logger.info('Shutting down', { signal });
 
   deps.agents?.stop();
+  deps.tickets?.stop();
   if (deps.conversations) {
     await deps.conversations.stop();
   }

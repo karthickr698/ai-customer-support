@@ -51,6 +51,16 @@ model Organization {
   webhookDeliveries WebhookDelivery[]
   oauthApplications OrganizationOAuthApplication[]
   oauthGrants OrganizationOAuthGrant[]
+  customers Customer[]
+  products Product[]
+  orders CommerceOrder[]
+  shipments Shipment[]
+  returns CommerceReturn[]
+  tickets Ticket[]
+  ticketNotes TicketNote[]
+  ticketAttachments TicketAttachment[]
+  ticketSlaPolicies TicketSlaPolicy[]
+  ticketEscalationPolicies TicketEscalationPolicy[]
 
   @@map("organizations")
 }
@@ -598,4 +608,222 @@ model OrganizationOAuthGrant {
 
   @@index([organizationId, applicationId])
   @@map("organization_oauth_grants")
+}
+
+model Customer {
+  id                 String   @id @db.Uuid
+  organizationId     String   @map("organization_id") @db.Uuid
+  email              String
+  name               String
+  phone              String?
+  status             String
+  externalCustomerId String?  @map("external_customer_id")
+  createdByUserId    String   @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime @map("created_at")
+  updatedAt          DateTime @map("updated_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orders       CommerceOrder[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, externalCustomerId])
+  @@map("customers")
+}
+
+model Product {
+  id              String   @id @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  sku             String
+  name            String
+  description     String?
+  status          String
+  currency        String
+  priceAmount     Int      @map("price_amount")
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @map("created_at")
+  updatedAt       DateTime @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, sku])
+  @@index([organizationId, createdAt])
+  @@map("products")
+}
+
+model CommerceOrder {
+  id              String   @id @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  customerId      String   @map("customer_id") @db.Uuid
+  externalOrderId String   @map("external_order_id")
+  status          String
+  currency        String
+  totalAmount     Int      @map("total_amount")
+  lineItems       Json     @map("line_items")
+  placedAt        DateTime @map("placed_at")
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @map("created_at")
+  updatedAt       DateTime @map("updated_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  shipments    Shipment[]
+  returns      CommerceReturn[]
+
+  @@unique([organizationId, externalOrderId])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, customerId])
+  @@map("commerce_orders")
+}
+
+model Shipment {
+  id                  String    @id @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  orderId             String    @map("order_id") @db.Uuid
+  trackingNumber      String    @map("tracking_number")
+  carrier             String
+  status              String
+  shippedAt           DateTime? @map("shipped_at")
+  estimatedDeliveryAt DateTime? @map("estimated_delivery_at")
+  createdByUserId     String    @map("created_by_user_id") @db.Uuid
+  createdAt           DateTime  @map("created_at")
+  updatedAt           DateTime  @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order        CommerceOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, trackingNumber])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, orderId])
+  @@map("shipments")
+}
+
+model CommerceReturn {
+  id              String   @id @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  orderId         String   @map("order_id") @db.Uuid
+  status          String
+  reason          String?
+  requestedAt     DateTime @map("requested_at")
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @map("created_at")
+  updatedAt       DateTime @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order        CommerceOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, orderId])
+  @@map("commerce_returns")
+}
+
+model Ticket {
+  id                 String    @id @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  conversationId     String?   @map("conversation_id") @db.Uuid
+  customerId         String?   @map("customer_id") @db.Uuid
+  customerEmail      String    @map("customer_email")
+  customerName       String    @map("customer_name")
+  subject            String
+  description        String
+  status             String
+  priority           String
+  source             String
+  assignedAgentId    String?   @map("assigned_agent_id") @db.Uuid
+  escalatedAt        DateTime? @map("escalated_at")
+  firstRespondedAt   DateTime? @map("first_responded_at")
+  resolvedAt         DateTime? @map("resolved_at")
+  closedAt           DateTime? @map("closed_at")
+  slaPolicyId        String?   @map("sla_policy_id") @db.Uuid
+  firstResponseDueAt DateTime? @map("first_response_due_at")
+  resolutionDueAt    DateTime? @map("resolution_due_at")
+  slaPausedAt        DateTime? @map("sla_paused_at")
+  slaBreachedAt      DateTime? @map("sla_breached_at")
+  slaBreachKind      String?   @map("sla_breach_kind")
+  createdByUserId    String?   @map("created_by_user_id")
+  createdAt          DateTime  @map("created_at")
+  updatedAt          DateTime  @map("updated_at")
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  slaPolicy    TicketSlaPolicy?      @relation(fields: [slaPolicyId], references: [id], onDelete: SetNull)
+  notes        TicketNote[]
+  attachments  TicketAttachment[]
+
+  @@index([organizationId, updatedAt])
+  @@index([organizationId, status])
+  @@index([organizationId, assignedAgentId])
+  @@index([organizationId, conversationId])
+  @@index([organizationId, firstResponseDueAt])
+  @@index([organizationId, resolutionDueAt])
+  @@map("tickets")
+}
+
+model TicketNote {
+  id             String   @id @db.Uuid
+  ticketId       String   @map("ticket_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  authorId       String   @map("author_id")
+  body           String
+  createdAt      DateTime @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ticket       Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@index([organizationId, createdAt])
+  @@map("ticket_notes")
+}
+
+model TicketAttachment {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  ticketId       String   @map("ticket_id") @db.Uuid
+  fileName       String   @map("file_name")
+  contentType    String   @map("content_type")
+  byteSize       Int      @map("byte_size")
+  storageKey     String   @map("storage_key")
+  createdAt      DateTime @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ticket       Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, ticketId])
+  @@map("ticket_attachments")
+}
+
+model TicketSlaPolicy {
+  id                   String   @id @db.Uuid
+  organizationId       String   @map("organization_id") @db.Uuid
+  name                 String
+  enabled              Boolean  @default(true)
+  appliesToPriority    String   @map("applies_to_priority")
+  firstResponseMinutes Int      @map("first_response_minutes")
+  resolutionMinutes    Int      @map("resolution_minutes")
+  createdAt            DateTime @map("created_at")
+  updatedAt            DateTime @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tickets      Ticket[]
+
+  @@unique([organizationId, appliesToPriority])
+  @@index([organizationId, enabled])
+  @@map("ticket_sla_policies")
+}
+
+model TicketEscalationPolicy {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  enabled        Boolean  @default(true)
+  triggerType    String   @map("trigger_type")
+  triggerMinutes Int?     @map("trigger_minutes")
+  action         String
+  priority       Int      @default(100)
+  createdAt      DateTime @map("created_at")
+  updatedAt      DateTime @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, enabled, priority])
+  @@map("ticket_escalation_policies")
 }

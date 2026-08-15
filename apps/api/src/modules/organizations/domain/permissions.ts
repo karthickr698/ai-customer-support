@@ -9,6 +9,8 @@ export const Permissions = {
   CONVERSATION_WRITE: 'conversation.write',
   CONVERSATION_ASSIGN: 'conversation.assign',
   CONVERSATION_ESCALATE: 'conversation.escalate',
+  CUSTOMER_READ: 'customer.read',
+  CUSTOMER_MANAGE: 'customer.manage',
   TICKET_MANAGE: 'ticket.manage',
   KNOWLEDGE_MANAGE: 'knowledge.manage',
   ANALYTICS_VIEW: 'analytics.view',
@@ -33,12 +35,14 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly Permission[]> =
     Permissions.CONVERSATION_WRITE,
     Permissions.CONVERSATION_ASSIGN,
     Permissions.CONVERSATION_ESCALATE,
+    Permissions.CUSTOMER_READ,
     Permissions.TICKET_MANAGE,
     Permissions.KNOWLEDGE_MANAGE,
   ],
   viewer: [
     Permissions.ORGANIZATION_READ,
     Permissions.CONVERSATION_READ,
+    Permissions.CUSTOMER_READ,
     Permissions.ANALYTICS_VIEW,
   ],
 };

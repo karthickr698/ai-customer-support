@@ -182,8 +182,16 @@ def _proposed_tools(user: str, payload: dict[str, object]) -> dict[str, object]:
     )
     lowered = user.lower()
     calls: list[dict[str, object]] = []
-    if "order" in lowered and "getOrderDetails" in names:
+    if "return" in lowered and "getReturnDetails" in names:
+        calls.append({"name": "getReturnDetails", "arguments": {"orderId": "ORD-1001"}})
+    elif "order" in lowered and "getOrderDetails" in names:
         calls.append({"name": "getOrderDetails", "arguments": {"orderId": "ORD-1001"}})
+    elif ("track" in lowered or "shipment" in lowered or "package" in lowered) and "getShipmentDetails" in names:
+        calls.append({"name": "getShipmentDetails", "arguments": {"trackingNumber": "1Z999AA10123456784"}})
+    elif ("product" in lowered or "sku" in lowered) and "getProductDetails" in names:
+        calls.append({"name": "getProductDetails", "arguments": {"sku": "SKU-1001"}})
+    elif ("customer" in lowered or "account email" in lowered) and "getCustomerDetails" in names:
+        calls.append({"name": "getCustomerDetails", "arguments": {"email": "customer@example.com"}})
     elif "refund" in lowered and "checkRefundStatus" in names:
         calls.append({"name": "checkRefundStatus", "arguments": {"orderId": "ORD-1001"}})
     elif ("ticket" in lowered or "case" in lowered) and "createTicket" in names:

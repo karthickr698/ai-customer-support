@@ -12,6 +12,8 @@ export const ORGANIZATION_PERMISSIONS = [
   'conversation.write',
   'conversation.assign',
   'conversation.escalate',
+  'customer.read',
+  'customer.manage',
   'ticket.manage',
   'knowledge.manage',
   'analytics.view',

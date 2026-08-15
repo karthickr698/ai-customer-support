@@ -19,7 +19,7 @@ export const TOOL_CATALOG: readonly ToolDefinitionDto[] = [
     description: 'Look up a tenant-scoped customer by id or email. Never returns another organization.',
     side: 'read',
     executionKind: 'platform',
-    permission: Permissions.CONVERSATION_READ,
+    permission: Permissions.CUSTOMER_READ,
     retry: READ_RETRY,
     argumentSchema: {
       type: 'object',
@@ -32,8 +32,25 @@ export const TOOL_CATALOG: readonly ToolDefinitionDto[] = [
     },
   },
   {
+    name: 'getProductDetails',
+    description: 'Look up a tenant-scoped product by id or SKU. Never returns another organization.',
+    side: 'read',
+    executionKind: 'platform',
+    permission: Permissions.CUSTOMER_READ,
+    retry: READ_RETRY,
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: [],
+      properties: {
+        productId: { ...UUID, description: 'Product id' },
+        sku: { type: 'string', minLength: 1, maxLength: 80, description: 'Product SKU' },
+      },
+    },
+  },
+  {
     name: 'getOrderDetails',
-    description: 'Fetch order details from the tenant commerce connector.',
+    description: 'Look up a tenant-scoped order by id, then the commerce connector if needed. Never returns another organization.',
     side: 'read',
     executionKind: 'http',
     permission: Permissions.CONVERSATION_READ,
@@ -44,6 +61,40 @@ export const TOOL_CATALOG: readonly ToolDefinitionDto[] = [
       required: ['orderId'],
       properties: {
         orderId: { type: 'string', minLength: 1, maxLength: 80, description: 'External order id' },
+      },
+    },
+  },
+  {
+    name: 'getShipmentDetails',
+    description: 'Look up a tenant-scoped shipment by id or tracking number. Never returns another organization.',
+    side: 'read',
+    executionKind: 'platform',
+    permission: Permissions.CUSTOMER_READ,
+    retry: READ_RETRY,
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: [],
+      properties: {
+        shipmentId: { ...UUID, description: 'Shipment id' },
+        trackingNumber: { type: 'string', minLength: 1, maxLength: 80, description: 'Carrier tracking number' },
+      },
+    },
+  },
+  {
+    name: 'getReturnDetails',
+    description: 'Look up a tenant-scoped return by id or order id. Never returns another organization.',
+    side: 'read',
+    executionKind: 'platform',
+    permission: Permissions.CUSTOMER_READ,
+    retry: READ_RETRY,
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: [],
+      properties: {
+        returnId: { ...UUID, description: 'Return id' },
+        orderId: { type: 'string', minLength: 1, maxLength: 80, description: 'Order id or external order id' },
       },
     },
   },
@@ -79,7 +130,7 @@ export const TOOL_CATALOG: readonly ToolDefinitionDto[] = [
       required: ['ticketId'],
       properties: {
         ticketId: { ...UUID, description: 'Ticket id' },
-        status: { type: 'string', enum: ['open', 'pending', 'resolved', 'closed'] },
+        status: { type: 'string', enum: ['open', 'pending', 'resolved', 'closed', 'escalated'] },
         note: { type: 'string', minLength: 1, maxLength: 4_000 },
       },
     },
@@ -158,6 +209,15 @@ function assertToolSpecificRules(
 ): void {
   if (name === 'getCustomerDetails' && !args.customerId && !args.email) {
     throw new InvalidToolCallError('Provide customerId or email');
+  }
+  if (name === 'getProductDetails' && !args.productId && !args.sku) {
+    throw new InvalidToolCallError('Provide productId or sku');
+  }
+  if (name === 'getShipmentDetails' && !args.shipmentId && !args.trackingNumber) {
+    throw new InvalidToolCallError('Provide shipmentId or trackingNumber');
+  }
+  if (name === 'getReturnDetails' && !args.returnId && !args.orderId) {
+    throw new InvalidToolCallError('Provide returnId or orderId');
   }
   if (name === 'updateTicket' && !args.status && !args.note) {
     throw new InvalidToolCallError('Provide a status or note');

@@ -7,7 +7,10 @@ export const TOOL_CALL_SCHEMA_VERSION = 1 as const;
 
 export const TOOL_NAMES = [
   'getCustomerDetails',
+  'getProductDetails',
   'getOrderDetails',
+  'getShipmentDetails',
+  'getReturnDetails',
   'createTicket',
   'updateTicket',
   'checkRefundStatus',

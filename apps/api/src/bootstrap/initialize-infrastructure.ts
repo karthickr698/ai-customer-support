@@ -6,11 +6,14 @@ import { composeAgents } from '../modules/agents/compose-agents.js';
 import { composeConversations } from '../modules/conversations/compose-conversations.js';
 import { composeKnowledge } from '../modules/knowledge/compose-knowledge.js';
 import { composeOnboarding } from '../modules/onboarding/compose-onboarding.js';
+import { composeCustomers } from '../modules/customers/compose-customers.js';
+import { composeTickets } from '../modules/tickets/compose-tickets.js';
 import { composeIdentity } from '../modules/identity/compose-identity.js';
 import { composeOrganizations } from '../modules/organizations/compose-organizations.js';
 import { composeIntegrations } from '../modules/integrations/compose-integrations.js';
 import { composeWidget } from '../modules/widget/compose-widget.js';
 import { IdentifyWidgetVisitorUseCase } from '../modules/conversations/application/use-cases/identify-widget-visitor-use-case.js';
+import { ConversationTicketSourceQuery } from '../modules/conversations/application/conversation-ticket-source-query.js';
 import { PostgresConversationRepository } from '../modules/conversations/adapters/outbound/persistence/postgres-conversation-repository.js';
 import { SystemClock } from '../modules/conversations/adapters/outbound/clock/system-clock.js';
 import { InMemoryEventBus } from '../shared/infrastructure/events/in-memory-event-bus.js';
@@ -98,6 +101,28 @@ export async function initializeInfrastructure(
     sessionTtlSeconds: config.WIDGET_SESSION_TTL_SECONDS,
   });
 
+  const customers = composeCustomers({
+    prisma: database.forRepositoryAdapter(),
+    eventBus,
+    authenticate: identity.authenticate,
+    resolveTenantAccess: organizations.resolveTenantAccess,
+  });
+
+  const conversationRepository = new PostgresConversationRepository(database.forRepositoryAdapter());
+  const tickets = composeTickets({
+    prisma: database.forRepositoryAdapter(),
+    redis: redis.forAdapter(),
+    eventBus,
+    logger,
+    authenticate: identity.authenticate,
+    resolveTenantAccess: organizations.resolveTenantAccess,
+    memberQuery: organizations.memberQuery,
+    userDirectory: identity.userQuery,
+    presenceQuery: agents.presenceQuery,
+    conversationSource: new ConversationTicketSourceQuery(conversationRepository),
+    attachmentStorageDir: config.ATTACHMENT_STORAGE_DIR,
+  });
+
   const integrations = composeIntegrations({
     prisma: database.forRepositoryAdapter(),
     redis: redis.forAdapter(),
@@ -106,6 +131,8 @@ export async function initializeInfrastructure(
     aiService,
     authenticate: identity.authenticate,
     resolveTenantAccess: organizations.resolveTenantAccess,
+    businessDataLookup: customers.lookup,
+    ticketTools: tickets.ticketTools,
   });
 
   const conversations = composeConversations({
@@ -128,6 +155,7 @@ export async function initializeInfrastructure(
     widgetSessionContext: widget.sessionContext,
     authenticateWidgetSession: widget.authenticateSession,
     attachmentStorageDir: config.ATTACHMENT_STORAGE_DIR,
+    ticketIntake: tickets.openFromConversation,
   });
 
   return {
@@ -141,6 +169,8 @@ export async function initializeInfrastructure(
     healthChecker,
     identity,
     organizations,
+    customers,
+    tickets,
     agents,
     conversations,
     knowledge,

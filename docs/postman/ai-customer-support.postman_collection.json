@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "c4e8d2b1-7a91-4f3e-8c5a-ai-customer-support",
     "name": "AI Customer Support API",
-    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support \u2014 Local** environment.\n3. Keep cookies enabled (Postman \u2192 Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in \u2192 open `googleAuthorizationUrl` in a browser \u2192 after redirect, put the `code` query value into `googleLoginCode` \u2192 Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate \u2014 copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign / assign available, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\n**Realtime, presence, and escalation rules**\nWebSocket: `GET {{wsUrl}}/api/organizations/:organizationId/realtime?lastEventId=&access_token=` (session cookie or `access_token` query). On connect the server sends `connected`, missed `event`s, and `presence.snapshot`. Client messages: `heartbeat`, `resume`, `presence.set`, `subscribe` / `unsubscribe`.\nHTTP catch-up: `GET .../realtime/events?after=`.\nPresence: list/set/heartbeat under `/agents/presence`.\nEscalation rules: CRUD + `POST .../evaluate`. Assign available picks an online owner/admin/agent (round-robin).\n\n**Onboarding / knowledge**\nTenant routes under `/api/organizations/:organizationId/onboarding`, `/knowledge/sources`, and `/knowledge/documents`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Run onboarding setup (saves profile, tones, agent settings; optional knowledge sources)\n2. Or step through Generate business profile \u2192 Generate tone presets \u2192 Select tone \u2192 Generate agent settings\n3. Register extra knowledge sources (URL, help center, sitemap, text, file)\n4. Add documents: article/URL JSON, or upload PDF/DOCX \u2014 TypeScript owns lifecycle; Python indexes for RAG\n5. List documents, reindex, or delete (delete also drops vector index entries)\nPermissions: `organization.update` for LLM setup (admin+), `knowledge.manage` to register sources and documents (agent+), `organization.read` to view.\n\n**Python AI service**\nFolder `Python AI service` calls `apps/ai` directly (`{{aiServiceUrl}}`, default http://localhost:8000) for local RAG/onboarding debugging. Production clients use the TypeScript API only.\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` \u2192 `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.\n\n**Widget**\nStaff: `GET/PATCH /api/organizations/:organizationId/widget` and `POST .../rotate-key` (session cookies + `x-tenant-id`). Public embed: `GET /api/widget/:publicKey/config`, then `POST /api/widget/:publicKey/sessions` (anonymous or email/name). Send `sessionToken` as `Authorization: Bearer` on `/api/widget/sessions/*` and `/api/widget/conversations*`.\n1. Get widget configuration (saves `widgetPublicKey`)\n2. Create anonymous session (saves `widgetSessionToken`) or Create customer session\n3. Start widget conversation (saves `widgetConversationId`)\n4. Send message, or stream AI reply (`text/event-stream`)\n5. Upload attachment (form-data `file`) then send `attachmentIds`\nTenant isolation: sessions, conversations, attachments, and AI calls are scoped to the organization behind the public key. Allowed origins are enforced when configured.\n\n**Tools and integrations**\nPython proposes allowlisted tool calls (`POST .../tools/propose`); TypeScript schema-validates, authorizes, executes, and audits (`POST .../tools/calls`). Tenant credentials and OAuth connectors are encrypted per organization. Mutating tools never run in Python. Permission: `integration.manage` (admin+) for secrets.\n\n**Public API v1**\nVersioned REST at `/api/v1` (OpenAPI `/api/v1/openapi.json`, docs `/api/v1/docs`). Create API keys, HMAC-signed webhooks, inbound OAuth apps, and inspect the connector catalog. Programmatic auth: `Authorization: Bearer acs_live_\u2026` or `X-API-Key`. Existing dashboard routes remain under `/api`.",
+    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support \u2014 Local** environment.\n3. Keep cookies enabled (Postman \u2192 Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in \u2192 open `googleAuthorizationUrl` in a browser \u2192 after redirect, put the `code` query value into `googleLoginCode` \u2192 Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate \u2014 copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign / assign available, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\n**Tickets**\nTenant routes under `/api/organizations/:organizationId/tickets`, `/ticket-sla-policies`, and `/ticket-escalation-policies`. Requires `ticket.manage` (agent+).\n1. Create a conversation, then Create ticket (optional `conversationId`; saves `ticketId`). SLA due dates apply from a matching policy or defaults.\n2. Assign / unassign / assign available, change status (`open` \u2192 `pending` | `resolved` | `closed` | `escalated`), escalate (bumps priority).\n3. Add notes and upload attachments (form-data `file`).\n4. SLA policies: one per priority (`any`/`low`/`normal`/`high`/`urgent`). Escalation policies fire on overdue first response, overdue resolution, or unassigned time.\n5. Evaluate now with `POST .../ticket-escalation-policies/evaluate` (also runs every 30s).\nAI conversations: escalating a conversation (including widget/AI) opens a ticket if none is open. Tools `createTicket` / `updateTicket` persist through TypeScript (`POST .../tools/calls`).\n\n**Customers / commerce lookup**\nTenant routes under `/api/organizations/:organizationId/customers`, `/products`, `/orders`, `/shipments`, and `/returns`. Writes require `customer.manage` (admin+). Reads and AI lookup tools require `customer.read` (viewer+). Every query includes the organization id \u2014 records never leak across tenants. Register a customer, then product, order, shipment, and return. AI tools `getCustomerDetails`, `getProductDetails`, `getOrderDetails`, `getShipmentDetails`, and `getReturnDetails` are executed by TypeScript (`POST .../tools/calls`).\n\n**Realtime, presence, and escalation rules**\nWebSocket: `GET {{wsUrl}}/api/organizations/:organizationId/realtime?lastEventId=&access_token=` (session cookie or `access_token` query). On connect the server sends `connected`, missed `event`s, and `presence.snapshot`. Client messages: `heartbeat`, `resume`, `presence.set`, `subscribe` / `unsubscribe`.\nHTTP catch-up: `GET .../realtime/events?after=`.\nPresence: list/set/heartbeat under `/agents/presence`.\nEscalation rules: CRUD + `POST .../evaluate`. Assign available picks an online owner/admin/agent (round-robin).\n\n**Onboarding / knowledge**\nTenant routes under `/api/organizations/:organizationId/onboarding`, `/knowledge/sources`, and `/knowledge/documents`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Run onboarding setup (saves profile, tones, agent settings; optional knowledge sources)\n2. Or step through Generate business profile \u2192 Generate tone presets \u2192 Select tone \u2192 Generate agent settings\n3. Register extra knowledge sources (URL, help center, sitemap, text, file)\n4. Add documents: article/URL JSON, or upload PDF/DOCX \u2014 TypeScript owns lifecycle; Python indexes for RAG\n5. List documents, reindex, or delete (delete also drops vector index entries)\nPermissions: `organization.update` for LLM setup (admin+), `knowledge.manage` to register sources and documents (agent+), `organization.read` to view.\n\n**Python AI service**\nFolder `Python AI service` calls `apps/ai` directly (`{{aiServiceUrl}}`, default http://localhost:8000) for local RAG/onboarding debugging. Production clients use the TypeScript API only.\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` \u2192 `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.\n\n**Widget**\nStaff: `GET/PATCH /api/organizations/:organizationId/widget` and `POST .../rotate-key` (session cookies + `x-tenant-id`). Public embed: `GET /api/widget/:publicKey/config`, then `POST /api/widget/:publicKey/sessions` (anonymous or email/name). Send `sessionToken` as `Authorization: Bearer` on `/api/widget/sessions/*` and `/api/widget/conversations*`.\n1. Get widget configuration (saves `widgetPublicKey`)\n2. Create anonymous session (saves `widgetSessionToken`) or Create customer session\n3. Start widget conversation (saves `widgetConversationId`)\n4. Send message, or stream AI reply (`text/event-stream`)\n5. Upload attachment (form-data `file`) then send `attachmentIds`\nTenant isolation: sessions, conversations, attachments, and AI calls are scoped to the organization behind the public key. Allowed origins are enforced when configured.\n\n**Tools and integrations**\nPython proposes allowlisted tool calls (`POST .../tools/propose`); TypeScript schema-validates, authorizes, executes, and audits (`POST .../tools/calls`). Tenant credentials and OAuth connectors are encrypted per organization. Mutating tools never run in Python. Permission: `integration.manage` (admin+) for secrets.\n\n**Public API v1**\nVersioned REST at `/api/v1` (OpenAPI `/api/v1/openapi.json`, docs `/api/v1/docs`). Create API keys, HMAC-signed webhooks, inbound OAuth apps, and inspect the connector catalog. Programmatic auth: `Authorization: Bearer acs_live_\u2026` or `X-API-Key`. Existing dashboard routes remain under `/api`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -1513,6 +1513,1170 @@
                   }
                 }
               ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tickets",
+      "item": [
+        {
+          "name": "Lifecycle",
+          "item": [
+            {
+              "name": "Create ticket",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets",
+                "description": "Opens a tenant-scoped ticket. Requires `ticket.manage`. Optional `conversationId` links it to a conversation (one open ticket per conversation). SLA due dates are applied from a matching SLA policy or platform defaults.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customerEmail\": \"{{customerEmail}}\",\n  \"customerName\": \"{{customerName}}\",\n  \"subject\": \"{{ticketSubject}}\",\n  \"description\": \"Customer cannot complete checkout.\",\n  \"conversationId\": \"{{conversationId}}\",\n  \"priority\": \"normal\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const ticket = pm.response.json().ticket;",
+                      "  pm.environment.set('ticketId', ticket.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List tickets",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets?page=1&pageSize=20&status=open&priority=normal",
+                "description": "Tenant-scoped ticket search. Requires `ticket.manage`. Filter with `status`, `priority`, `assignedAgentId` (`unassigned` or a UUID), `conversationId`, `slaBreached=true|false`, or `q`."
+              }
+            },
+            {
+              "name": "Get ticket",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets/{{ticketId}}",
+                "description": "Load one ticket including SLA timers. Requires `ticket.manage`. Lookup is always scoped to the path organization."
+              }
+            },
+            {
+              "name": "Change ticket status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets/{{ticketId}}/status",
+                "description": "Lifecycle transition: open \u2192 pending | resolved | closed | escalated. Pending pauses resolution SLA. Resolved/closed records first response. Requires `ticket.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"pending\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Assign ticket",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets/{{ticketId}}/assign",
+                "description": "Assign to an active owner/admin/agent in the organization. Records first response. Requires `ticket.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"assignedAgentId\": \"{{assignedAgentId}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Assign available agent",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets/{{ticketId}}/assign/available",
+                "description": "Round-robin assign an online owner/admin/agent. Requires `ticket.manage`."
+              }
+            },
+            {
+              "name": "Unassign ticket",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets/{{ticketId}}/unassign",
+                "description": "Clear the assignee. Requires `ticket.manage`."
+              }
+            },
+            {
+              "name": "Escalate ticket",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets/{{ticketId}}/escalate",
+                "description": "Mark the ticket escalated and bump priority. Requires `ticket.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Customer requested a supervisor\"\n}"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Notes and attachments",
+          "item": [
+            {
+              "name": "Add ticket note",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets/{{ticketId}}/notes",
+                "description": "Internal note on a ticket. Records first response. Requires `ticket.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"body\": \"Checked order history; waiting on warehouse.\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('ticketNoteId', pm.response.json().note.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List ticket notes",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets/{{ticketId}}/notes?page=1&pageSize=20",
+                "description": "Paginated internal notes. Requires `ticket.manage`."
+              }
+            },
+            {
+              "name": "Upload ticket attachment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets/{{ticketId}}/attachments",
+                "description": "Upload PNG, JPEG, WebP, GIF, PDF, or plain text (max 5MB). Requires `ticket.manage`.",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": "",
+                      "description": "Select a local file before sending."
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('ticketAttachmentId', pm.response.json().attachment.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Download ticket attachment",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets/{{ticketId}}/attachments/{{ticketAttachmentId}}",
+                "description": "Download an attachment. Requires `ticket.manage`. Tenant-scoped; never returns another organization's file."
+              }
+            }
+          ]
+        },
+        {
+          "name": "SLA policies",
+          "item": [
+            {
+              "name": "Create SLA policy",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/ticket-sla-policies",
+                "description": "Define first-response and resolution targets for a priority (`any`, `low`, `normal`, `high`, `urgent`). One policy per priority per organization. Requires `ticket.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Normal priority SLA\",\n  \"appliesToPriority\": \"normal\",\n  \"firstResponseMinutes\": 60,\n  \"resolutionMinutes\": 1440,\n  \"enabled\": true\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('slaPolicyId', pm.response.json().policy.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List SLA policies",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/ticket-sla-policies",
+                "description": "List tenant SLA policies. Requires `ticket.manage`."
+              }
+            },
+            {
+              "name": "Update SLA policy",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/ticket-sla-policies/{{slaPolicyId}}",
+                "description": "Update name, enabled flag, priority, or timer minutes. Requires `ticket.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstResponseMinutes\": 45,\n  \"enabled\": true\n}"
+                }
+              }
+            },
+            {
+              "name": "Delete SLA policy",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/ticket-sla-policies/{{slaPolicyId}}",
+                "description": "Remove an SLA policy. Existing tickets keep their already-computed due dates. Requires `ticket.manage`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Escalation policies",
+          "item": [
+            {
+              "name": "Create ticket escalation policy",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/ticket-escalation-policies",
+                "description": "Triggers: `first_response_overdue`, `resolution_overdue`, `unassigned_for` (requires `triggerMinutes`). Actions: `mark_escalated`, `bump_priority`, `unassign`, `assign_available`, `escalate_and_unassign`. Requires `ticket.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Escalate overdue first response\",\n  \"triggerType\": \"first_response_overdue\",\n  \"action\": \"mark_escalated\",\n  \"priority\": 10,\n  \"enabled\": true\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('ticketEscalationPolicyId', pm.response.json().policy.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List ticket escalation policies",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/ticket-escalation-policies",
+                "description": "List tenant ticket escalation policies. Requires `ticket.manage`."
+              }
+            },
+            {
+              "name": "Update ticket escalation policy",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/ticket-escalation-policies/{{ticketEscalationPolicyId}}",
+                "description": "Update trigger, action, or enabled flag. Requires `ticket.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": true,\n  \"priority\": 5\n}"
+                }
+              }
+            },
+            {
+              "name": "Evaluate ticket escalation",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/ticket-escalation-policies/evaluate",
+                "description": "Run SLA timers and matching escalation policies for this organization now. Also runs on a 30s background interval. Requires `ticket.manage`."
+              }
+            },
+            {
+              "name": "Delete ticket escalation policy",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/ticket-escalation-policies/{{ticketEscalationPolicyId}}",
+                "description": "Remove a ticket escalation policy. Requires `ticket.manage`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "AI tools",
+          "item": [
+            {
+              "name": "Create ticket via tool",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tools/calls",
+                "description": "AI `createTicket` is authorized and executed in TypeScript. Opens a real ticket on the conversation (idempotent if one is already open). Requires `ticket.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"createTicket\",\n  \"arguments\": {\n    \"conversationId\": \"{{conversationId}}\",\n    \"subject\": \"{{ticketSubject}}\",\n    \"description\": \"Visitor asked to open a case from chat.\",\n    \"priority\": \"high\"\n  },\n  \"conversationId\": \"{{conversationId}}\",\n  \"actorType\": \"ai\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const data = pm.response.json().invocation && pm.response.json().invocation.result;",
+                      "  if (data && data.ticketId) pm.environment.set('ticketId', data.ticketId);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update ticket via tool",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tools/calls",
+                "description": "AI `updateTicket` changes status and/or adds a note. Mutating tools never run in Python. Requires `ticket.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"updateTicket\",\n  \"arguments\": {\n    \"ticketId\": \"{{ticketId}}\",\n    \"status\": \"pending\",\n    \"note\": \"Waiting on the customer for tracking details.\"\n  },\n  \"conversationId\": \"{{conversationId}}\",\n  \"actorType\": \"ai\"\n}"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Customers and commerce",
+      "item": [
+        {
+          "name": "Customers",
+          "item": [
+            {
+              "name": "Register customer",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/customers",
+                "description": "Creates a tenant-scoped customer. Requires `customer.manage`. Email is unique per organization.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"name\": \"{{customerName}}\",\n  \"phone\": \"+1-555-0100\",\n  \"status\": \"active\",\n  \"externalCustomerId\": \"CUST-1001\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const customer = pm.response.json().customer;",
+                      "  pm.environment.set('commerceCustomerId', customer.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List customers",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/customers?page=1&pageSize=20&email={{customerEmail}}",
+                "description": "Tenant-scoped customer search. Requires `customer.read`. Filter with `email` or `q`. Never returns another organization."
+              }
+            },
+            {
+              "name": "Get customer",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/customers/{{commerceCustomerId}}",
+                "description": "Load one customer by id. Requires `customer.read`. Lookup is always scoped to the path organization."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Products",
+          "item": [
+            {
+              "name": "Register product",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/products",
+                "description": "Creates a tenant-scoped product. Requires `customer.manage`. SKU is unique per organization. `priceAmount` is integer minor units.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Support Widget\",\n  \"description\": \"Primary support catalog item\",\n  \"status\": \"active\",\n  \"currency\": \"USD\",\n  \"priceAmount\": 4999\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('productId', pm.response.json().product.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List products",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/products?page=1&pageSize=20&sku={{productSku}}",
+                "description": "Tenant-scoped product search. Requires `customer.read`. Filter with `sku` or `q`."
+              }
+            },
+            {
+              "name": "Get product",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/products/{{productId}}",
+                "description": "Load one product by id. Requires `customer.read`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Orders",
+          "item": [
+            {
+              "name": "Register order",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/orders",
+                "description": "Creates a tenant-scoped order for an existing customer. Requires `customer.manage`. `externalOrderId` is unique per organization.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customerId\": \"{{commerceCustomerId}}\",\n  \"externalOrderId\": \"{{externalOrderId}}\",\n  \"status\": \"paid\",\n  \"currency\": \"USD\",\n  \"totalAmount\": 4999,\n  \"lineItems\": [\n    {\n      \"sku\": \"{{productSku}}\",\n      \"name\": \"Support Widget\",\n      \"quantity\": 1,\n      \"unitAmount\": 4999\n    }\n  ]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('commerceOrderId', pm.response.json().order.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List orders",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/orders?page=1&pageSize=20&externalOrderId={{externalOrderId}}",
+                "description": "Tenant-scoped order search. Requires `customer.read`. Filter with `customerId` or `externalOrderId`."
+              }
+            },
+            {
+              "name": "Get order",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/orders/{{commerceOrderId}}",
+                "description": "Load one order by internal id or use the same path with `{{externalOrderId}}`. Requires `customer.read`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Shipments",
+          "item": [
+            {
+              "name": "Register shipment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/shipments",
+                "description": "Creates a tenant-scoped shipment for an existing order. Requires `customer.manage`. Tracking numbers are unique per organization.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"{{commerceOrderId}}\",\n  \"trackingNumber\": \"{{trackingNumber}}\",\n  \"carrier\": \"UPS\",\n  \"status\": \"in_transit\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('shipmentId', pm.response.json().shipment.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List shipments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/shipments?page=1&pageSize=20&trackingNumber={{trackingNumber}}",
+                "description": "Tenant-scoped shipment search. Requires `customer.read`. Filter with `orderId` or `trackingNumber`."
+              }
+            },
+            {
+              "name": "Get shipment",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/shipments/{{shipmentId}}",
+                "description": "Load one shipment by id. Requires `customer.read`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Returns",
+          "item": [
+            {
+              "name": "Register return",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/returns",
+                "description": "Creates a tenant-scoped return for an existing order. Requires `customer.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"{{commerceOrderId}}\",\n  \"status\": \"requested\",\n  \"reason\": \"Item arrived damaged\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('returnId', pm.response.json().returnRecord.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List returns",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/returns?page=1&pageSize=20&orderId={{commerceOrderId}}",
+                "description": "Tenant-scoped return search. Requires `customer.read`. Filter with `orderId`."
+              }
+            },
+            {
+              "name": "Get return",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/returns/{{returnId}}",
+                "description": "Load one return by id. Requires `customer.read`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lookup tools",
+          "item": [
+            {
+              "name": "Execute getCustomerDetails",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tools/calls",
+                "description": "Authorized tenant-scoped customer lookup tool. Requires `customer.read`. Never returns another organization.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"getCustomerDetails\",\n  \"arguments\": {\n    \"email\": \"{{customerEmail}}\"\n  },\n  \"conversationId\": \"{{conversationId}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Execute getProductDetails",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tools/calls",
+                "description": "Authorized tenant-scoped product lookup tool. Requires `customer.read`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"getProductDetails\",\n  \"arguments\": {\n    \"sku\": \"{{productSku}}\"\n  },\n  \"conversationId\": \"{{conversationId}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Execute getOrderDetails",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tools/calls",
+                "description": "Looks up a tenant-scoped order first, then the commerce connector if needed. Requires `conversation.read`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"getOrderDetails\",\n  \"arguments\": {\n    \"orderId\": \"{{externalOrderId}}\"\n  },\n  \"conversationId\": \"{{conversationId}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Execute getShipmentDetails",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tools/calls",
+                "description": "Authorized tenant-scoped shipment lookup tool. Requires `customer.read`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"getShipmentDetails\",\n  \"arguments\": {\n    \"trackingNumber\": \"{{trackingNumber}}\"\n  },\n  \"conversationId\": \"{{conversationId}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Execute getReturnDetails",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tools/calls",
+                "description": "Authorized tenant-scoped return lookup tool. Requires `customer.read`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"getReturnDetails\",\n  \"arguments\": {\n    \"orderId\": \"{{externalOrderId}}\"\n  },\n  \"conversationId\": \"{{conversationId}}\"\n}"
+                }
+              }
             }
           ]
         }

@@ -2,6 +2,7 @@ import type { EventBus, Logger } from '@ai-customer-support/shared';
 import type { AIServicePort } from '../ai/application/ports/ai-service-port.js';
 import type { AgentSettingsQuery } from '../onboarding/application/agent-settings-query.js';
 import type { WidgetSessionContextPort } from './application/ports/widget-session-context-port.js';
+import type { TicketIntakePort } from './application/ports/ticket-intake-port.js';
 import { registerWidgetConversationRoutes, type WidgetAuthenticatePreHandler } from './adapters/inbound/http/widget-conversation-routes.js';
 import type { PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
@@ -121,6 +122,7 @@ export function composeConversations(input: {
   readonly widgetSessionContext: WidgetSessionContextPort;
   readonly authenticateWidgetSession: WidgetAuthenticatePreHandler;
   readonly attachmentStorageDir: string;
+  readonly ticketIntake?: TicketIntakePort;
 }): ConversationsHttpRegistrar {
   const conversations = new PostgresConversationRepository(input.prisma);
   const messages = new PostgresMessageRepository(input.prisma);
@@ -152,6 +154,7 @@ export function composeConversations(input: {
     clock,
     input.eventBus,
     input.logger,
+    input.ticketIntake,
   );
   const replayRealtimeEvents = new ReplayRealtimeEventsUseCase(tenantAccess, eventLog);
 
@@ -208,6 +211,7 @@ export function composeConversations(input: {
       input.userDirectory,
       clock,
       input.eventBus,
+      input.ticketIntake,
     ),
     addConversationTag: new AddConversationTagUseCase(
       authorized,

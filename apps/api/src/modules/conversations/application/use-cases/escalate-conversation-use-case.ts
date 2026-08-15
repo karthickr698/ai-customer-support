@@ -6,6 +6,7 @@ import { toConversationDto, type RequestSecurityContext } from '../dtos.js';
 import type { LoadAuthorizedConversationService } from '../load-authorized-conversation-service.js';
 import type { ClockPort } from '../ports/clock-port.js';
 import type { ConversationRepository } from '../ports/conversation-repository.js';
+import type { TicketIntakePort } from '../ports/ticket-intake-port.js';
 import type { UserDirectoryPort } from '../ports/user-directory-port.js';
 
 export class EscalateConversationUseCase {
@@ -15,6 +16,7 @@ export class EscalateConversationUseCase {
     private readonly users: UserDirectoryPort,
     private readonly clock: ClockPort,
     private readonly eventBus: EventBus,
+    private readonly ticketIntake?: TicketIntakePort,
   ) {}
 
   async execute(input: {
@@ -47,6 +49,20 @@ export class EscalateConversationUseCase {
         input.security.correlationId,
       ),
     );
+
+    await this.ticketIntake?.openFromConversation({
+      tenantId: actor.tenantId,
+      conversationId: conversation.id,
+      customerEmail: conversation.customer.email,
+      customerName: conversation.customer.name,
+      customerId: conversation.customer.customerId,
+      subject: conversation.subject,
+      description: reason && reason.length > 0 ? reason : conversation.lastMessagePreview || 'Conversation escalated',
+      assignedAgentId: conversation.assignedAgentId,
+      actorId: actor.actorId,
+      source: conversation.channel === 'widget' ? 'ai_conversation' : 'escalation',
+      correlationId: input.security.correlationId,
+    });
 
     const assignee = conversation.assignedAgentId
       ? await this.users.findById(conversation.assignedAgentId)

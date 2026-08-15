@@ -17,6 +17,7 @@ import type { ConversationRepository } from '../ports/conversation-repository.js
 import type { EscalationRuleRepository } from '../ports/escalation-rule-repository.js';
 import type { OrganizationMemberDirectoryPort } from '../ports/organization-member-directory-port.js';
 import type { TenantAccessPort } from '../ports/tenant-access-port.js';
+import type { TicketIntakePort } from '../ports/ticket-intake-port.js';
 import { pickAvailableAgent } from './assign-to-available-agent-use-case.js';
 
 export type EvaluateEscalationCommand =
@@ -40,6 +41,7 @@ export class EvaluateEscalationRulesUseCase {
     private readonly clock: ClockPort,
     private readonly eventBus: EventBus,
     private readonly logger?: Logger,
+    private readonly ticketIntake?: TicketIntakePort,
   ) {}
 
   async execute(command: EvaluateEscalationCommand): Promise<{ applied: number }> {
@@ -177,6 +179,7 @@ export class EvaluateEscalationRulesUseCase {
           `No available agent; applied rule "${rule.name}"`,
         ),
       );
+      await this.openTicket(conversation, `No available agent; applied rule "${rule.name}"`);
       return;
     }
 
@@ -208,5 +211,22 @@ export class EvaluateEscalationRulesUseCase {
         ),
       );
     }
+
+    await this.openTicket(conversation, `Applied rule "${rule.name}"`);
+  }
+
+  private async openTicket(conversation: Conversation, description: string): Promise<void> {
+    await this.ticketIntake?.openFromConversation({
+      tenantId: conversation.organizationId,
+      conversationId: conversation.id,
+      customerEmail: conversation.customer.email,
+      customerName: conversation.customer.name,
+      customerId: conversation.customer.customerId,
+      subject: conversation.subject,
+      description: conversation.lastMessagePreview || description,
+      assignedAgentId: conversation.assignedAgentId,
+      actorId: SYSTEM_ACTOR_ID,
+      source: conversation.channel === 'widget' ? 'ai_conversation' : 'escalation',
+    });
   }
 }
