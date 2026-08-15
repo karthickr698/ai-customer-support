@@ -1,7 +1,9 @@
 import { NavLink } from 'react-router-dom';
 import {
   BookOpen,
+  Inbox,
   Mail,
+  MessageCircle,
   ScrollText,
   Settings,
   Shield,
@@ -21,23 +23,33 @@ export function WorkspaceNav({ onNavigate }: WorkspaceNavProps) {
   const { organizationId, permissions } = useWorkspace();
 
   const items = [
-    { to: workspacePath(organizationId, 'members'), label: 'Members', icon: Users, visible: true },
+    {
+      to: workspacePath(organizationId, 'inbox'),
+      label: 'Inbox',
+      icon: Inbox,
+      visible: hasPermission(permissions, 'conversation.read'),
+      end: false,
+    },
+    { to: workspacePath(organizationId, 'members'), label: 'Members', icon: Users, visible: true, end: true },
     {
       to: workspacePath(organizationId, 'invitations'),
       label: 'Invitations',
       icon: Mail,
       visible: hasPermission(permissions, 'organization.invitations.manage'),
+      end: true,
     },
-    { to: workspacePath(organizationId, 'roles'), label: 'Roles & permissions', icon: Shield, visible: true },
-    { to: workspacePath(organizationId, 'knowledge'), label: 'Knowledge', icon: BookOpen, visible: true },
-    { to: workspacePath(organizationId, 'onboarding'), label: 'AI setup', icon: Sparkles, visible: true },
+    { to: workspacePath(organizationId, 'roles'), label: 'Roles & permissions', icon: Shield, visible: true, end: true },
+    { to: workspacePath(organizationId, 'knowledge'), label: 'Knowledge', icon: BookOpen, visible: true, end: true },
+    { to: workspacePath(organizationId, 'onboarding'), label: 'AI setup', icon: Sparkles, visible: true, end: true },
+    { to: workspacePath(organizationId, 'widget'), label: 'Chat widget', icon: MessageCircle, visible: true, end: true },
     {
       to: workspacePath(organizationId, 'audit'),
       label: 'Audit log',
       icon: ScrollText,
       visible: hasPermission(permissions, 'organization.audit.view'),
+      end: true,
     },
-    { to: workspacePath(organizationId, 'settings'), label: 'Settings', icon: Settings, visible: true },
+    { to: workspacePath(organizationId, 'settings'), label: 'Settings', icon: Settings, visible: true, end: true },
   ] as const;
 
   return (
@@ -55,7 +67,7 @@ export function WorkspaceNav({ onNavigate }: WorkspaceNavProps) {
                   isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
                 )
               }
-              end
+              end={item.end}
               key={item.to}
               onClick={onNavigate}
               to={item.to}

@@ -1,6 +1,8 @@
 import type { RouteObject } from 'react-router-dom';
 import { knowledgeChildRoute } from '@/features/knowledge/routes';
+import { conversationsChildRoute } from '@/features/conversations/routes';
 import { onboardingChildRoute } from '@/features/onboarding/routes';
+import { widgetChildRoute } from '@/features/widget/routes';
 
 export const organizationRoutes: RouteObject[] = [
   {
@@ -59,8 +61,10 @@ export const organizationRoutes: RouteObject[] = [
           return { Component: AuditLogPage };
         },
       },
+      conversationsChildRoute,
       knowledgeChildRoute,
       onboardingChildRoute,
+      widgetChildRoute,
     ],
   },
   {

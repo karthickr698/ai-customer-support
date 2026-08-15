@@ -1,7 +1,9 @@
 import type { ConversationListResponse } from '@ai-customer-support/contracts';
 import type { PageRequest } from '@ai-customer-support/shared';
 import { Permissions } from '../../../organizations/domain/permissions.js';
+import type { ConversationChannel } from '../../domain/conversation-channel.js';
 import { ConversationPolicy } from '../../domain/conversation-policy.js';
+import type { ConversationPriority } from '../../domain/conversation-priority.js';
 import type { ConversationStatus } from '../../domain/conversation-status.js';
 import { ConversationTag } from '../../domain/conversation-tag.js';
 import { toConversationDto } from '../dtos.js';
@@ -15,6 +17,8 @@ export type ListConversationsQuery = {
   readonly page: PageRequest;
   readonly query?: string;
   readonly status?: ConversationStatus;
+  readonly priority?: ConversationPriority;
+  readonly channel?: ConversationChannel;
   readonly assignedAgentId?: string | 'unassigned';
   readonly tag?: string;
 };
@@ -36,6 +40,8 @@ export class ListConversationsUseCase {
         tenantId: actor.tenantId,
         query: query.query,
         status: query.status,
+        priority: query.priority,
+        channel: query.channel,
         assignedAgentId: query.assignedAgentId,
         tag,
       },

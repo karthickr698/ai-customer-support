@@ -10,6 +10,10 @@ import {
 import { parseConversationChannel, type ConversationChannel } from './conversation-channel.js';
 import { createConversationId, type ConversationId } from './conversation-id.js';
 import {
+  parseConversationPriority,
+  type ConversationPriority,
+} from './conversation-priority.js';
+import {
   assertStatusTransition,
   canEscalateFrom,
   parseConversationStatus,
@@ -29,6 +33,7 @@ export type ConversationSnapshot = {
   readonly customerName: string;
   readonly subject: string | undefined;
   readonly status: ConversationStatus;
+  readonly priority: ConversationPriority;
   readonly assignedAgentId: string | undefined;
   readonly channel: ConversationChannel;
   readonly widgetSessionId: string | undefined;
@@ -48,6 +53,7 @@ export class Conversation {
     private customerValue: CustomerContact,
     private subjectValue: string | undefined,
     private statusValue: ConversationStatus,
+    private priorityValue: ConversationPriority,
     private assignedAgentIdValue: string | undefined,
     private channelValue: ConversationChannel,
     private widgetSessionIdValue: string | undefined,
@@ -66,6 +72,7 @@ export class Conversation {
     readonly now: Date;
     readonly subject?: string;
     readonly channel?: string;
+    readonly priority?: string;
     readonly widgetSessionId?: string;
     readonly createdByUserId?: string;
     readonly id?: ConversationId;
@@ -76,6 +83,7 @@ export class Conversation {
       input.customer,
       normalizeSubject(input.subject),
       'open',
+      parseConversationPriority(input.priority),
       undefined,
       parseConversationChannel(input.channel ?? 'web'),
       input.widgetSessionId,
@@ -100,6 +108,7 @@ export class Conversation {
       }),
       snapshot.subject,
       parseConversationStatus(snapshot.status),
+      parseConversationPriority(snapshot.priority),
       snapshot.assignedAgentId,
       parseConversationChannel(snapshot.channel),
       snapshot.widgetSessionId,
@@ -123,6 +132,10 @@ export class Conversation {
 
   get status(): ConversationStatus {
     return this.statusValue;
+  }
+
+  get priority(): ConversationPriority {
+    return this.priorityValue;
   }
 
   get assignedAgentId(): string | undefined {
@@ -202,6 +215,15 @@ export class Conversation {
     this.transitionTo('escalated', now);
   }
 
+  changePriority(priority: ConversationPriority, now: Date): void {
+    if (this.priorityValue === priority) {
+      return;
+    }
+
+    this.priorityValue = priority;
+    this.updatedAtValue = now;
+  }
+
   assignTo(agentId: string, now: Date): void {
     this.assignedAgentIdValue = agentId;
     this.updatedAtValue = now;
@@ -252,6 +274,7 @@ export class Conversation {
       customerName: this.customerValue.name,
       subject: this.subjectValue,
       status: this.statusValue,
+      priority: this.priorityValue,
       assignedAgentId: this.assignedAgentIdValue,
       channel: this.channelValue,
       widgetSessionId: this.widgetSessionIdValue,

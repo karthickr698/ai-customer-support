@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { Conversation, type ConversationSnapshot } from '../../../domain/conversation.js';
 import { parseConversationChannel } from '../../../domain/conversation-channel.js';
 import { createConversationId, type ConversationId } from '../../../domain/conversation-id.js';
+import { parseConversationPriority } from '../../../domain/conversation-priority.js';
 import { parseConversationStatus } from '../../../domain/conversation-status.js';
 import { isMessageAuthorType } from '../../../domain/message.js';
 import type {
@@ -17,6 +18,7 @@ type ConversationRecord = {
   customerName: string;
   subject: string | null;
   status: string;
+  priority: string;
   assignedAgentId: string | null;
   channel: string;
   lastMessageAt: Date | null;
@@ -55,6 +57,7 @@ export class PostgresConversationRepository implements ConversationRepository {
           customerName: data.customerName,
           subject: data.subject,
           status: data.status,
+          priority: data.priority,
           assignedAgentId: data.assignedAgentId,
           channel: data.channel,
           lastMessageAt: data.lastMessageAt,
@@ -142,6 +145,8 @@ function toSearchWhere(filter: ConversationSearchFilter): Prisma.ConversationWhe
   return {
     organizationId: filter.tenantId,
     ...(filter.status ? { status: filter.status } : {}),
+    ...(filter.priority ? { priority: filter.priority } : {}),
+    ...(filter.channel ? { channel: filter.channel } : {}),
     ...(filter.widgetSessionId ? { widgetSessionId: filter.widgetSessionId } : {}),
     ...(assigned === 'unassigned'
       ? { assignedAgentId: null }
@@ -173,6 +178,7 @@ function toConversation(record: ConversationRecord): Conversation {
     customerName: record.customerName,
     subject: record.subject ?? undefined,
     status: parseConversationStatus(record.status),
+    priority: parseConversationPriority(record.priority),
     assignedAgentId: record.assignedAgentId ?? undefined,
     channel: parseConversationChannel(record.channel),
     tags: record.tags.map((tag) => tag.name),
@@ -200,6 +206,7 @@ function toRecord(snapshot: ConversationSnapshot): Prisma.ConversationUncheckedC
     customerName: snapshot.customerName,
     subject: snapshot.subject ?? null,
     status: snapshot.status,
+    priority: snapshot.priority,
     assignedAgentId: snapshot.assignedAgentId ?? null,
     channel: snapshot.channel,
     lastMessageAt: snapshot.lastMessageAt ?? null,

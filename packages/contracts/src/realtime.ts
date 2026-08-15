@@ -5,6 +5,7 @@ export const REALTIME_EVENT_NAMES = [
   'conversation.message_received',
   'conversation.message_sent',
   'conversation.status_changed',
+  'conversation.priority_changed',
   'conversation.escalated',
   'conversation.assigned',
   'conversation.unassigned',

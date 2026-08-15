@@ -59,6 +59,7 @@ export class EscalateConversationUseCase {
       subject: conversation.subject,
       description: reason && reason.length > 0 ? reason : conversation.lastMessagePreview || 'Conversation escalated',
       assignedAgentId: conversation.assignedAgentId,
+      priority: conversation.priority,
       actorId: actor.actorId,
       source: conversation.channel === 'widget' ? 'ai_conversation' : 'escalation',
       correlationId: input.security.correlationId,

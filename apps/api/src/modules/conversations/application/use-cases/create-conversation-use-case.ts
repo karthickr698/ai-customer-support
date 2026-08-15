@@ -28,6 +28,7 @@ export type CreateConversationCommand = {
   readonly customerId?: string;
   readonly subject?: string;
   readonly channel?: string;
+  readonly priority?: string;
   readonly tags?: readonly string[];
   readonly assignedAgentId?: string;
   readonly initialMessage?: string;
@@ -60,6 +61,7 @@ export class CreateConversationUseCase {
       }),
       subject: command.subject,
       channel: command.channel,
+      priority: command.priority,
       createdByUserId: actor.actorId,
       now,
     });

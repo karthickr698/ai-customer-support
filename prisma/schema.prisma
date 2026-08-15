@@ -43,6 +43,7 @@ model Organization {
   widgetConfiguration WidgetConfiguration?
   widgetSessions  WidgetSession[]
   messageAttachments MessageAttachment[]
+  messageFeedbacks MessageFeedback[]
   integrationCredentials IntegrationCredential[]
   oauthConnectors OAuthConnector[]
   toolInvocations ToolInvocation[]
@@ -215,6 +216,7 @@ model Conversation {
   customerName       String    @map("customer_name")
   subject            String?
   status             String
+  priority           String    @default("normal")
   assignedAgentId    String?   @map("assigned_agent_id") @db.Uuid
   channel            String
   lastMessageAt         DateTime? @map("last_message_at")
@@ -231,9 +233,11 @@ model Conversation {
   notes        ConversationNote[]
   tags         ConversationTag[]
   attachments  MessageAttachment[]
+  feedbacks    MessageFeedback[]
 
   @@index([organizationId, updatedAt])
   @@index([organizationId, status])
+  @@index([organizationId, priority])
   @@index([organizationId, assignedAgentId])
   @@index([organizationId, customerEmail])
   @@index([organizationId, widgetSessionId])
@@ -253,6 +257,7 @@ model Message {
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   attachments  MessageAttachment[]
+  feedbacks    MessageFeedback[]
 
   @@index([conversationId, createdAt])
   @@index([organizationId, createdAt])
@@ -419,6 +424,7 @@ model WidgetSession {
   widget       WidgetConfiguration @relation(fields: [widgetConfigurationId], references: [id], onDelete: Cascade)
   conversations Conversation[]
   attachments   MessageAttachment[]
+  feedbacks     MessageFeedback[]
 
   @@index([organizationId, visitorId])
   @@index([organizationId, expiresAt])
@@ -445,6 +451,28 @@ model MessageAttachment {
   @@index([organizationId, conversationId])
   @@index([messageId])
   @@map("message_attachments")
+}
+
+model MessageFeedback {
+  id               String   @id @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  conversationId   String   @map("conversation_id") @db.Uuid
+  messageId        String   @map("message_id") @db.Uuid
+  widgetSessionId  String   @map("widget_session_id") @db.Uuid
+  rating           String
+  comment          String?
+  createdAt        DateTime @map("created_at")
+  updatedAt        DateTime @map("updated_at")
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation  Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message       Message       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  widgetSession WidgetSession @relation(fields: [widgetSessionId], references: [id], onDelete: Cascade)
+
+  @@unique([widgetSessionId, messageId])
+  @@index([organizationId, conversationId])
+  @@index([messageId])
+  @@map("message_feedback")
 }
 
 model IntegrationCredential {

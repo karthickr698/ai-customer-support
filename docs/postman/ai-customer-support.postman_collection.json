@@ -1011,10 +1011,10 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations",
-                "description": "Creates an open conversation for a customer. Requires `conversation.write`. Optional: subject, channel (`web` | `email` | `api`), tags, assignedAgentId, initialMessage, initialMessageAuthor (`customer` | `agent`).",
+                "description": "Creates an open conversation for a customer. Requires `conversation.write`. Optional: subject, channel (`web` | `email` | `api` | `widget`), priority (`low` | `normal` | `high` | `urgent`), tags, assignedAgentId, initialMessage, initialMessageAuthor (`customer` | `agent`).",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"customerEmail\": \"{{customerEmail}}\",\n  \"customerName\": \"{{customerName}}\",\n  \"subject\": \"{{conversationSubject}}\",\n  \"channel\": \"web\",\n  \"tags\": [\"{{conversationTag}}\"],\n  \"initialMessage\": \"{{messageBody}}\",\n  \"initialMessageAuthor\": \"customer\"\n}"
+                  "raw": "{\n  \"customerEmail\": \"{{customerEmail}}\",\n  \"customerName\": \"{{customerName}}\",\n  \"subject\": \"{{conversationSubject}}\",\n  \"channel\": \"web\",\n  \"priority\": \"{{conversationPriority}}\",\n  \"tags\": [\"{{conversationTag}}\"],\n  \"initialMessage\": \"{{messageBody}}\",\n  \"initialMessageAuthor\": \"customer\"\n}"
                 }
               },
               "event": [
@@ -1051,8 +1051,8 @@
                     "value": "{{organizationId}}"
                   }
                 ],
-                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations?page={{conversationPage}}&pageSize={{conversationPageSize}}&q={{conversationSearch}}&status={{conversationStatus}}&assignedAgentId={{assignedAgentId}}&tag={{conversationTag}}",
-                "description": "Paginated inbox search. Requires `conversation.read`. Query: `page`, `pageSize` (1–100), `q` (subject, customer, tags, message body), `status`, `assignedAgentId` (user id or `unassigned`), `tag`."
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations?page={{conversationPage}}&pageSize={{conversationPageSize}}&q={{conversationSearch}}&status={{conversationStatus}}&priority={{conversationPriority}}&channel={{conversationChannel}}&assignedAgentId={{assignedAgentId}}&tag={{conversationTag}}",
+                "description": "Paginated inbox search. Requires `conversation.read`. Query: `page`, `pageSize` (1–100), `q` (subject, customer, tags, message body), `status`, `priority` (`low` | `normal` | `high` | `urgent`), `channel` (`web` | `email` | `api` | `widget`), `assignedAgentId` (user id or `unassigned`), `tag`."
               },
               "event": [
                 {
@@ -1238,6 +1238,47 @@
                       "if (pm.response.code === 200) {",
                       "  pm.test('Status updated', () => {",
                       "    pm.expect(pm.response.json().conversation.status).to.eql(pm.environment.get('conversationStatus'));",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Change conversation priority",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/priority",
+                "description": "Sets priority. Requires `conversation.write`. Allowed: `low`, `normal`, `high`, `urgent`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"priority\": \"{{conversationPriority}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Priority updated', () => {",
+                      "    pm.expect(pm.response.json().conversation.priority).to.eql(pm.environment.get('conversationPriority'));",
                       "  });",
                       "}"
                     ]
@@ -7427,8 +7468,23 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/widget/conversations/{{widgetConversationId}}/messages?page={{conversationPage}}&pageSize={{conversationPageSize}}",
-                "description": "Lists messages and attachments for the session-owned conversation."
-              }
+                "description": "Lists messages, attachments, and visitor feedback for the session-owned conversation."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const items = pm.response.json().items || [];",
+                      "  const ai = [...items].reverse().find((item) => item.authorType === 'ai' || item.authorType === 'agent');",
+                      "  if (ai) { pm.environment.set('widgetMessageId', ai.id); }",
+                      "}"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Send widget message",
@@ -7475,10 +7531,36 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/widget/conversations/{{widgetConversationId}}/messages/stream",
-                "description": "Saves the customer message then streams SSE events: `message`, `delta`, `done`, `error`. AI replies are tenant-scoped via the TypeScript API to the Python AI service. Skip AI when the widget has AI disabled or the conversation is closed/escalated.",
+                "description": "Saves the customer message then streams SSE events: `message`, `typing`, `delta`, `done`, `error`. AI replies are tenant-scoped via the TypeScript API to the Python AI service. Skip AI when the widget has AI disabled or the conversation is closed/escalated.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"body\": \"{{messageBody}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Submit widget message feedback",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{widgetSessionToken}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/widget/conversations/{{widgetConversationId}}/messages/{{widgetMessageId}}/feedback",
+                "description": "Records helpful / not_helpful feedback on an AI or agent reply owned by this widget session.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rating\": \"helpful\",\n  \"comment\": \"Clear answer\"\n}"
                 }
               }
             }

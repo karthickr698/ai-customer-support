@@ -1,4 +1,4 @@
-export function workspacePath(organizationId: string, segment = 'members'): string {
+export function workspacePath(organizationId: string, segment = 'inbox'): string {
   return `/organizations/${organizationId}/${segment}`;
 }
 

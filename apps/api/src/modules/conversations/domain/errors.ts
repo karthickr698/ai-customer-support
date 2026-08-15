@@ -45,6 +45,14 @@ export class InvalidConversationStatusError extends DomainError {
   }
 }
 
+export class InvalidConversationPriorityError extends DomainError {
+  readonly code = 'INVALID_CONVERSATION_PRIORITY';
+
+  constructor() {
+    super('Priority must be low, normal, high, or urgent', 400);
+  }
+}
+
 export class InvalidConversationStateError extends DomainError {
   readonly code = 'INVALID_CONVERSATION_STATE';
 
@@ -226,5 +234,29 @@ export class EmptyMessageError extends DomainError {
 
   constructor() {
     super('Send a message body or at least one attachment', 400);
+  }
+}
+
+export class InvalidMessageFeedbackError extends DomainError {
+  readonly code = 'INVALID_MESSAGE_FEEDBACK';
+
+  constructor(message = 'Message feedback is invalid') {
+    super(message, 400);
+  }
+}
+
+export class MessageNotFoundError extends DomainError {
+  readonly code = 'MESSAGE_NOT_FOUND';
+
+  constructor() {
+    super('Message not found', 404);
+  }
+}
+
+export class MessageFeedbackNotAllowedError extends DomainError {
+  readonly code = 'MESSAGE_FEEDBACK_NOT_ALLOWED';
+
+  constructor() {
+    super('Feedback can only be submitted on assistant replies', 400);
   }
 }

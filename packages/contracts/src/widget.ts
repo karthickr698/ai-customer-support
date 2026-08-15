@@ -1,3 +1,5 @@
+import type { ConversationDto, MessageDto } from './conversations.js';
+
 export const WIDGET_POSITIONS = ['left', 'right'] as const;
 export type WidgetPosition = (typeof WIDGET_POSITIONS)[number];
 
@@ -109,3 +111,63 @@ export type SendWidgetMessageRequest = {
 export type WidgetConversationStatusRequest = {
   readonly status: 'open' | 'resolved' | 'closed';
 };
+
+export type WidgetStreamMessageEvent = {
+  readonly type: 'message';
+  readonly message: MessageDto;
+  readonly conversation: ConversationDto;
+};
+
+export type WidgetStreamTypingEvent = {
+  readonly type: 'typing';
+  readonly active: boolean;
+};
+
+export type WidgetStreamDeltaEvent = {
+  readonly type: 'delta';
+  readonly text: string;
+};
+
+export type WidgetStreamDoneEvent = {
+  readonly type: 'done';
+  readonly message: MessageDto | null;
+  readonly conversation: ConversationDto;
+};
+
+export type WidgetStreamErrorEvent = {
+  readonly type: 'error';
+  readonly code: string;
+  readonly message: string;
+};
+
+export type WidgetStreamEvent =
+  | WidgetStreamMessageEvent
+  | WidgetStreamTypingEvent
+  | WidgetStreamDeltaEvent
+  | WidgetStreamDoneEvent
+  | WidgetStreamErrorEvent;
+
+export function isWidgetStreamEvent(value: unknown): value is WidgetStreamEvent {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  if (record.type === 'delta') {
+    return typeof record.text === 'string';
+  }
+
+  if (record.type === 'typing') {
+    return typeof record.active === 'boolean';
+  }
+
+  if (record.type === 'error') {
+    return typeof record.code === 'string' && typeof record.message === 'string';
+  }
+
+  if (record.type === 'message' || record.type === 'done') {
+    return typeof record.conversation === 'object' && record.conversation !== null;
+  }
+
+  return false;
+}

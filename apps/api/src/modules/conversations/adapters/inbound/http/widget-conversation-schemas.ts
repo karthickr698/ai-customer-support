@@ -14,3 +14,8 @@ export const widgetMessageBodySchema = z.object({
 export const widgetStatusBodySchema = z.object({
   status: z.enum(['open', 'resolved', 'closed']),
 });
+
+export const widgetMessageFeedbackBodySchema = z.object({
+  rating: z.enum(['helpful', 'not_helpful']),
+  comment: z.string().trim().max(500).optional(),
+});

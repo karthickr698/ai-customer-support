@@ -13,11 +13,12 @@ import type { ListWidgetMessagesUseCase } from '../../../application/use-cases/l
 import type { SendWidgetMessageUseCase } from '../../../application/use-cases/send-widget-message-use-case.js';
 import type { StartWidgetConversationUseCase } from '../../../application/use-cases/start-widget-conversation-use-case.js';
 import type { StreamWidgetAiReplyUseCase } from '../../../application/use-cases/stream-widget-ai-reply-use-case.js';
+import type { SubmitWidgetMessageFeedbackUseCase } from '../../../application/use-cases/submit-widget-message-feedback-use-case.js';
 import { UnauthorizedError } from '../../../domain/errors.js';
 import { conversationPageQuerySchema } from './conversation-schemas.js';
 import { parseBody } from './parse-body.js';
 import { readUploadedFile } from './read-uploaded-file.js';
-import { widgetConversationBodySchema, widgetMessageBodySchema, widgetStatusBodySchema } from './widget-conversation-schemas.js';
+import { widgetConversationBodySchema, widgetMessageBodySchema, widgetMessageFeedbackBodySchema, widgetStatusBodySchema } from './widget-conversation-schemas.js';
 
 export type WidgetConversationHttpUseCases = {
   readonly startWidgetConversation: StartWidgetConversationUseCase;
@@ -27,6 +28,7 @@ export type WidgetConversationHttpUseCases = {
   readonly sendWidgetMessage: SendWidgetMessageUseCase;
   readonly listWidgetMessages: ListWidgetMessagesUseCase;
   readonly streamWidgetAiReply: StreamWidgetAiReplyUseCase;
+  readonly submitWidgetMessageFeedback: SubmitWidgetMessageFeedbackUseCase;
   readonly uploadWidgetAttachment: UploadWidgetAttachmentUseCase;
   readonly getWidgetAttachment: GetWidgetAttachmentUseCase;
 };
@@ -141,11 +143,19 @@ export async function registerWidgetConversationRoutes(
     async (request, reply) => {
       const body = parseBody(widgetMessageBodySchema, request.body ?? {});
       reply.hijack();
+      const origin = requestOrigin(request);
       reply.raw.writeHead(200, {
         'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache, no-transform',
         Connection: 'keep-alive',
         'X-Accel-Buffering': 'no',
+        ...(origin
+          ? {
+              'Access-Control-Allow-Origin': origin,
+              'Access-Control-Allow-Credentials': 'true',
+              Vary: 'Origin',
+            }
+          : {}),
       });
 
       try {
@@ -168,6 +178,24 @@ export async function registerWidgetConversationRoutes(
       } finally {
         reply.raw.end();
       }
+    },
+  );
+
+  app.post(
+    '/api/widget/conversations/:conversationId/messages/:messageId/feedback',
+    { preHandler: sessionAuth },
+    async (request, reply) => {
+      const body = parseBody(widgetMessageFeedbackBodySchema, request.body);
+      const result = await useCases.submitWidgetMessageFeedback.execute({
+        sessionToken: requireSessionToken(request),
+        origin: requestOrigin(request),
+        conversationId: routeParam(request, 'conversationId'),
+        messageId: routeParam(request, 'messageId'),
+        rating: body.rating,
+        comment: body.comment,
+        security: securityContext(request),
+      });
+      return reply.status(200).send(result);
     },
   );
 

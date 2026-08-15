@@ -10,8 +10,21 @@ export type ConversationStatus = (typeof CONVERSATION_STATUSES)[number];
 export const CONVERSATION_CHANNELS = ['web', 'email', 'api', 'widget'] as const;
 export type ConversationChannel = (typeof CONVERSATION_CHANNELS)[number];
 
+export const CONVERSATION_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
+export type ConversationPriority = (typeof CONVERSATION_PRIORITIES)[number];
+
 export const MESSAGE_AUTHOR_TYPES = ['customer', 'agent', 'system', 'ai'] as const;
 export type MessageAuthorType = (typeof MESSAGE_AUTHOR_TYPES)[number];
+
+export const MESSAGE_FEEDBACK_RATINGS = ['helpful', 'not_helpful'] as const;
+export type MessageFeedbackRating = (typeof MESSAGE_FEEDBACK_RATINGS)[number];
+
+export type MessageFeedbackDto = {
+  readonly rating: MessageFeedbackRating;
+  readonly comment: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+};
 
 export type ConversationAssigneeDto = {
   readonly id: string;
@@ -27,6 +40,7 @@ export type ConversationDto = {
   readonly customerName: string;
   readonly subject: string | null;
   readonly status: ConversationStatus;
+  readonly priority: ConversationPriority;
   readonly assignedAgentId: string | null;
   readonly assignedAgent: ConversationAssigneeDto | null;
   readonly channel: ConversationChannel;
@@ -56,6 +70,7 @@ export type MessageDto = {
   readonly authorId: string | null;
   readonly body: string;
   readonly attachments: readonly MessageAttachmentDto[];
+  readonly feedback?: MessageFeedbackDto | null;
   readonly createdAt: string;
 };
 
@@ -73,6 +88,7 @@ export type CreateConversationRequest = {
   readonly customerId?: string;
   readonly subject?: string;
   readonly channel?: ConversationChannel;
+  readonly priority?: ConversationPriority;
   readonly tags?: readonly string[];
   readonly assignedAgentId?: string;
   readonly initialMessage?: string;
@@ -81,6 +97,10 @@ export type CreateConversationRequest = {
 
 export type ChangeConversationStatusRequest = {
   readonly status: Exclude<ConversationStatus, 'escalated'>;
+};
+
+export type ChangeConversationPriorityRequest = {
+  readonly priority: ConversationPriority;
 };
 
 export type AssignConversationRequest = {
@@ -160,6 +180,15 @@ export type SendMessageRequest = {
 
 export type MessageAttachmentResponse = {
   readonly attachment: MessageAttachmentDto;
+};
+
+export type SubmitMessageFeedbackRequest = {
+  readonly rating: MessageFeedbackRating;
+  readonly comment?: string;
+};
+
+export type MessageFeedbackResponse = {
+  readonly feedback: MessageFeedbackDto;
 };
 
 export type AddConversationNoteRequest = {

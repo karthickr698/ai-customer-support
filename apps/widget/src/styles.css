@@ -1,0 +1,88 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --color-primary: var(--acs-primary);
+  --color-primary-foreground: var(--acs-primary-foreground);
+  --color-background: var(--acs-background);
+  --color-foreground: var(--acs-foreground);
+  --color-muted: var(--acs-muted);
+  --color-muted-foreground: var(--acs-muted-foreground);
+  --color-border: var(--acs-border);
+  --color-ring: var(--acs-primary);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+:root {
+  --acs-primary: #2563eb;
+  --acs-primary-foreground: #ffffff;
+  --acs-background: #ffffff;
+  --acs-foreground: #0f172a;
+  --acs-muted: #f1f5f9;
+  --acs-muted-foreground: #64748b;
+  --acs-border: #e2e8f0;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  background: transparent;
+  font-family: var(--font-sans);
+  color: var(--acs-foreground);
+}
+
+body {
+  overflow: hidden;
+}
+
+button,
+textarea,
+input {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--acs-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.acs-dot {
+  animation: acs-bounce 1s infinite ease-in-out;
+}
+
+.acs-dot:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.acs-dot:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+@keyframes acs-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  40% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}

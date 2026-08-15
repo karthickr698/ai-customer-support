@@ -6,8 +6,14 @@ export const queryKeys = {
   },
   conversations: {
     all: () => ['conversations'] as const,
-    list: (filters?: Record<string, unknown>) => [...queryKeys.conversations.all(), 'list', filters] as const,
-    detail: (id: string) => [...queryKeys.conversations.all(), 'detail', id] as const,
+    list: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.conversations.all(), organizationId, 'list', filters] as const,
+    detail: (organizationId: string, id: string) =>
+      [...queryKeys.conversations.all(), organizationId, 'detail', id] as const,
+    messages: (organizationId: string, id: string) =>
+      [...queryKeys.conversations.all(), organizationId, id, 'messages'] as const,
+    notes: (organizationId: string, id: string) =>
+      [...queryKeys.conversations.all(), organizationId, id, 'notes'] as const,
   },
   tickets: {
     all: () => ['tickets'] as const,
@@ -37,5 +43,9 @@ export const queryKeys = {
   onboarding: {
     all: () => ['onboarding'] as const,
     detail: (organizationId: string) => [...queryKeys.onboarding.all(), organizationId] as const,
+  },
+  widget: {
+    all: () => ['widget'] as const,
+    detail: (organizationId: string) => [...queryKeys.widget.all(), organizationId] as const,
   },
 } as const;

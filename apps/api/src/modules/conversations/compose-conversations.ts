@@ -34,6 +34,7 @@ import { PostgresConversationRepository } from './adapters/outbound/persistence/
 import { PostgresEscalationRuleRepository } from './adapters/outbound/persistence/postgres-escalation-rule-repository.js';
 import { PostgresMessageRepository } from './adapters/outbound/persistence/postgres-message-repository.js';
 import { PostgresMessageAttachmentRepository } from './adapters/outbound/persistence/postgres-message-attachment-repository.js';
+import { PostgresMessageFeedbackRepository } from './adapters/outbound/persistence/postgres-message-feedback-repository.js';
 import { LocalAttachmentStorageAdapter } from './adapters/outbound/storage/local-attachment-storage-adapter.js';
 import { OnboardingAgentSettingsAdapter } from './adapters/outbound/onboarding/onboarding-agent-settings-adapter.js';
 import { RedisAssignmentCursorAdapter } from './adapters/outbound/redis/redis-assignment-cursor-adapter.js';
@@ -58,11 +59,13 @@ import { ListWidgetMessagesUseCase } from './application/use-cases/list-widget-m
 import { SendWidgetMessageUseCase } from './application/use-cases/send-widget-message-use-case.js';
 import { StartWidgetConversationUseCase } from './application/use-cases/start-widget-conversation-use-case.js';
 import { StreamWidgetAiReplyUseCase } from './application/use-cases/stream-widget-ai-reply-use-case.js';
+import { SubmitWidgetMessageFeedbackUseCase } from './application/use-cases/submit-widget-message-feedback-use-case.js';
 import { toRealtimeSupportEvent } from './application/to-realtime-support-event.js';
 import { AddConversationNoteUseCase } from './application/use-cases/add-conversation-note-use-case.js';
 import { AddConversationTagUseCase } from './application/use-cases/add-conversation-tag-use-case.js';
 import { AssignConversationUseCase } from './application/use-cases/assign-conversation-use-case.js';
 import { AssignToAvailableAgentUseCase } from './application/use-cases/assign-to-available-agent-use-case.js';
+import { ChangeConversationPriorityUseCase } from './application/use-cases/change-conversation-priority-use-case.js';
 import { ChangeConversationStatusUseCase } from './application/use-cases/change-conversation-status-use-case.js';
 import { CreateConversationUseCase } from './application/use-cases/create-conversation-use-case.js';
 import { CreateEscalationRuleUseCase } from './application/use-cases/create-escalation-rule-use-case.js';
@@ -89,6 +92,7 @@ const REALTIME_DOMAIN_EVENTS = [
   'MessageReceived',
   'MessageSent',
   'ConversationStatusChanged',
+  'ConversationPriorityChanged',
   'ConversationEscalated',
   'AgentAssigned',
   'AgentUnassigned',
@@ -129,6 +133,7 @@ export function composeConversations(input: {
   const notes = new PostgresConversationNoteRepository(input.prisma);
   const rules = new PostgresEscalationRuleRepository(input.prisma);
   const attachments = new PostgresMessageAttachmentRepository(input.prisma);
+  const feedbacks = new PostgresMessageFeedbackRepository(input.prisma);
   const storage = new LocalAttachmentStorageAdapter(input.attachmentStorageDir);
   const agentSettings = new OnboardingAgentSettingsAdapter(input.agentSettingsQuery);
   const clock = new SystemClock();
@@ -175,6 +180,13 @@ export function composeConversations(input: {
     ),
     getConversation: new GetConversationUseCase(authorized, input.userDirectory),
     changeConversationStatus: new ChangeConversationStatusUseCase(
+      authorized,
+      conversations,
+      input.userDirectory,
+      clock,
+      input.eventBus,
+    ),
+    changeConversationPriority: new ChangeConversationPriorityUseCase(
       authorized,
       conversations,
       input.userDirectory,
@@ -276,7 +288,12 @@ export function composeConversations(input: {
       clock,
       input.eventBus,
     ),
-    listWidgetMessages: new ListWidgetMessagesUseCase(widgetAuthorized, messages, attachments),
+    listWidgetMessages: new ListWidgetMessagesUseCase(
+      widgetAuthorized,
+      messages,
+      attachments,
+      feedbacks,
+    ),
     streamWidgetAiReply: new StreamWidgetAiReplyUseCase(
       widgetAuthorized,
       conversations,
@@ -284,6 +301,13 @@ export function composeConversations(input: {
       attachments,
       agentSettings,
       input.aiService,
+      clock,
+      input.eventBus,
+    ),
+    submitWidgetMessageFeedback: new SubmitWidgetMessageFeedbackUseCase(
+      widgetAuthorized,
+      messages,
+      feedbacks,
       clock,
       input.eventBus,
     ),

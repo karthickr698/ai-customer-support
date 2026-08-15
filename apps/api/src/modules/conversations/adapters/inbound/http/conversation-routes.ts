@@ -10,6 +10,7 @@ import type { AddConversationNoteUseCase } from '../../../application/use-cases/
 import type { AddConversationTagUseCase } from '../../../application/use-cases/add-conversation-tag-use-case.js';
 import type { AssignConversationUseCase } from '../../../application/use-cases/assign-conversation-use-case.js';
 import type { AssignToAvailableAgentUseCase } from '../../../application/use-cases/assign-to-available-agent-use-case.js';
+import type { ChangeConversationPriorityUseCase } from '../../../application/use-cases/change-conversation-priority-use-case.js';
 import type { ChangeConversationStatusUseCase } from '../../../application/use-cases/change-conversation-status-use-case.js';
 import type { CreateConversationUseCase } from '../../../application/use-cases/create-conversation-use-case.js';
 import type { EscalateConversationUseCase } from '../../../application/use-cases/escalate-conversation-use-case.js';
@@ -27,6 +28,7 @@ import {
   addConversationNoteBodySchema,
   addConversationTagBodySchema,
   assignConversationBodySchema,
+  changeConversationPriorityBodySchema,
   changeConversationStatusBodySchema,
   conversationListQuerySchema,
   conversationPageQuerySchema,
@@ -41,6 +43,7 @@ export type ConversationHttpUseCases = {
   readonly listConversations: ListConversationsUseCase;
   readonly getConversation: GetConversationUseCase;
   readonly changeConversationStatus: ChangeConversationStatusUseCase;
+  readonly changeConversationPriority: ChangeConversationPriorityUseCase;
   readonly assignConversation: AssignConversationUseCase;
   readonly assignToAvailableAgent: AssignToAvailableAgentUseCase;
   readonly unassignConversation: UnassignConversationUseCase;
@@ -88,6 +91,7 @@ export async function registerConversationRoutes(
         channel: body.channel,
         tags: body.tags,
         assignedAgentId: body.assignedAgentId,
+        priority: body.priority,
         initialMessage: body.initialMessage,
         initialMessageAuthor: body.initialMessageAuthor,
         security: securityContext(request),
@@ -107,6 +111,8 @@ export async function registerConversationRoutes(
         page: { page: query.page, pageSize: query.pageSize },
         query: query.q,
         status: query.status,
+        priority: query.priority,
+        channel: query.channel,
         assignedAgentId: query.assignedAgentId,
         tag: query.tag,
       });
@@ -137,6 +143,22 @@ export async function registerConversationRoutes(
         actorId: requireUserId(request),
         conversationId: routeParam(request, 'conversationId'),
         status: body.status,
+        security: securityContext(request),
+      });
+      return reply.status(200).send(result);
+    },
+  );
+
+  app.patch(
+    '/api/organizations/:organizationId/conversations/:conversationId/priority',
+    { preHandler: [...tenantAuth, requireWrite] },
+    async (request, reply) => {
+      const body = parseBody(changeConversationPriorityBodySchema, request.body);
+      const result = await useCases.changeConversationPriority.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        conversationId: routeParam(request, 'conversationId'),
+        priority: body.priority,
         security: securityContext(request),
       });
       return reply.status(200).send(result);

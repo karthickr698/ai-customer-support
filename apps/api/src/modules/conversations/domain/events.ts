@@ -56,6 +56,21 @@ export class ConversationStatusChangedEvent implements DomainEvent {
   ) {}
 }
 
+export class ConversationPriorityChangedEvent implements DomainEvent {
+  readonly eventName = 'ConversationPriorityChanged';
+
+  constructor(
+    readonly eventId: string,
+    readonly occurredAt: Date,
+    readonly tenantId: string,
+    readonly conversationId: string,
+    readonly fromPriority: string,
+    readonly toPriority: string,
+    readonly actorId: string,
+    readonly correlationId?: string,
+  ) {}
+}
+
 export class ConversationEscalatedEvent implements DomainEvent {
   readonly eventName = 'ConversationEscalated';
 
@@ -120,6 +135,21 @@ export class AttachmentUploadedEvent implements DomainEvent {
     readonly tenantId: string,
     readonly conversationId: string,
     readonly attachmentId: string,
+    readonly actorId: string,
+    readonly correlationId?: string,
+  ) {}
+}
+
+export class MessageFeedbackSubmittedEvent implements DomainEvent {
+  readonly eventName = 'MessageFeedbackSubmitted';
+
+  constructor(
+    readonly eventId: string,
+    readonly occurredAt: Date,
+    readonly tenantId: string,
+    readonly conversationId: string,
+    readonly messageId: string,
+    readonly rating: string,
     readonly actorId: string,
     readonly correlationId?: string,
   ) {}

@@ -24,6 +24,7 @@ export const createConversationBodySchema = z.object({
   channel: z.enum(['web', 'email', 'api', 'widget']).optional(),
   tags: z.array(z.string().trim().min(1).max(32)).max(20).optional(),
   assignedAgentId: uuidSchema.optional(),
+  priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
   initialMessage: z
     .string()
     .trim()
@@ -35,6 +36,10 @@ export const createConversationBodySchema = z.object({
 
 export const changeConversationStatusBodySchema = z.object({
   status: z.enum(['open', 'pending', 'resolved', 'closed']),
+});
+
+export const changeConversationPriorityBodySchema = z.object({
+  priority: z.enum(['low', 'normal', 'high', 'urgent']),
 });
 
 export const assignConversationBodySchema = z.object({
@@ -88,6 +93,8 @@ export const conversationListQuerySchema = z.object({
     emptyToUndefined,
     z.enum(['open', 'pending', 'resolved', 'closed', 'escalated']).optional(),
   ),
+  priority: z.preprocess(emptyToUndefined, z.enum(['low', 'normal', 'high', 'urgent']).optional()),
+  channel: z.preprocess(emptyToUndefined, z.enum(['web', 'email', 'api', 'widget']).optional()),
   assignedAgentId: z.preprocess(
     emptyToUndefined,
     z

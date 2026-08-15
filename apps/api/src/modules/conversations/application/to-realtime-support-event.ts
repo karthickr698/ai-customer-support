@@ -6,6 +6,7 @@ const EVENT_NAMES: Record<string, RealtimeEventName> = {
   MessageReceived: 'conversation.message_received',
   MessageSent: 'conversation.message_sent',
   ConversationStatusChanged: 'conversation.status_changed',
+  ConversationPriorityChanged: 'conversation.priority_changed',
   ConversationEscalated: 'conversation.escalated',
   AgentAssigned: 'conversation.assigned',
   AgentUnassigned: 'conversation.unassigned',

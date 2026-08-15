@@ -4,11 +4,13 @@ import type {
   ConversationNoteDto,
   MessageAttachmentDto,
   MessageDto,
+  MessageFeedbackDto,
 } from '@ai-customer-support/contracts';
 import type { Conversation } from '../domain/conversation.js';
 import type { ConversationNote } from '../domain/conversation-note.js';
 import type { Message } from '../domain/message.js';
 import type { MessageAttachment } from '../domain/message-attachment.js';
+import type { MessageFeedback } from '../domain/message-feedback.js';
 import type { DirectoryUser } from './ports/user-directory-port.js';
 
 export type RequestSecurityContext = {
@@ -34,6 +36,7 @@ export function toConversationDto(
     customerName: snapshot.customerName,
     subject: snapshot.subject ?? null,
     status: snapshot.status,
+    priority: snapshot.priority,
     assignedAgentId: snapshot.assignedAgentId ?? null,
     assignedAgent: assignee ? toAssigneeDto(assignee) : null,
     channel: snapshot.channel,
@@ -63,6 +66,7 @@ export function toAttachmentDto(attachment: MessageAttachment): MessageAttachmen
 export function toMessageDto(
   message: Message,
   attachments: readonly MessageAttachment[] = [],
+  feedback?: MessageFeedback | null,
 ): MessageDto {
   const snapshot = message.toSnapshot();
   return {
@@ -72,7 +76,18 @@ export function toMessageDto(
     authorId: snapshot.authorId ?? null,
     body: snapshot.body,
     attachments: attachments.map(toAttachmentDto),
+    feedback: feedback ? toFeedbackDto(feedback) : null,
     createdAt: snapshot.createdAt.toISOString(),
+  };
+}
+
+export function toFeedbackDto(feedback: MessageFeedback): MessageFeedbackDto {
+  const snapshot = feedback.toSnapshot();
+  return {
+    rating: snapshot.rating,
+    comment: snapshot.comment ?? null,
+    createdAt: snapshot.createdAt.toISOString(),
+    updatedAt: snapshot.updatedAt.toISOString(),
   };
 }
 

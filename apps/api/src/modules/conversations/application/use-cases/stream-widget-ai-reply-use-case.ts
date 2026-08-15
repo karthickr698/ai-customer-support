@@ -1,8 +1,7 @@
 import type {
-  ConversationDto,
   GenerateSupportReplyRequest,
-  MessageDto,
   SupportChatMessageDto,
+  WidgetStreamEvent,
 } from '@ai-customer-support/contracts';
 import type { EventBus } from '@ai-customer-support/shared';
 import type { AIServicePort } from '../../../ai/application/ports/ai-service-port.js';
@@ -17,16 +16,6 @@ import type { ClockPort } from '../ports/clock-port.js';
 import type { ConversationRepository } from '../ports/conversation-repository.js';
 import type { MessageAttachmentRepository } from '../ports/message-attachment-repository.js';
 import type { MessageRepository } from '../ports/message-repository.js';
-
-export type WidgetStreamEvent =
-  | { readonly type: 'message'; readonly message: MessageDto; readonly conversation: ConversationDto }
-  | { readonly type: 'delta'; readonly text: string }
-  | {
-      readonly type: 'done';
-      readonly message: MessageDto | null;
-      readonly conversation: ConversationDto;
-    }
-  | { readonly type: 'error'; readonly code: string; readonly message: string };
 
 export class StreamWidgetAiReplyUseCase {
   constructor(
@@ -97,6 +86,8 @@ export class StreamWidgetAiReplyUseCase {
       return;
     }
 
+    yield { type: 'typing', active: true };
+
     const history = await this.messages.listRecent(actor.tenantId, conversation.id, 20);
     const request: GenerateSupportReplyRequest = {
       conversationId: conversation.id,
@@ -125,6 +116,7 @@ export class StreamWidgetAiReplyUseCase {
         }
 
         if (event.type === 'error') {
+          yield { type: 'typing', active: false };
           yield { type: 'error', code: event.code, message: event.message };
           yield { type: 'done', message: null, conversation: toConversationDto(conversation, null) };
           return;
@@ -134,10 +126,13 @@ export class StreamWidgetAiReplyUseCase {
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'The AI service failed';
+      yield { type: 'typing', active: false };
       yield { type: 'error', code: 'AI_PROVIDER_ERROR', message };
       yield { type: 'done', message: null, conversation: toConversationDto(conversation, null) };
       return;
     }
+
+    yield { type: 'typing', active: false };
 
     const replyBody = complete.trim();
     if (!replyBody) {
