@@ -13,6 +13,11 @@ declare module 'fastify' {
       role: string;
       permissions: readonly string[];
     };
+    platformAccess?: {
+      userId: string;
+      role: string;
+      permissions: readonly string[];
+    };
     widgetSession?: {
       sessionId: string;
       organizationId: string;

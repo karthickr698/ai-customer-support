@@ -6,5 +6,12 @@ export {
   OrganizationMemberQuery,
   type OrganizationMemberProfile,
 } from './application/organization-member-query.js';
+export {
+  OrganizationAdminQuery,
+} from './application/organization-admin-query.js';
+export type {
+  OrganizationCatalogFilter,
+  OrganizationCatalogRecord,
+} from './application/ports/organization-catalog-port.js';
 export { ResolveTenantAccessUseCase } from './application/use-cases/resolve-tenant-access-use-case.js';
 export { Permissions, type Permission } from './domain/permissions.js';

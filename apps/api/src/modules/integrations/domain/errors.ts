@@ -187,6 +187,22 @@ export class WebhookDeliveryNotFoundError extends DomainError {
   }
 }
 
+export class InvalidWebhookSignatureError extends DomainError {
+  readonly code = 'INVALID_WEBHOOK_SIGNATURE';
+
+  constructor(message = 'Webhook signature verification failed') {
+    super(message, 400);
+  }
+}
+
+export class InvalidApiUsageError extends DomainError {
+  readonly code = 'INVALID_API_USAGE';
+
+  constructor(message: string) {
+    super(message, 400);
+  }
+}
+
 export class InvalidOAuthApplicationError extends DomainError {
   readonly code = 'INVALID_OAUTH_APPLICATION';
 

@@ -13,13 +13,14 @@ export function buildPublicApiOpenApiDocument(): Record<string, unknown> {
       title: 'AI Customer Support Public API',
       version: PUBLIC_API_VERSION,
       description:
-        'Versioned REST API for tenant API keys, webhook subscriptions, OAuth applications, and connector abstractions. Session cookies, `Authorization: Bearer acs_live_…`, or `X-API-Key` authenticate tenant-scoped routes. Rate limits apply per API key and OAuth access token.',
+        'Versioned REST API (`/api/v1`) for tenant API keys, HMAC-signed webhooks with delivery logs and retries, API usage tracking, OAuth applications, and connector abstractions. Session cookies, `Authorization: Bearer acs_live_…`, or `X-API-Key` authenticate tenant-scoped routes. Responses include `X-API-Version: v1`. Rate limits apply per API key and OAuth access token. Webhook signatures: `X-Webhook-Signature: t=<unix>,v1=<hex>` is HMAC-SHA256 of `{timestamp}.{rawBody}`. Failed deliveries retry with exponential backoff (1m, 5m, 30m, 2h, 8h) up to 5 attempts.',
     },
     servers: [{ url: '/', description: 'Current host' }],
     tags: [
       { name: 'Version' },
       { name: 'API keys' },
       { name: 'Webhooks' },
+      { name: 'API usage' },
       { name: 'Connectors' },
       { name: 'OAuth applications' },
       { name: 'OAuth' },
@@ -179,7 +180,34 @@ export function buildPublicApiOpenApiDocument(): Record<string, unknown> {
           tags: ['Webhooks'],
           summary: 'List webhook deliveries',
           parameters: webhookParams(),
-          responses: { 200: { description: 'Delivery attempts' } },
+          responses: { 200: { description: 'Delivery log (status, attempts, next retry)' } },
+        },
+      },
+      [`${org}/webhooks/{webhookId}/deliveries/{deliveryId}`]: {
+        get: {
+          tags: ['Webhooks'],
+          summary: 'Get a webhook delivery',
+          parameters: [
+            ...webhookParams(),
+            { name: 'deliveryId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+          responses: { 200: { description: 'Delivery metadata and stored event payload' } },
+        },
+      },
+      [`${org}/webhooks/{webhookId}/deliveries/{deliveryId}/attempts`]: {
+        get: {
+          tags: ['Webhooks'],
+          summary: 'List webhook delivery attempts',
+          parameters: [
+            ...webhookParams(),
+            { name: 'deliveryId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+          responses: {
+            200: {
+              description:
+                'Per-attempt log: HTTP status, duration, `X-Webhook-Signature` header, timestamp, and response preview',
+            },
+          },
         },
       },
       [`${org}/webhooks/{webhookId}/deliveries/{deliveryId}/retry`]: {
@@ -190,7 +218,82 @@ export function buildPublicApiOpenApiDocument(): Record<string, unknown> {
             ...webhookParams(),
             { name: 'deliveryId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
           ],
-          responses: { 200: { description: 'Retried delivery' } },
+          responses: { 200: { description: 'Re-signed delivery attempt' } },
+        },
+      },
+      [`${org}/webhooks/{webhookId}/verify-signature`]: {
+        post: {
+          tags: ['Webhooks'],
+          summary: 'Verify a webhook signature',
+          parameters: webhookParams(),
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['signatureHeader', 'body'],
+                  properties: {
+                    signatureHeader: {
+                      type: 'string',
+                      description: '`X-Webhook-Signature` value: `t=<unix>,v1=<hex>`',
+                    },
+                    body: { type: 'string', description: 'Raw JSON body that was signed' },
+                    toleranceSeconds: { type: 'integer', default: 300 },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description:
+                'Checks timestamp freshness and HMAC-SHA256 of `{t}.{body}` against the subscription secret',
+            },
+          },
+        },
+      },
+      [`${org}/webhooks/dispatch`]: {
+        post: {
+          tags: ['Webhooks'],
+          summary: 'Dispatch due webhook retries',
+          parameters: [{ $ref: '#/components/parameters/organizationId' }],
+          responses: { 200: { description: 'Number of due failed deliveries retried' } },
+        },
+      },
+      [`${org}/api-usage`]: {
+        get: {
+          tags: ['API usage'],
+          summary: 'API usage summary',
+          parameters: [
+            { $ref: '#/components/parameters/organizationId' },
+            { name: 'from', in: 'query', schema: { type: 'string', format: 'date-time' } },
+            { name: 'to', in: 'query', schema: { type: 'string', format: 'date-time' } },
+          ],
+          responses: {
+            200: {
+              description: 'Request totals, errors, average latency, and breakdowns by route, status, auth, and day',
+            },
+          },
+        },
+      },
+      [`${org}/api-usage/requests`]: {
+        get: {
+          tags: ['API usage'],
+          summary: 'List API usage requests',
+          parameters: [
+            { $ref: '#/components/parameters/organizationId' },
+            { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+            { name: 'pageSize', in: 'query', schema: { type: 'integer', default: 20 } },
+            { name: 'method', in: 'query', schema: { type: 'string' } },
+            { name: 'route', in: 'query', schema: { type: 'string' } },
+            { name: 'statusCode', in: 'query', schema: { type: 'integer' } },
+            { name: 'authKind', in: 'query', schema: { type: 'string', enum: ['session', 'api_key', 'oauth_token'] } },
+            { name: 'credentialId', in: 'query', schema: { type: 'string', format: 'uuid' } },
+            { name: 'from', in: 'query', schema: { type: 'string', format: 'date-time' } },
+            { name: 'to', in: 'query', schema: { type: 'string', format: 'date-time' } },
+          ],
+          responses: { 200: { description: 'Paginated `/api/v1` request log for this organization' } },
         },
       },
       [`${org}/connectors/catalog`]: {

@@ -2,28 +2,41 @@ import type { Page, PageRequest } from '@ai-customer-support/shared';
 import type { OrganizationPermission } from '@ai-customer-support/contracts';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type {
+  ApiUsageListFilter,
+  ApiUsageRepository,
+  ApiUsageSummary,
   OAuthApplicationRepository,
   OAuthGrantRepository,
   OrganizationApiKeyRepository,
+  WebhookDeliveryAttemptRepository,
   WebhookDeliveryRepository,
   WebhookSubscriptionRepository,
 } from '../../application/ports.js';
 import { OrganizationApiKey } from '../../domain/api-key.js';
+import { PublicApiUsageRecord, parsePublicApiAuthKind } from '../../domain/api-usage-record.js';
 import {
   createOAuthApplicationId,
   createOAuthGrantId,
   createOrganizationApiKeyId,
+  createPublicApiUsageId,
+  createWebhookDeliveryAttemptId,
   createWebhookDeliveryId,
   createWebhookSubscriptionId,
   type OAuthApplicationId,
   type OAuthGrantId,
   type OrganizationApiKeyId,
+  type PublicApiUsageId,
+  type WebhookDeliveryAttemptId,
   type WebhookDeliveryId,
   type WebhookSubscriptionId,
 } from '../../domain/ids.js';
 import { OrganizationOAuthApplication } from '../../domain/oauth-application.js';
 import { OrganizationOAuthGrant } from '../../domain/oauth-grant.js';
 import { parseWebhookDeliveryStatus, WebhookDelivery } from '../../domain/webhook-delivery.js';
+import {
+  parseWebhookAttemptStatus,
+  WebhookDeliveryAttempt,
+} from '../../domain/webhook-delivery-attempt.js';
 import { parseWebhookStatus, WebhookSubscription } from '../../domain/webhook-subscription.js';
 
 export class PostgresOrganizationApiKeyRepository implements OrganizationApiKeyRepository {
@@ -204,6 +217,207 @@ export class PostgresWebhookDeliveryRepository implements WebhookDeliveryReposit
         completedAt: data.completedAt,
       },
     });
+  }
+
+  async listDue(now: Date, limit: number, tenantId?: string): Promise<WebhookDelivery[]> {
+    const records = await this.prisma.webhookDelivery.findMany({
+      where: {
+        ...(tenantId ? { organizationId: tenantId } : {}),
+        OR: [
+          { status: 'pending', nextAttemptAt: null },
+          { status: 'pending', nextAttemptAt: { lte: now } },
+          { status: 'failed', nextAttemptAt: { lte: now } },
+        ],
+      },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+    return records.map(toDelivery);
+  }
+}
+
+export class PostgresWebhookDeliveryAttemptRepository implements WebhookDeliveryAttemptRepository {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async findById(tenantId: string, attemptId: WebhookDeliveryAttemptId) {
+    const record = await this.prisma.webhookDeliveryAttempt.findFirst({
+      where: { id: attemptId, organizationId: tenantId },
+    });
+    return record ? toAttempt(record) : null;
+  }
+
+  async listByDelivery(tenantId: string, deliveryId: WebhookDeliveryId) {
+    const records = await this.prisma.webhookDeliveryAttempt.findMany({
+      where: { organizationId: tenantId, deliveryId },
+      orderBy: { attempt: 'asc' },
+    });
+    return records.map(toAttempt);
+  }
+
+  async save(attempt: WebhookDeliveryAttempt): Promise<void> {
+    const snapshot = attempt.toSnapshot();
+    const data: Prisma.WebhookDeliveryAttemptUncheckedCreateInput = {
+      id: snapshot.id,
+      organizationId: snapshot.organizationId,
+      deliveryId: snapshot.deliveryId,
+      attempt: snapshot.attempt,
+      status: snapshot.status,
+      responseStatus: snapshot.responseStatus ?? null,
+      durationMs: snapshot.durationMs,
+      signatureTimestamp: snapshot.signatureTimestamp,
+      signatureHeader: snapshot.signatureHeader,
+      errorMessage: snapshot.errorMessage ?? null,
+      responseBodyPreview: snapshot.responseBodyPreview ?? null,
+      startedAt: snapshot.startedAt,
+      finishedAt: snapshot.finishedAt,
+    };
+    await this.prisma.webhookDeliveryAttempt.upsert({
+      where: { id: snapshot.id },
+      create: data,
+      update: {
+        status: data.status,
+        responseStatus: data.responseStatus,
+        durationMs: data.durationMs,
+        errorMessage: data.errorMessage,
+        responseBodyPreview: data.responseBodyPreview,
+        finishedAt: data.finishedAt,
+      },
+    });
+  }
+}
+
+export class PostgresApiUsageRepository implements ApiUsageRepository {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async findById(tenantId: string, usageId: PublicApiUsageId) {
+    const record = await this.prisma.publicApiUsageRecord.findFirst({
+      where: { id: usageId, organizationId: tenantId },
+    });
+    return record ? toUsage(record) : null;
+  }
+
+  async save(record: PublicApiUsageRecord): Promise<void> {
+    const snapshot = record.toSnapshot();
+    await this.prisma.publicApiUsageRecord.create({
+      data: {
+        id: snapshot.id,
+        organizationId: snapshot.organizationId,
+        actorId: snapshot.actorId ?? null,
+        authKind: snapshot.authKind,
+        credentialId: snapshot.credentialId ?? null,
+        method: snapshot.method,
+        path: snapshot.path,
+        route: snapshot.route,
+        statusCode: snapshot.statusCode,
+        durationMs: snapshot.durationMs,
+        ipAddress: snapshot.ipAddress ?? null,
+        userAgent: snapshot.userAgent ?? null,
+        requestId: snapshot.requestId ?? null,
+        occurredAt: snapshot.occurredAt,
+      },
+    });
+  }
+
+  async listByTenant(tenantId: string, page: PageRequest, filter: ApiUsageListFilter) {
+    const skip = (page.page - 1) * page.pageSize;
+    const where: Prisma.PublicApiUsageRecordWhereInput = {
+      organizationId: tenantId,
+      ...(filter.method ? { method: filter.method.toUpperCase() } : {}),
+      ...(filter.route ? { route: filter.route } : {}),
+      ...(filter.statusCode ? { statusCode: filter.statusCode } : {}),
+      ...(filter.authKind ? { authKind: filter.authKind } : {}),
+      ...(filter.credentialId ? { credentialId: filter.credentialId } : {}),
+      ...(filter.from || filter.to
+        ? {
+            occurredAt: {
+              ...(filter.from ? { gte: filter.from } : {}),
+              ...(filter.to ? { lte: filter.to } : {}),
+            },
+          }
+        : {}),
+    };
+    const [total, records] = await this.prisma.$transaction([
+      this.prisma.publicApiUsageRecord.count({ where }),
+      this.prisma.publicApiUsageRecord.findMany({
+        where,
+        orderBy: { occurredAt: 'desc' },
+        skip,
+        take: page.pageSize,
+      }),
+    ]);
+    return { items: records.map(toUsage), total, page: page.page, pageSize: page.pageSize };
+  }
+
+  async summarize(tenantId: string, from: Date, to: Date): Promise<ApiUsageSummary> {
+    const where = { organizationId: tenantId, occurredAt: { gte: from, lte: to } };
+    const [aggregates, errorCount, byRoute, routeErrors, byStatus, byAuth, byDay] = await Promise.all([
+      this.prisma.publicApiUsageRecord.aggregate({
+        where,
+        _count: { _all: true },
+        _avg: { durationMs: true },
+      }),
+      this.prisma.publicApiUsageRecord.count({
+        where: { ...where, statusCode: { gte: 400 } },
+      }),
+      this.prisma.publicApiUsageRecord.groupBy({
+        by: ['method', 'route'],
+        where,
+        _count: { _all: true },
+        _avg: { durationMs: true },
+      }),
+      this.prisma.publicApiUsageRecord.groupBy({
+        by: ['method', 'route'],
+        where: { ...where, statusCode: { gte: 400 } },
+        _count: { _all: true },
+      }),
+      this.prisma.$queryRaw<Array<{ status_class: string; count: bigint }>>`
+        SELECT ((status_code / 100)::text || 'xx') AS status_class, COUNT(*)::bigint AS count
+        FROM public_api_usage_records
+        WHERE organization_id = ${tenantId}::uuid
+          AND occurred_at >= ${from}
+          AND occurred_at <= ${to}
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `,
+      this.prisma.publicApiUsageRecord.groupBy({
+        by: ['authKind'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.$queryRaw<Array<{ date: Date; count: bigint; error_count: bigint }>>`
+        SELECT date_trunc('day', occurred_at) AS date,
+               COUNT(*)::bigint AS count,
+               COUNT(*) FILTER (WHERE status_code >= 400)::bigint AS error_count
+        FROM public_api_usage_records
+        WHERE organization_id = ${tenantId}::uuid
+          AND occurred_at >= ${from}
+          AND occurred_at <= ${to}
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `,
+    ]);
+    const routeErrorCounts = new Map(
+      routeErrors.map((row) => [`${row.method} ${row.route}`, row._count._all] as const),
+    );
+    return {
+      totalRequests: aggregates._count._all,
+      errorCount,
+      averageDurationMs: Math.round(aggregates._avg.durationMs ?? 0),
+      byRoute: byRoute.map((row) => ({
+        method: row.method,
+        route: row.route,
+        count: row._count._all,
+        errorCount: routeErrorCounts.get(`${row.method} ${row.route}`) ?? 0,
+        averageDurationMs: Math.round(row._avg.durationMs ?? 0),
+      })),
+      byStatus: byStatus.map((row) => ({ statusClass: row.status_class, count: Number(row.count) })),
+      byAuthKind: byAuth.map((row) => ({ authKind: row.authKind, count: row._count._all })),
+      byDay: byDay.map((row) => ({
+        date: row.date.toISOString().slice(0, 10),
+        count: Number(row.count),
+        errorCount: Number(row.error_count),
+      })),
+    };
   }
 }
 
@@ -417,6 +631,72 @@ function toDelivery(record: {
     nextAttemptAt: record.nextAttemptAt ?? undefined,
     createdAt: record.createdAt,
     completedAt: record.completedAt ?? undefined,
+  });
+}
+
+function toAttempt(record: {
+  id: string;
+  organizationId: string;
+  deliveryId: string;
+  attempt: number;
+  status: string;
+  responseStatus: number | null;
+  durationMs: number;
+  signatureTimestamp: number;
+  signatureHeader: string;
+  errorMessage: string | null;
+  responseBodyPreview: string | null;
+  startedAt: Date;
+  finishedAt: Date;
+}): WebhookDeliveryAttempt {
+  return WebhookDeliveryAttempt.reconstitute({
+    id: createWebhookDeliveryAttemptId(record.id),
+    organizationId: record.organizationId,
+    deliveryId: createWebhookDeliveryId(record.deliveryId),
+    attempt: record.attempt,
+    status: parseWebhookAttemptStatus(record.status),
+    responseStatus: record.responseStatus ?? undefined,
+    durationMs: record.durationMs,
+    signatureTimestamp: record.signatureTimestamp,
+    signatureHeader: record.signatureHeader,
+    errorMessage: record.errorMessage ?? undefined,
+    responseBodyPreview: record.responseBodyPreview ?? undefined,
+    startedAt: record.startedAt,
+    finishedAt: record.finishedAt,
+  });
+}
+
+function toUsage(record: {
+  id: string;
+  organizationId: string;
+  actorId: string | null;
+  authKind: string;
+  credentialId: string | null;
+  method: string;
+  path: string;
+  route: string;
+  statusCode: number;
+  durationMs: number;
+  ipAddress: string | null;
+  userAgent: string | null;
+  requestId: string | null;
+  occurredAt: Date;
+}): PublicApiUsageRecord {
+  return PublicApiUsageRecord.reconstitute({
+    id: createPublicApiUsageId(record.id),
+    organizationId: record.organizationId,
+    actorId: record.actorId ?? undefined,
+    authKind: parsePublicApiAuthKind(record.authKind),
+    credentialId: record.credentialId ?? undefined,
+    method: record.method,
+    path: record.path,
+    route: record.route,
+    statusCode: record.statusCode,
+    durationMs: record.durationMs,
+    ipAddress: record.ipAddress ?? undefined,
+    userAgent: record.userAgent ?? undefined,
+    requestId: record.requestId ?? undefined,
+    occurredAt: record.occurredAt,
   });
 }
 

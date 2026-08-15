@@ -28,13 +28,21 @@ import type {
 import type {
   CreateWebhookSubscriptionUseCase,
   DeleteWebhookSubscriptionUseCase,
+  DispatchDueWebhookDeliveriesUseCase,
+  GetWebhookDeliveryUseCase,
   GetWebhookSubscriptionUseCase,
   ListWebhookDeliveriesUseCase,
+  ListWebhookDeliveryAttemptsUseCase,
   ListWebhookSubscriptionsUseCase,
   RetryWebhookDeliveryUseCase,
   RotateWebhookSecretUseCase,
   UpdateWebhookSubscriptionUseCase,
+  VerifyWebhookSignatureUseCase,
 } from '../../../application/use-cases/webhook-use-cases.js';
+import type {
+  GetApiUsageSummaryUseCase,
+  ListApiUsageUseCase,
+} from '../../../application/use-cases/api-usage-use-cases.js';
 import { DASHBOARD_API_PREFIX, PUBLIC_API_PREFIX } from '../../../domain/api-version.js';
 import { UnauthorizedError } from '../../../domain/errors.js';
 import { parseBody } from './parse-body.js';
@@ -42,6 +50,8 @@ import type { AuthenticatePreHandler } from './integration-routes.js';
 import { buildPublicApiOpenApiDocument } from './openapi-document.js';
 import {
   approveOAuthBodySchema,
+  apiUsageQuerySchema,
+  apiUsageSummaryQuerySchema,
   createApiKeyBodySchema,
   createOAuthApplicationBodySchema,
   createWebhookBodySchema,
@@ -49,6 +59,7 @@ import {
   exchangeOAuthTokenBodySchema,
   oauthAuthorizeQuerySchema,
   updateWebhookBodySchema,
+  verifyWebhookSignatureBodySchema,
 } from './public-api-schemas.js';
 
 export type PublicApiHttpUseCases = {
@@ -64,7 +75,13 @@ export type PublicApiHttpUseCases = {
   readonly rotateWebhookSecret: RotateWebhookSecretUseCase;
   readonly deleteWebhook: DeleteWebhookSubscriptionUseCase;
   readonly listWebhookDeliveries: ListWebhookDeliveriesUseCase;
+  readonly getWebhookDelivery: GetWebhookDeliveryUseCase;
+  readonly listWebhookDeliveryAttempts: ListWebhookDeliveryAttemptsUseCase;
   readonly retryWebhookDelivery: RetryWebhookDeliveryUseCase;
+  readonly verifyWebhookSignature: VerifyWebhookSignatureUseCase;
+  readonly dispatchWebhooks: DispatchDueWebhookDeliveriesUseCase;
+  readonly getApiUsageSummary: GetApiUsageSummaryUseCase;
+  readonly listApiUsage: ListApiUsageUseCase;
   readonly listConnectorCatalog: ListConnectorCatalogUseCase;
   readonly listConnectorConnections: ListConnectorConnectionsUseCase;
   readonly createOAuthApplication: CreateOAuthApplicationUseCase;
@@ -227,6 +244,34 @@ export async function registerPublicApiRoutes(
       },
     );
 
+    app.get(
+      `${org}/webhooks/:webhookId/deliveries/:deliveryId`,
+      { preHandler: tenantAuth },
+      async (request, reply) => {
+        const result = await useCases.getWebhookDelivery.execute({
+          tenantId: requireTenantId(request),
+          actorId: requireUserId(request),
+          webhookId: routeParam(request, 'webhookId'),
+          deliveryId: routeParam(request, 'deliveryId'),
+        });
+        return reply.status(200).send(result);
+      },
+    );
+
+    app.get(
+      `${org}/webhooks/:webhookId/deliveries/:deliveryId/attempts`,
+      { preHandler: tenantAuth },
+      async (request, reply) => {
+        const result = await useCases.listWebhookDeliveryAttempts.execute({
+          tenantId: requireTenantId(request),
+          actorId: requireUserId(request),
+          webhookId: routeParam(request, 'webhookId'),
+          deliveryId: routeParam(request, 'deliveryId'),
+        });
+        return reply.status(200).send(result);
+      },
+    );
+
     app.post(
       `${org}/webhooks/:webhookId/deliveries/:deliveryId/retry`,
       { preHandler: tenantAuth },
@@ -240,6 +285,59 @@ export async function registerPublicApiRoutes(
         return reply.status(200).send(result);
       },
     );
+
+    app.post(
+      `${org}/webhooks/:webhookId/verify-signature`,
+      { preHandler: tenantAuth },
+      async (request, reply) => {
+        const body = parseBody(verifyWebhookSignatureBodySchema, request.body);
+        const result = await useCases.verifyWebhookSignature.execute({
+          tenantId: requireTenantId(request),
+          actorId: requireUserId(request),
+          webhookId: routeParam(request, 'webhookId'),
+          signatureHeader: body.signatureHeader,
+          body: body.body,
+          toleranceSeconds: body.toleranceSeconds,
+        });
+        return reply.status(200).send(result);
+      },
+    );
+
+    app.post(`${org}/webhooks/dispatch`, { preHandler: tenantAuth }, async (request, reply) => {
+      const result = await useCases.dispatchWebhooks.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+      });
+      return reply.status(200).send(result);
+    });
+
+    app.get(`${org}/api-usage`, { preHandler: tenantAuth }, async (request, reply) => {
+      const query = parseBody(apiUsageSummaryQuerySchema, request.query);
+      const result = await useCases.getApiUsageSummary.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        from: query.from,
+        to: query.to,
+      });
+      return reply.status(200).send(result);
+    });
+
+    app.get(`${org}/api-usage/requests`, { preHandler: tenantAuth }, async (request, reply) => {
+      const query = parseBody(apiUsageQuerySchema, request.query);
+      const result = await useCases.listApiUsage.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        page: { page: query.page, pageSize: query.pageSize },
+        method: query.method,
+        route: query.route,
+        statusCode: query.statusCode,
+        authKind: query.authKind,
+        credentialId: query.credentialId,
+        from: query.from,
+        to: query.to,
+      });
+      return reply.status(200).send(result);
+    });
 
     app.get(`${org}/connectors/catalog`, { preHandler: tenantAuth }, async (request, reply) => {
       const result = await useCases.listConnectorCatalog.execute({

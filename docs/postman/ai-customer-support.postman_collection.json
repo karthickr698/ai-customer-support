@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "c4e8d2b1-7a91-4f3e-8c5a-ai-customer-support",
     "name": "AI Customer Support API",
-    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support — Local** environment.\n3. Keep cookies enabled (Postman → Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in → open `googleAuthorizationUrl` in a browser → after redirect, put the `code` query value into `googleLoginCode` → Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate — copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign / assign available, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\n**Tickets**\nTenant routes under `/api/organizations/:organizationId/tickets`, `/ticket-sla-policies`, and `/ticket-escalation-policies`. Requires `ticket.manage` (agent+).\n1. Create a conversation, then Create ticket (optional `conversationId`; saves `ticketId`). SLA due dates apply from a matching policy or defaults.\n2. Assign / unassign / assign available, change status (`open` → `pending` | `resolved` | `closed` | `escalated`), escalate (bumps priority).\n3. Add notes and upload attachments (form-data `file`).\n4. SLA policies: one per priority (`any`/`low`/`normal`/`high`/`urgent`). Escalation policies fire on overdue first response, overdue resolution, or unassigned time.\n5. Evaluate now with `POST .../ticket-escalation-policies/evaluate` (also runs every 30s).\nAI conversations: escalating a conversation (including widget/AI) opens a ticket if none is open. Tools `createTicket` / `updateTicket` persist through TypeScript (`POST .../tools/calls`).\n\n**Automations**\nTenant routes under `/api/organizations/:organizationId/automations`, `/automation-jobs`, and `/automation-logs`. Manage requires `automation.manage` (admin+); list/get requires `automation.read` (agent+).\n1. Create an event rule (`TicketCreated` + conditions) or a schedule (`every:{n}m`, `hourly:{mm}`, `daily:{HH:MM}`, `weekly:{0-6}:{HH:MM}` UTC).\n2. Matching domain events enqueue idempotent jobs (`evt:{tenant}:{rule}:{eventId}`). Schedules enqueue `sch:{tenant}:{rule}:{slot}`.\n3. The worker executes `record`, `http_request`, or `emit_event` with retries and exponential backoff. Duplicate idempotency keys are no-ops.\n4. Inspect jobs and execution logs, retry `dead`/`skipped` jobs, or `POST .../automations/dispatch` to run due work now (also every 5s).\n5. `POST .../automations/:ruleId/run` with `idempotencyKey` for a manual, idempotent enqueue.\n\n**Analytics**\nTenant routes under `/api/organizations/:organizationId/analytics`. Requires `analytics.view` (viewer+, and agents). All queries are organization-scoped and run SQL aggregations (`COUNT`/`AVG`/`date_trunc`) over indexed `created_at` / `resolved_at` columns — never load full row sets.\n1. Overview KPIs (`GET .../overview`): conversations, tickets, SLA, messages, customers, knowledge, widget sessions. Optional `from`, `to` (ISO-8601, default last 30 days, max 366), `granularity`, `channel`, `status`, `assignedAgentId`.\n2. Time series (`GET .../timeseries`): `metrics` comma list (`conversations.created`, `tickets.created`, `messages.ai`, …) and `granularity` `hour` (max 14 days) / `day` / `week` / `month`. Missing buckets are filled with 0 (UTC).\n3. Reports: `GET .../conversations`, `/tickets`, `/agents`, `/customers`.\n4. CSV export: `GET .../exports/:report` where report is `overview` | `timeseries` | `conversations` | `tickets` | `agents` | `customers`. Returns `text/csv` with `Content-Disposition: attachment`.\n\n**Notifications**\nTenant routes under `/api/organizations/:organizationId/notification-templates`, `/notifications`, `/notification-preferences`, `/notification-deliveries`, and `/notification-attempts`. Manage requires `notification.manage` (admin+); inbox, preferences, and delivery tracking require `notification.read` (viewer+).\n1. Create a template (`email` / `in_app` / `sms` / `webhook`) with `{{variable}}` placeholders, a recipient type, and optional `recipientField` for event-driven sends.\n2. Matching domain events enqueue idempotent deliveries (`evt:{tenant}:{template}:{eventId}:{recipient}`). Manual send: `POST .../notifications` with `idempotencyKey`.\n3. Channel providers are abstracted (SMTP or console email, in-app inbox, console SMS, HTTPS webhook). Deliveries retry with exponential backoff; inspect attempts and retry `dead`/`skipped`.\n4. Recipients opt out per event/channel (`*` mutes a channel). Default is opted in. In-app items land in `GET .../notifications/inbox`.\n5. `POST .../notifications/dispatch` runs due work now (also every 5s).\n\n**Billing**\nTenant routes under `/api/organizations/:organizationId/billing`. Catalog: `GET /api/billing/plans`. Provider webhooks: `POST /api/billing/webhooks/:provider` (public, HMAC for Stripe). Manage requires `billing.manage` (admin+); reads require `billing.read` (viewer+).\n1. Creating an organization provisions a free/trial subscription. List plans, then Start checkout (`starter`/`growth`/`scale`) and Complete checkout (console) or wait for the Stripe webhook.\n2. Usage is metered from domain events (`ConversationCreated`, `TicketCreated`, `MessageReceived` including `ai_replies`, knowledge uploads, seats) and `POST .../billing/usage`. Check remaining quota with `POST .../billing/quotas/check` (HTTP 402 when exceeded).\n3. Issue invoices for the current period (plan + overage), pay or void them, and inspect payment methods.\n4. Cancel at period end / resume, or `POST .../billing/renew` to close due periods (also every 30s).\nProviders: `BILLING_PROVIDER=console` locally, `stripe` with `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`.\n\n**Security**\nTenant routes under `/api/organizations/:organizationId/security`. Reads require `security.read` (viewer+); mutations require `security.manage` (admin+).\n1. Get/update the tenant security policy (IP allowlist toggle, MFA required flag, session idle timeout, max request bytes, per-minute rate limit, audit retention).\n2. Manage CIDR IP allowlist entries. When enabled, requests to `/api/organizations/:organizationId/*` from non-matching IPs return 403 and are audited.\n3. Isolated secret vault: create/list/get metadata, reveal (plaintext once, audited), rotate, revoke. Values are stored with AES-256-GCM (`SECURITY_ENCRYPTION_KEY`). Encrypt/decrypt arbitrary payloads with the same envelope format.\n4. Security audit logs (`action`, `outcome`, `resourceType` filters) and current IP/tenant rate-limit windows.\nGlobal controls on every `/api` response: secure headers (HSTS in production), JSON Content-Type enforcement, body-size limits, and Redis IP + tenant rate limits (`SECURITY_GLOBAL_RATE_LIMIT_PER_MINUTE`).\n\n**Customers / commerce lookup**\nTenant routes under `/api/organizations/:organizationId/customers`, `/products`, `/orders`, `/shipments`, and `/returns`. Writes require `customer.manage` (admin+). Reads and AI lookup tools require `customer.read` (viewer+). Every query includes the organization id — records never leak across tenants. Register a customer, then product, order, shipment, and return. AI tools `getCustomerDetails`, `getProductDetails`, `getOrderDetails`, `getShipmentDetails`, and `getReturnDetails` are executed by TypeScript (`POST .../tools/calls`).\n\n**Realtime, presence, and escalation rules**\nWebSocket: `GET {{wsUrl}}/api/organizations/:organizationId/realtime?lastEventId=&access_token=` (session cookie or `access_token` query). On connect the server sends `connected`, missed `event`s, and `presence.snapshot`. Client messages: `heartbeat`, `resume`, `presence.set`, `subscribe` / `unsubscribe`.\nHTTP catch-up: `GET .../realtime/events?after=`.\nPresence: list/set/heartbeat under `/agents/presence`.\nEscalation rules: CRUD + `POST .../evaluate`. Assign available picks an online owner/admin/agent (round-robin).\n\n**Onboarding / knowledge**\nTenant routes under `/api/organizations/:organizationId/onboarding`, `/knowledge/sources`, and `/knowledge/documents`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Run onboarding setup (saves profile, tones, agent settings; optional knowledge sources)\n2. Or step through Generate business profile → Generate tone presets → Select tone → Generate agent settings\n3. Register extra knowledge sources (URL, help center, sitemap, text, file)\n4. Add documents: article/URL JSON, or upload PDF/DOCX — TypeScript owns lifecycle; Python indexes for RAG\n5. List documents, reindex, or delete (delete also drops vector index entries)\nPermissions: `organization.update` for LLM setup (admin+), `knowledge.manage` to register sources and documents (agent+), `organization.read` to view.\n\n**Python AI service**\nFolder `Python AI service` calls `apps/ai` directly (`{{aiServiceUrl}}`, default http://localhost:8000) for local RAG/onboarding debugging. Production clients use the TypeScript API only.\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` → `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.\n\n**Widget**\nStaff: `GET/PATCH /api/organizations/:organizationId/widget` and `POST .../rotate-key` (session cookies + `x-tenant-id`). Public embed: `GET /api/widget/:publicKey/config`, then `POST /api/widget/:publicKey/sessions` (anonymous or email/name). Send `sessionToken` as `Authorization: Bearer` on `/api/widget/sessions/*` and `/api/widget/conversations*`.\n1. Get widget configuration (saves `widgetPublicKey`)\n2. Create anonymous session (saves `widgetSessionToken`) or Create customer session\n3. Start widget conversation (saves `widgetConversationId`)\n4. Send message, or stream AI reply (`text/event-stream`)\n5. Upload attachment (form-data `file`) then send `attachmentIds`\nTenant isolation: sessions, conversations, attachments, and AI calls are scoped to the organization behind the public key. Allowed origins are enforced when configured.\n\n**Tools and integrations**\nPython proposes allowlisted tool calls (`POST .../tools/propose`); TypeScript schema-validates, authorizes, executes, and audits (`POST .../tools/calls`). Tenant credentials and OAuth connectors are encrypted per organization. Mutating tools never run in Python. Permission: `integration.manage` (admin+) for secrets.\n\n**Public API v1**\nVersioned REST at `/api/v1` (OpenAPI `/api/v1/openapi.json`, docs `/api/v1/docs`). Create API keys, HMAC-signed webhooks, inbound OAuth apps, and inspect the connector catalog. Programmatic auth: `Authorization: Bearer acs_live_…` or `X-API-Key`. Existing dashboard routes remain under `/api`.",
+    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support \u2014 Local** environment.\n3. Keep cookies enabled (Postman \u2192 Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in \u2192 open `googleAuthorizationUrl` in a browser \u2192 after redirect, put the `code` query value into `googleLoginCode` \u2192 Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate \u2014 copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign / assign available, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\n**Tickets**\nTenant routes under `/api/organizations/:organizationId/tickets`, `/ticket-sla-policies`, and `/ticket-escalation-policies`. Requires `ticket.manage` (agent+).\n1. Create a conversation, then Create ticket (optional `conversationId`; saves `ticketId`). SLA due dates apply from a matching policy or defaults.\n2. Assign / unassign / assign available, change status (`open` \u2192 `pending` | `resolved` | `closed` | `escalated`), escalate (bumps priority).\n3. Add notes and upload attachments (form-data `file`).\n4. SLA policies: one per priority (`any`/`low`/`normal`/`high`/`urgent`). Escalation policies fire on overdue first response, overdue resolution, or unassigned time.\n5. Evaluate now with `POST .../ticket-escalation-policies/evaluate` (also runs every 30s).\nAI conversations: escalating a conversation (including widget/AI) opens a ticket if none is open. Tools `createTicket` / `updateTicket` persist through TypeScript (`POST .../tools/calls`).\n\n**Automations**\nTenant routes under `/api/organizations/:organizationId/automations`, `/automation-jobs`, and `/automation-logs`. Manage requires `automation.manage` (admin+); list/get requires `automation.read` (agent+).\n1. Create an event rule (`TicketCreated` + conditions) or a schedule (`every:{n}m`, `hourly:{mm}`, `daily:{HH:MM}`, `weekly:{0-6}:{HH:MM}` UTC).\n2. Matching domain events enqueue idempotent jobs (`evt:{tenant}:{rule}:{eventId}`). Schedules enqueue `sch:{tenant}:{rule}:{slot}`.\n3. The worker executes `record`, `http_request`, or `emit_event` with retries and exponential backoff. Duplicate idempotency keys are no-ops.\n4. Inspect jobs and execution logs, retry `dead`/`skipped` jobs, or `POST .../automations/dispatch` to run due work now (also every 5s).\n5. `POST .../automations/:ruleId/run` with `idempotencyKey` for a manual, idempotent enqueue.\n\n**Analytics**\nTenant routes under `/api/organizations/:organizationId/analytics`. Requires `analytics.view` (viewer+, and agents). All queries are organization-scoped and run SQL aggregations (`COUNT`/`AVG`/`date_trunc`) over indexed `created_at` / `resolved_at` columns \u2014 never load full row sets.\n1. Overview KPIs (`GET .../overview`): conversations, tickets, SLA, messages, customers, knowledge, widget sessions. Optional `from`, `to` (ISO-8601, default last 30 days, max 366), `granularity`, `channel`, `status`, `assignedAgentId`.\n2. Time series (`GET .../timeseries`): `metrics` comma list (`conversations.created`, `tickets.created`, `messages.ai`, \u2026) and `granularity` `hour` (max 14 days) / `day` / `week` / `month`. Missing buckets are filled with 0 (UTC).\n3. Reports: `GET .../conversations`, `/tickets`, `/agents`, `/customers`.\n4. CSV export: `GET .../exports/:report` where report is `overview` | `timeseries` | `conversations` | `tickets` | `agents` | `customers`. Returns `text/csv` with `Content-Disposition: attachment`.\n\n**Notifications**\nTenant routes under `/api/organizations/:organizationId/notification-templates`, `/notifications`, `/notification-preferences`, `/notification-deliveries`, and `/notification-attempts`. Manage requires `notification.manage` (admin+); inbox, preferences, and delivery tracking require `notification.read` (viewer+).\n1. Create a template (`email` / `in_app` / `sms` / `webhook`) with `{{variable}}` placeholders, a recipient type, and optional `recipientField` for event-driven sends.\n2. Matching domain events enqueue idempotent deliveries (`evt:{tenant}:{template}:{eventId}:{recipient}`). Manual send: `POST .../notifications` with `idempotencyKey`.\n3. Channel providers are abstracted (SMTP or console email, in-app inbox, console SMS, HTTPS webhook). Deliveries retry with exponential backoff; inspect attempts and retry `dead`/`skipped`.\n4. Recipients opt out per event/channel (`*` mutes a channel). Default is opted in. In-app items land in `GET .../notifications/inbox`.\n5. `POST .../notifications/dispatch` runs due work now (also every 5s).\n\n**Billing**\nTenant routes under `/api/organizations/:organizationId/billing`. Catalog: `GET /api/billing/plans`. Provider webhooks: `POST /api/billing/webhooks/:provider` (public, HMAC for Stripe). Manage requires `billing.manage` (admin+); reads require `billing.read` (viewer+).\n1. Creating an organization provisions a free/trial subscription. List plans, then Start checkout (`starter`/`growth`/`scale`) and Complete checkout (console) or wait for the Stripe webhook.\n2. Usage is metered from domain events (`ConversationCreated`, `TicketCreated`, `MessageReceived` including `ai_replies`, knowledge uploads, seats) and `POST .../billing/usage`. Check remaining quota with `POST .../billing/quotas/check` (HTTP 402 when exceeded).\n3. Issue invoices for the current period (plan + overage), pay or void them, and inspect payment methods.\n4. Cancel at period end / resume, or `POST .../billing/renew` to close due periods (also every 30s).\nProviders: `BILLING_PROVIDER=console` locally, `stripe` with `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`.\n\n**Security**\nTenant routes under `/api/organizations/:organizationId/security`. Reads require `security.read` (viewer+); mutations require `security.manage` (admin+).\n1. Get/update the tenant security policy (IP allowlist toggle, MFA required flag, session idle timeout, max request bytes, per-minute rate limit, audit retention).\n2. Manage CIDR IP allowlist entries. When enabled, requests to `/api/organizations/:organizationId/*` from non-matching IPs return 403 and are audited.\n3. Isolated secret vault: create/list/get metadata, reveal (plaintext once, audited), rotate, revoke. Values are stored with AES-256-GCM (`SECURITY_ENCRYPTION_KEY`). Encrypt/decrypt arbitrary payloads with the same envelope format.\n4. Security audit logs (`action`, `outcome`, `resourceType` filters) and current IP/tenant rate-limit windows.\nGlobal controls on every `/api` response: secure headers (HSTS in production), JSON Content-Type enforcement, body-size limits, and Redis IP + tenant rate limits (`SECURITY_GLOBAL_RATE_LIMIT_PER_MINUTE`).\n\n**Platform administration**\nPrivileged operators (not organization members) under `/api/platform`. Session cookies required. Roles: `owner`, `admin`, `operator`, `auditor`.\n1. Set `PLATFORM_BOOTSTRAP_EMAIL` to a verified user, then `POST /api/platform/bootstrap` (or restart the API) to grant the first owner.\n2. Grant/change/revoke operators. Only an owner can grant or revoke `owner`. The last owner cannot be revoked.\n3. List/get tenants; suspend (`disabled`) or activate. Suspended tenants cannot be used (`ORGANIZATION_DISABLED`).\n4. Feature flags (global + per-tenant overrides). Seeded keys: `ai_replies`, `widget`, `public_api`, `billing`, `knowledge_ingestion`, `automations`, `notifications`, `analytics`.\n5. Operational health (`database`, `redis`, `ai_service`) and platform audit logs.\nPermissions: `platform.operators.manage` (owner), `platform.tenants.manage` (operator+), `platform.feature_flags.manage` (admin+), `platform.health.read` / `platform.audit.view` (auditor+).\n\n**Customers / commerce lookup**\nTenant routes under `/api/organizations/:organizationId/customers`, `/products`, `/orders`, `/shipments`, and `/returns`. Writes require `customer.manage` (admin+). Reads and AI lookup tools require `customer.read` (viewer+). Every query includes the organization id \u2014 records never leak across tenants. Register a customer, then product, order, shipment, and return. AI tools `getCustomerDetails`, `getProductDetails`, `getOrderDetails`, `getShipmentDetails`, and `getReturnDetails` are executed by TypeScript (`POST .../tools/calls`).\n\n**Realtime, presence, and escalation rules**\nWebSocket: `GET {{wsUrl}}/api/organizations/:organizationId/realtime?lastEventId=&access_token=` (session cookie or `access_token` query). On connect the server sends `connected`, missed `event`s, and `presence.snapshot`. Client messages: `heartbeat`, `resume`, `presence.set`, `subscribe` / `unsubscribe`.\nHTTP catch-up: `GET .../realtime/events?after=`.\nPresence: list/set/heartbeat under `/agents/presence`.\nEscalation rules: CRUD + `POST .../evaluate`. Assign available picks an online owner/admin/agent (round-robin).\n\n**Onboarding / knowledge**\nTenant routes under `/api/organizations/:organizationId/onboarding`, `/knowledge/sources`, and `/knowledge/documents`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Run onboarding setup (saves profile, tones, agent settings; optional knowledge sources)\n2. Or step through Generate business profile \u2192 Generate tone presets \u2192 Select tone \u2192 Generate agent settings\n3. Register extra knowledge sources (URL, help center, sitemap, text, file)\n4. Add documents: article/URL JSON, or upload PDF/DOCX \u2014 TypeScript owns lifecycle; Python indexes for RAG\n5. List documents, reindex, or delete (delete also drops vector index entries)\nPermissions: `organization.update` for LLM setup (admin+), `knowledge.manage` to register sources and documents (agent+), `organization.read` to view.\n\n**Python AI service**\nFolder `Python AI service` calls `apps/ai` directly (`{{aiServiceUrl}}`, default http://localhost:8000) for local RAG/onboarding debugging. Production clients use the TypeScript API only.\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` \u2192 `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.\n\n**Widget**\nStaff: `GET/PATCH /api/organizations/:organizationId/widget` and `POST .../rotate-key` (session cookies + `x-tenant-id`). Public embed: `GET /api/widget/:publicKey/config`, then `POST /api/widget/:publicKey/sessions` (anonymous or email/name). Send `sessionToken` as `Authorization: Bearer` on `/api/widget/sessions/*` and `/api/widget/conversations*`.\n1. Get widget configuration (saves `widgetPublicKey`)\n2. Create anonymous session (saves `widgetSessionToken`) or Create customer session\n3. Start widget conversation (saves `widgetConversationId`)\n4. Send message, or stream AI reply (`text/event-stream`)\n5. Upload attachment (form-data `file`) then send `attachmentIds`\nTenant isolation: sessions, conversations, attachments, and AI calls are scoped to the organization behind the public key. Allowed origins are enforced when configured.\n\n**Tools and integrations**\nPython proposes allowlisted tool calls (`POST .../tools/propose`); TypeScript schema-validates, authorizes, executes, and audits (`POST .../tools/calls`). Tenant credentials and OAuth connectors are encrypted per organization. Mutating tools never run in Python. Permission: `integration.manage` (admin+) for secrets.\n\n**Public API v1**\nVersioned REST at `/api/v1` (OpenAPI `/api/v1/openapi.json`, docs `/api/v1/docs`). Create API keys, HMAC-signed webhooks, inbound OAuth apps, and inspect the connector catalog. Programmatic auth: `Authorization: Bearer acs_live_\u2026` or `X-API-Key`. Existing dashboard routes remain under `/api`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -352,7 +352,7 @@
                   "raw": "{\n  \"email\": \"{{email}}\"\n}"
                 },
                 "url": "{{baseUrl}}/api/auth/password/forgot",
-                "description": "Requests a password reset email. Always returns a generic success message. In development the reset URL is logged by the console email adapter — copy `?token=` into `resetToken`."
+                "description": "Requests a password reset email. Always returns a generic success message. In development the reset URL is logged by the console email adapter \u2014 copy `?token=` into `resetToken`."
               },
               "event": [
                 {
@@ -633,7 +633,7 @@
                   "raw": "{\n  \"name\": \"{{organizationName}}\",\n  \"slug\": \"{{organizationSlug}}\"\n}"
                 },
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}",
-                "description": "Updates name and/or slug. Requires `organization.update` (owner or admin). Slug must be 3–48 lowercase letters, numbers, or hyphens."
+                "description": "Updates name and/or slug. Requires `organization.update` (owner or admin). Slug must be 3\u201348 lowercase letters, numbers, or hyphens."
               },
               "event": [
                 {
@@ -800,7 +800,7 @@
                   "raw": "{\n  \"email\": \"{{inviteEmail}}\",\n  \"role\": \"{{inviteRole}}\"\n}"
                 },
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/invitations",
-                "description": "Sends a team invitation. Requires `organization.invitations.manage`. Role must be `admin`, `agent`, or `viewer` (not `owner`). In development the accept URL is logged — copy `?token=` into `invitationToken`."
+                "description": "Sends a team invitation. Requires `organization.invitations.manage`. Role must be `admin`, `agent`, or `viewer` (not `owner`). In development the accept URL is logged \u2014 copy `?token=` into `invitationToken`."
               },
               "event": [
                 {
@@ -904,7 +904,7 @@
                   "raw": "{\n  \"token\": \"{{invitationToken}}\"\n}"
                 },
                 "url": "{{baseUrl}}/api/invitations/accept",
-                "description": "Accepts the invitation for the signed-in user. The session email must match the invited address. Does not use `x-tenant-id` — tenant comes from the invitation."
+                "description": "Accepts the invitation for the signed-in user. The session email must match the invited address. Does not use `x-tenant-id` \u2014 tenant comes from the invitation."
               },
               "event": [
                 {
@@ -962,7 +962,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/audit-logs?page={{auditPage}}&pageSize={{auditPageSize}}",
-                "description": "Tenant-scoped audit log. Requires `organization.audit.view` (owner or admin). Query: `page` (min 1), `pageSize` (1–100). Actions include `organization.created`, `organization.member.invited`, `organization.invitation.accepted`, `organization.member.role_changed`."
+                "description": "Tenant-scoped audit log. Requires `organization.audit.view` (owner or admin). Query: `page` (min 1), `pageSize` (1\u2013100). Actions include `organization.created`, `organization.member.invited`, `organization.invitation.accepted`, `organization.member.role_changed`."
               },
               "event": [
                 {
@@ -1052,7 +1052,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations?page={{conversationPage}}&pageSize={{conversationPageSize}}&q={{conversationSearch}}&status={{conversationStatus}}&assignedAgentId={{assignedAgentId}}&tag={{conversationTag}}",
-                "description": "Paginated inbox search. Requires `conversation.read`. Query: `page`, `pageSize` (1–100), `q` (subject, customer, tags, message body), `status`, `assignedAgentId` (user id or `unassigned`), `tag`."
+                "description": "Paginated inbox search. Requires `conversation.read`. Query: `page`, `pageSize` (1\u2013100), `q` (subject, customer, tags, message body), `status`, `assignedAgentId` (user id or `unassigned`), `tag`."
               },
               "event": [
                 {
@@ -1310,7 +1310,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/tags",
-                "description": "Adds a tag (1–32 lowercase letters, numbers, or hyphens; max 20 tags). Requires `conversation.write`.",
+                "description": "Adds a tag (1\u201332 lowercase letters, numbers, or hyphens; max 20 tags). Requires `conversation.write`.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"{{conversationTag}}\"\n}"
@@ -1619,7 +1619,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets/{{ticketId}}/status",
-                "description": "Lifecycle transition: open → pending | resolved | closed | escalated. Pending pauses resolution SLA. Resolved/closed records first response. Requires `ticket.manage`.",
+                "description": "Lifecycle transition: open \u2192 pending | resolved | closed | escalated. Pending pauses resolution SLA. Resolved/closed records first response. Requires `ticket.manage`.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"status\": \"pending\"\n}"
@@ -3386,7 +3386,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/checkout",
-                "description": "Start a paid-plan checkout. Console provider returns a session with no hosted URL — complete it with Complete checkout. Stripe returns a Checkout URL. Requires `billing.manage` (admin+).",
+                "description": "Start a paid-plan checkout. Console provider returns a session with no hosted URL \u2014 complete it with Complete checkout. Stripe returns a Checkout URL. Requires `billing.manage` (admin+).",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"planSlug\": \"{{billingPlanSlug}}\",\n  \"successUrl\": \"http://localhost:5173/billing/success\",\n  \"cancelUrl\": \"http://localhost:5173/billing/cancel\"\n}"
@@ -3541,7 +3541,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/quotas",
-                "description": "Same payload as Get usage — remaining included units and overage for the current period."
+                "description": "Same payload as Get usage \u2014 remaining included units and overage for the current period."
               }
             },
             {
@@ -3858,7 +3858,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/security/ip-allowlist",
-                "description": "CIDR entries allowed when the policy IP allowlist is enabled. IPv4 prefixes /8–/32 and IPv6 /32–/128. Requires `security.read`."
+                "description": "CIDR entries allowed when the policy IP allowlist is enabled. IPv4 prefixes /8\u2013/32 and IPv6 /32\u2013/128. Requires `security.read`."
               }
             },
             {
@@ -4158,14 +4158,40 @@
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/api/organizations/{{organizationId}}/security/audit-logs?page=1&pageSize=20",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "organizations", "{{organizationId}}", "security", "audit-logs"],
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "organizations",
+                    "{{organizationId}}",
+                    "security",
+                    "audit-logs"
+                  ],
                   "query": [
-                    { "key": "page", "value": "1" },
-                    { "key": "pageSize", "value": "20" },
-                    { "key": "action", "value": "", "disabled": true },
-                    { "key": "outcome", "value": "success", "disabled": true },
-                    { "key": "resourceType", "value": "secret", "disabled": true }
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "20"
+                    },
+                    {
+                      "key": "action",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "outcome",
+                      "value": "success",
+                      "disabled": true
+                    },
+                    {
+                      "key": "resourceType",
+                      "value": "secret",
+                      "disabled": true
+                    }
                   ]
                 },
                 "description": "Tenant security audit trail (policy changes, secret access, IP allowlist, encrypt/decrypt, authorization denials). Filter by `action`, `outcome` (`success` | `denied` | `failure`), `resourceType`. Requires `security.read`. Sensitive metadata keys are redacted."
@@ -4192,6 +4218,521 @@
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/security/rate-limits",
                 "description": "Current IP (global `SECURITY_GLOBAL_RATE_LIMIT_PER_MINUTE`) and tenant (`policy.rateLimitPerMinute`) sliding windows: used, remaining, resetAt. Requires `security.read`. Exceeding either limit returns HTTP 429 with `Retry-After`."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Platform",
+      "item": [
+        {
+          "name": "Operators",
+          "item": [
+            {
+              "name": "Get current platform operator",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/platform/me",
+                "description": "Returns the authenticated user's platform operator profile and permissions. 403 if they are not an active operator. Does not require a tenant header."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const operator = pm.response.json().operator;",
+                      "  if (operator) {",
+                      "    pm.environment.set('platformOperatorUserId', operator.userId);",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Bootstrap platform owner",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/platform/bootstrap",
+                "description": "Grants `owner` to the authenticated user when no operators exist and their email matches `PLATFORM_BOOTSTRAP_EMAIL`. Also runs on API start. 409 when operators already exist or bootstrap is not configured."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const operator = pm.response.json().operator;",
+                      "  if (operator) {",
+                      "    pm.environment.set('platformOperatorUserId', operator.userId);",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List operators",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/platform/operators?includeRevoked=false",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "platform",
+                    "operators"
+                  ],
+                  "query": [
+                    {
+                      "key": "includeRevoked",
+                      "value": "false",
+                      "description": "Include revoked operators when true"
+                    }
+                  ]
+                },
+                "description": "Lists platform operators. Requires `platform.operators.read` (auditor+). Query: `includeRevoked`."
+              }
+            },
+            {
+              "name": "Grant operator",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{platformOperatorEmail}}\",\n  \"role\": \"operator\"\n}"
+                },
+                "url": "{{baseUrl}}/api/platform/operators",
+                "description": "Grants platform access to an existing verified user. Requires `platform.operators.manage` (owner). Role: `owner` | `admin` | `operator` | `auditor`. Only an owner can grant `owner`. Reinstates a previously revoked operator."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const operator = pm.response.json().operator;",
+                      "  if (operator) {",
+                      "    pm.environment.set('platformOperatorUserId', operator.userId);",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Change operator role",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"admin\"\n}"
+                },
+                "url": "{{baseUrl}}/api/platform/operators/{{platformOperatorUserId}}",
+                "description": "Changes another operator's role. Requires `platform.operators.manage`. You cannot change your own role. Only an owner can grant or revoke `owner`. The last owner cannot be demoted."
+              }
+            },
+            {
+              "name": "Revoke operator",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/platform/operators/{{platformOperatorUserId}}",
+                "description": "Revokes platform access. Requires `platform.operators.manage`. You cannot revoke yourself or the last owner. Audited as `platform.operator.revoked`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tenants",
+          "item": [
+            {
+              "name": "List tenants",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/platform/tenants?page=1&pageSize=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "platform",
+                    "tenants"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "20"
+                    },
+                    {
+                      "key": "status",
+                      "value": "active",
+                      "disabled": true,
+                      "description": "active | disabled"
+                    },
+                    {
+                      "key": "q",
+                      "value": "",
+                      "disabled": true,
+                      "description": "Name or slug search"
+                    }
+                  ]
+                },
+                "description": "Lists all organizations with member counts. Requires `platform.tenants.read` (auditor+). Query: `page`, `pageSize`, `status`, `q`."
+              }
+            },
+            {
+              "name": "Get tenant",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/platform/tenants/{{organizationId}}",
+                "description": "Tenant summary for platform operators. Requires `platform.tenants.read`."
+              }
+            },
+            {
+              "name": "Suspend tenant",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/platform/tenants/{{organizationId}}/suspend",
+                "description": "Disables the organization. Members receive 403 `ORGANIZATION_DISABLED` on tenant routes until activate. Requires `platform.tenants.manage` (operator+). Idempotent if already disabled. Audited as `platform.tenant.suspended`."
+              }
+            },
+            {
+              "name": "Activate tenant",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/platform/tenants/{{organizationId}}/activate",
+                "description": "Re-enables a suspended organization. Requires `platform.tenants.manage`. Idempotent if already active. Audited as `platform.tenant.activated`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Feature flags",
+          "item": [
+            {
+              "name": "List feature flags",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/platform/feature-flags",
+                "description": "Global flags with tenant overrides. Seeded on API start: `ai_replies`, `widget`, `public_api`, `billing`, `knowledge_ingestion`, `automations`, `notifications`, `analytics`. Requires `platform.feature_flags.read`."
+              }
+            },
+            {
+              "name": "Create feature flag",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"key\": \"{{featureFlagKey}}\",\n  \"description\": \"Custom platform flag\",\n  \"enabled\": true\n}"
+                },
+                "url": "{{baseUrl}}/api/platform/feature-flags",
+                "description": "Creates a flag. Key must start with a letter and use lowercase letters, numbers, or underscores (2\u201364). Requires `platform.feature_flags.manage` (admin+)."
+              }
+            },
+            {
+              "name": "Get feature flag",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/platform/feature-flags/{{featureFlagKey}}",
+                "description": "Flag metadata and tenant overrides. Requires `platform.feature_flags.read`."
+              }
+            },
+            {
+              "name": "Update feature flag",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": false,\n  \"description\": \"Disabled globally\"\n}"
+                },
+                "url": "{{baseUrl}}/api/platform/feature-flags/{{featureFlagKey}}",
+                "description": "Updates global enabled state and/or description. Requires `platform.feature_flags.manage`. Audited as `platform.feature_flag.updated`."
+              }
+            },
+            {
+              "name": "Evaluate feature flag",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/platform/feature-flags/{{featureFlagKey}}/evaluation?organizationId={{organizationId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "platform",
+                    "feature-flags",
+                    "{{featureFlagKey}}",
+                    "evaluation"
+                  ],
+                  "query": [
+                    {
+                      "key": "organizationId",
+                      "value": "{{organizationId}}",
+                      "description": "Optional tenant; when set, a tenant override wins over the global value"
+                    }
+                  ]
+                },
+                "description": "Resolves enabled state. `source` is `global` or `tenant_override`. Requires `platform.feature_flags.read`."
+              }
+            },
+            {
+              "name": "Set tenant override",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": true\n}"
+                },
+                "url": "{{baseUrl}}/api/platform/feature-flags/{{featureFlagKey}}/overrides/{{organizationId}}",
+                "description": "Sets a per-tenant override. Requires `platform.feature_flags.manage`. Audited as `platform.feature_flag.override_set`."
+              }
+            },
+            {
+              "name": "Remove tenant override",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/platform/feature-flags/{{featureFlagKey}}/overrides/{{organizationId}}",
+                "description": "Removes a tenant override so the global value applies. Requires `platform.feature_flags.manage`."
+              }
+            },
+            {
+              "name": "Delete feature flag",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/platform/feature-flags/{{featureFlagKey}}",
+                "description": "Deletes a flag and its overrides. Requires `platform.feature_flags.manage`. Audited as `platform.feature_flag.deleted`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health",
+          "item": [
+            {
+              "name": "Get operational health",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/platform/health",
+                "description": "Operator health for PostgreSQL, Redis, and the Python AI service, with latency. `ok` when all are up, `degraded` when a non-database check is down, `unavailable` when the database is down (HTTP 503). Requires `platform.health.read` (auditor+). Distinct from public `GET /health` and `GET /ready`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Audit logs",
+          "item": [
+            {
+              "name": "List operational audit logs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/platform/audit-logs?page=1&pageSize=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "platform",
+                    "audit-logs"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "20"
+                    },
+                    {
+                      "key": "action",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "outcome",
+                      "value": "success",
+                      "disabled": true
+                    },
+                    {
+                      "key": "resourceType",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "organizationId",
+                      "value": "{{organizationId}}",
+                      "disabled": true
+                    },
+                    {
+                      "key": "actorId",
+                      "value": "{{platformOperatorUserId}}",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Platform-wide operational audit trail. Requires `platform.audit.view` (auditor+). Query: `page`, `pageSize`, `action`, `outcome` (`success` | `denied` | `failure`), `resourceType`, `organizationId`, `actorId`. Actions include `platform.operator.granted`, `platform.tenant.suspended`, `platform.feature_flag.updated`."
               }
             }
           ]
@@ -4857,7 +5398,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/organizations/{{organizationId}}/escalation-rules",
-            "description": "Creates a tenant rule. Requires `conversation.escalate`.\nTriggers: `unanswered_for` / `unassigned_for` (need `triggerMinutes`), `assigned_agent_offline`, `keyword_match` (need `keywords`).\nActions: `escalate`, `escalate_and_unassign`, `assign_available` (falls back to escalate if nobody is online).\nLower `priority` runs first (1–1000, default 100). Time-based rules are evaluated every 30s and via Evaluate now.",
+            "description": "Creates a tenant rule. Requires `conversation.escalate`.\nTriggers: `unanswered_for` / `unassigned_for` (need `triggerMinutes`), `assigned_agent_offline`, `keyword_match` (need `keywords`).\nActions: `escalate`, `escalate_and_unassign`, `assign_available` (falls back to escalate if nobody is online).\nLower `priority` runs first (1\u20131000, default 100). Time-based rules are evaluated every 30s and via Evaluate now.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Unanswered 15 minutes\",\n  \"enabled\": true,\n  \"triggerType\": \"unanswered_for\",\n  \"triggerMinutes\": 15,\n  \"action\": \"escalate\",\n  \"priority\": 100\n}"
@@ -5027,7 +5568,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/organizations/{{organizationId}}/realtime/events?after={{lastRealtimeEventId}}&limit=100",
-            "description": "HTTP catch-up after disconnect. Pass the last `eventId` (Redis stream id) as `after`. Requires `conversation.read`.\nIf `resyncRequired` is true the retained window was trimmed — reload inbox via List conversations.\nThe WebSocket also replays on connect (`?lastEventId=`) and on a `resume` client message."
+            "description": "HTTP catch-up after disconnect. Pass the last `eventId` (Redis stream id) as `after`. Requires `conversation.read`.\nIf `resyncRequired` is true the retained window was trimmed \u2014 reload inbox via List conversations.\nThe WebSocket also replays on connect (`?lastEventId=`) and on a `resume` client message."
           },
           "event": [
             {
@@ -5058,7 +5599,7 @@
               }
             ],
             "url": "{{wsUrl}}/api/organizations/{{organizationId}}/realtime?lastEventId={{lastRealtimeEventId}}",
-            "description": "Upgrade to WebSocket (Postman: New → WebSocket request, then paste this URL). Auth: session cookie, `Authorization: Bearer`, or `access_token` query.\n\nServer messages: `connected`, `event`, `presence.snapshot`, `resync_required`, `pong`, `error`.\nEvents: `conversation.created` | `message_received` | `message_sent` | `status_changed` | `escalated` | `assigned` | `unassigned` | `note_added` | `agent.presence_changed`.\n\nClient JSON:\n`{\"type\":\"heartbeat\"}`\n`{\"type\":\"resume\",\"lastEventId\":\"{{lastRealtimeEventId}}\"}`\n`{\"type\":\"presence.set\",\"status\":\"online\"}`\n`{\"type\":\"subscribe\",\"conversationId\":\"{{conversationId}}\"}`\n`{\"type\":\"unsubscribe\"}`\n\nReconnect: send the last `event.eventId` as `lastEventId` (query or `resume`). If the server replies `resync_required`, call Replay missed events / List conversations."
+            "description": "Upgrade to WebSocket (Postman: New \u2192 WebSocket request, then paste this URL). Auth: session cookie, `Authorization: Bearer`, or `access_token` query.\n\nServer messages: `connected`, `event`, `presence.snapshot`, `resync_required`, `pong`, `error`.\nEvents: `conversation.created` | `message_received` | `message_sent` | `status_changed` | `escalated` | `assigned` | `unassigned` | `note_added` | `agent.presence_changed`.\n\nClient JSON:\n`{\"type\":\"heartbeat\"}`\n`{\"type\":\"resume\",\"lastEventId\":\"{{lastRealtimeEventId}}\"}`\n`{\"type\":\"presence.set\",\"status\":\"online\"}`\n`{\"type\":\"subscribe\",\"conversationId\":\"{{conversationId}}\"}`\n`{\"type\":\"unsubscribe\"}`\n\nReconnect: send the last `event.eventId` as `lastEventId` (query or `resume`). If the server replies `resync_required`, call Replay missed events / List conversations."
           }
         }
       ]
@@ -5365,7 +5906,7 @@
             "description": "Patches persisted agent settings (greeting, instructions, autonomy, and so on). Requires `organization.update`.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"greeting\": \"Hi, thanks for reaching out — how can I help today?\",\n  \"maxAutonomyTurns\": 8,\n  \"collectContactInfo\": true\n}"
+              "raw": "{\n  \"greeting\": \"Hi, thanks for reaching out \u2014 how can I help today?\",\n  \"maxAutonomyTurns\": 8,\n  \"collectContactInfo\": true\n}"
             }
           }
         }
@@ -5756,7 +6297,7 @@
                 "description": "Updates embed appearance, anonymous/identified sessions, attachments, AI replies, and allowed origins. Requires `organization.update`.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"enabled\": true,\n  \"title\": \"{{widgetTitle}}\",\n  \"greeting\": \"Hi — how can we help today?\",\n  \"primaryColor\": \"{{widgetPrimaryColor}}\",\n  \"position\": \"right\",\n  \"launcherText\": \"Help\",\n  \"collectEmail\": true,\n  \"allowAnonymous\": true,\n  \"allowAttachments\": true,\n  \"aiEnabled\": true,\n  \"offlineMessage\": \"We are away right now. Leave a message and we will get back to you.\",\n  \"allowedOrigins\": []\n}"
+                  "raw": "{\n  \"enabled\": true,\n  \"title\": \"{{widgetTitle}}\",\n  \"greeting\": \"Hi \u2014 how can we help today?\",\n  \"primaryColor\": \"{{widgetPrimaryColor}}\",\n  \"position\": \"right\",\n  \"launcherText\": \"Help\",\n  \"collectEmail\": true,\n  \"allowAnonymous\": true,\n  \"allowAttachments\": true,\n  \"aiEnabled\": true,\n  \"offlineMessage\": \"We are away right now. Leave a message and we will get back to you.\",\n  \"allowedOrigins\": []\n}"
                 }
               },
               "event": [
@@ -5839,7 +6380,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/widget/{{widgetPublicKey}}/sessions",
-                "description": "Starts an anonymous visitor session. Returns `sessionToken` once — send it as `Authorization: Bearer` or `x-widget-session` on later widget calls.",
+                "description": "Starts an anonymous visitor session. Returns `sessionToken` once \u2014 send it as `Authorization: Bearer` or `x-widget-session` on later widget calls.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"visitorId\": \"{{widgetVisitorId}}\"\n}"
@@ -6580,7 +7121,7 @@
     },
     {
       "name": "Public API v1",
-      "description": "Versioned REST API at `/api/v1`. Authenticate with session cookies, `Authorization: Bearer {{apiKey}}`, or `X-API-Key`. Management routes also exist under `/api/organizations/:id/...`.\n\n**Setup**\n1. Create organization and sign in (session cookies).\n2. Create API key (saves `apiKey` once — copy it).\n3. Create webhook, OAuth application, then inspect connectors and OpenAPI docs.\n\nWebhook signatures: `X-Webhook-Signature: t=<unix>,v1=<hex>` is HMAC-SHA256 of `{timestamp}.{rawBody}` using the subscription secret.\nOAuth: PKCE S256. Approve authorization (session) then Exchange token (client secret).",
+      "description": "Versioned REST API at `/api/v1`. Authenticate with session cookies, `Authorization: Bearer {{apiKey}}`, or `X-API-Key`. Management routes also exist under `/api/organizations/:id/...`. Responses include `X-API-Version: v1`.\n\n**Setup**\n1. Create organization and sign in (session cookies).\n2. Create API key (saves `apiKey` once \u2014 copy it).\n3. Create webhook, inspect delivery logs, verify HMAC signatures, then check API usage.\n\nWebhook signatures: `X-Webhook-Signature: t=<unix>,v1=<hex>` is HMAC-SHA256 of `{timestamp}.{rawBody}` using the subscription secret. Failed deliveries retry automatically (1m, 5m, 30m, 2h, 8h; max 5 attempts) or via Retry / Dispatch due retries.\nOAuth: PKCE S256. Approve authorization (session) then Exchange token (client secret).",
       "item": [
         {
           "name": "Documentation",
@@ -6679,7 +7220,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/api-keys",
-                "description": "Creates a tenant API key. `token` (`acs_live_…`) is shown once. Requires `integration.manage`. Rate-limited.",
+                "description": "Creates a tenant API key. `token` (`acs_live_\u2026`) is shown once. Requires `integration.manage`. Rate-limited.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"CI pipeline\",\n  \"scopes\": [\"organization.read\", \"conversation.read\", \"integration.manage\"]\n}"
@@ -6912,7 +7453,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks/{{webhookId}}/deliveries?page=1&pageSize=20",
-                "description": "Delivery audit trail for this subscription."
+                "description": "Delivery audit trail for this subscription. Status is `pending`, `succeeded`, `failed` (will retry), or `abandoned` (max attempts). Saves `webhookDeliveryId`."
               },
               "event": [
                 {
@@ -6928,6 +7469,101 @@
                   }
                 }
               ]
+            },
+            {
+              "name": "Get webhook delivery",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks/{{webhookId}}/deliveries/{{webhookDeliveryId}}",
+                "description": "Single delivery with stored event payload, attempt count, next retry time, and terminal status. Requires `integration.manage`."
+              }
+            },
+            {
+              "name": "List webhook delivery attempts",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks/{{webhookId}}/deliveries/{{webhookDeliveryId}}/attempts",
+                "description": "Per-attempt delivery log: HTTP status, duration, `X-Webhook-Signature` header (`t=<unix>,v1=<hex>`), timestamp, error, and response preview. Saves `webhookSignatureHeader` from the latest attempt."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const items = pm.response.json().items || [];",
+                      "  const last = items[items.length - 1];",
+                      "  if (last && last.signatureHeader) pm.environment.set('webhookSignatureHeader', last.signatureHeader);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Verify webhook signature",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks/{{webhookId}}/verify-signature",
+                "description": "Validates `X-Webhook-Signature` against the stored subscription secret. HMAC-SHA256 of `{timestamp}.{rawBody}`; timestamp must be within `toleranceSeconds` (default 300). Requires `integration.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"signatureHeader\": \"{{webhookSignatureHeader}}\",\n  \"body\": \"{{webhookSignedBody}}\",\n  \"toleranceSeconds\": 300\n}"
+                }
+              }
+            },
+            {
+              "name": "Dispatch due webhook retries",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks/dispatch",
+                "description": "Retries failed deliveries whose `nextAttemptAt` is due. The API also runs this on a 5s interval. Exponential backoff: 1m, 5m, 30m, 2h, 8h; abandoned after 5 attempts. Requires `integration.manage`."
+              }
             },
             {
               "name": "Retry webhook delivery",
@@ -6959,6 +7595,47 @@
                 ],
                 "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks/{{webhookId}}",
                 "description": "Disables the subscription."
+              }
+            }
+          ]
+        },
+        {
+          "name": "API usage",
+          "item": [
+            {
+              "name": "Get API usage summary",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/api-usage",
+                "description": "Aggregated `/api/v1` traffic for the last 7 days (override with `from` / `to`): totals, errors, average latency, and breakdowns by route, status class, auth kind, and day. Requires `integration.manage` or `organization.audit.view`. Session and API-key calls under `/api/v1` are recorded (docs/version endpoints are skipped)."
+              }
+            },
+            {
+              "name": "List API usage requests",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/api-usage/requests?page=1&pageSize=20",
+                "description": "Paginated request log. Filter with `method`, `route`, `statusCode`, `authKind` (`session` | `api_key` | `oauth_token`), `credentialId`, `from`, `to`. Paths are stored with UUIDs replaced by `{id}`."
               }
             }
           ]
@@ -7044,7 +7721,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/oauth/applications",
-                "description": "Registers an inbound OAuth 2.1 app. `clientSecret` (`acs_oas_…`) is shown once. Redirect URIs must be https (localhost HTTP allowed outside production).",
+                "description": "Registers an inbound OAuth 2.1 app. `clientSecret` (`acs_oas_\u2026`) is shown once. Redirect URIs must be https (localhost HTTP allowed outside production).",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"Partner app\",\n  \"redirectUris\": [\"{{oauthAppRedirectUri}}\"],\n  \"scopes\": [\"organization.read\", \"conversation.read\"]\n}"
@@ -7236,7 +7913,7 @@
     },
     {
       "name": "Python AI service",
-      "description": "Direct calls to `apps/ai` (FastAPI) for local debugging. The web app never calls this service — production traffic goes TypeScript API → Python. Send `x-tenant-id` (use the organization id). Ingestion and retrieve are tenant-scoped.",
+      "description": "Direct calls to `apps/ai` (FastAPI) for local debugging. The web app never calls this service \u2014 production traffic goes TypeScript API \u2192 Python. Send `x-tenant-id` (use the organization id). Ingestion and retrieve are tenant-scoped.",
       "item": [
         {
           "name": "Health",
@@ -7464,7 +8141,7 @@
                   }
                 ],
                 "url": "{{aiServiceUrl}}/v1/knowledge/retrieve",
-                "description": "Hybrid keyword + vector retrieval with optional metadata filters, rerank, citations, and configurable `topK` (1–20).",
+                "description": "Hybrid keyword + vector retrieval with optional metadata filters, rerank, citations, and configurable `topK` (1\u201320).",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"query\": \"{{knowledgeRetrieveQuery}}\",\n  \"topK\": {{ragTopK}},\n  \"filters\": {\n    \"documentIds\": [],\n    \"kinds\": [\"article\"]\n  }\n}"
@@ -7545,7 +8222,7 @@
                   }
                 ],
                 "url": "{{aiServiceUrl}}/v1/orchestration/intent",
-                "description": "Classifies a visitor message (greeting, question, complaint, escalation, …) with input guardrails. Tenant header required. Prefer TypeScript `AIServicePort.detectIntent` in production.",
+                "description": "Classifies a visitor message (greeting, question, complaint, escalation, \u2026) with input guardrails. Tenant header required. Prefer TypeScript `AIServicePort.detectIntent` in production.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"visitorMessage\": \"{{knowledgeRetrieveQuery}}\",\n  \"history\": []\n}"

@@ -3,16 +3,20 @@ import type {
   OAuthConnectorDto,
   OrganizationApiKeyDto,
   OrganizationOAuthApplicationDto,
+  PublicApiUsageRecordDto,
   ToolInvocationDto,
+  WebhookDeliveryAttemptDto,
   WebhookDeliveryDto,
   WebhookSubscriptionDto,
 } from '@ai-customer-support/contracts';
 import type { OrganizationApiKey } from '../domain/api-key.js';
+import type { PublicApiUsageRecord } from '../domain/api-usage-record.js';
 import type { IntegrationCredential } from '../domain/integration-credential.js';
 import type { OrganizationOAuthApplication } from '../domain/oauth-application.js';
 import type { OAuthConnector } from '../domain/oauth-connector.js';
 import type { ToolInvocation } from '../domain/tool-invocation.js';
 import type { WebhookDelivery } from '../domain/webhook-delivery.js';
+import type { WebhookDeliveryAttempt } from '../domain/webhook-delivery-attempt.js';
 import type { WebhookSubscription } from '../domain/webhook-subscription.js';
 
 export type RequestSecurityContext = {
@@ -118,10 +122,49 @@ export function toWebhookDeliveryDto(delivery: WebhookDelivery): WebhookDelivery
     eventName: snapshot.eventName,
     status: snapshot.status,
     attemptCount: snapshot.attemptCount,
+    maxAttempts: delivery.maxAttempts,
     responseStatus: snapshot.responseStatus ?? null,
     errorMessage: snapshot.errorMessage ?? null,
+    nextAttemptAt: snapshot.nextAttemptAt?.toISOString() ?? null,
     createdAt: snapshot.createdAt.toISOString(),
     completedAt: snapshot.completedAt?.toISOString() ?? null,
+  };
+}
+
+export function toWebhookDeliveryAttemptDto(attempt: WebhookDeliveryAttempt): WebhookDeliveryAttemptDto {
+  const snapshot = attempt.toSnapshot();
+  return {
+    id: snapshot.id,
+    organizationId: snapshot.organizationId,
+    deliveryId: snapshot.deliveryId,
+    attempt: snapshot.attempt,
+    status: snapshot.status,
+    responseStatus: snapshot.responseStatus ?? null,
+    durationMs: snapshot.durationMs,
+    signatureTimestamp: snapshot.signatureTimestamp,
+    signatureHeader: snapshot.signatureHeader,
+    errorMessage: snapshot.errorMessage ?? null,
+    responseBodyPreview: snapshot.responseBodyPreview ?? null,
+    startedAt: snapshot.startedAt.toISOString(),
+    finishedAt: snapshot.finishedAt.toISOString(),
+  };
+}
+
+export function toApiUsageRecordDto(record: PublicApiUsageRecord): PublicApiUsageRecordDto {
+  const snapshot = record.toSnapshot();
+  return {
+    id: snapshot.id,
+    organizationId: snapshot.organizationId,
+    actorId: snapshot.actorId ?? null,
+    authKind: snapshot.authKind,
+    credentialId: snapshot.credentialId ?? null,
+    method: snapshot.method,
+    path: snapshot.path,
+    route: snapshot.route,
+    statusCode: snapshot.statusCode,
+    durationMs: snapshot.durationMs,
+    requestId: snapshot.requestId ?? null,
+    occurredAt: snapshot.occurredAt.toISOString(),
   };
 }
 

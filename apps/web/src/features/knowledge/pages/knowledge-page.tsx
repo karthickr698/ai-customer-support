@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import type { KnowledgeDocumentKind, KnowledgeDocumentListResponse, OrganizationPermission } from '@ai-customer-support/contracts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,8 @@ import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/ui/page-header';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { useAuthStore } from '@/features/identity/auth-store';
+import { RequireAuth } from '@/features/identity/components/require-auth';
+import { useTenantScope } from '@/features/organizations/use-tenant-scope';
 import { useApiMutation, useApiQuery } from '@/hooks/use-api';
 import { queryKeys } from '@/services/query-keys';
 import { knowledgeApi } from '../api';
@@ -18,9 +19,16 @@ import { knowledgeApi } from '../api';
 type AddKind = Extract<KnowledgeDocumentKind, 'url' | 'article'>;
 
 export function KnowledgePage() {
+  return (
+    <RequireAuth>
+      <KnowledgeWorkspace />
+    </RequireAuth>
+  );
+}
+
+function KnowledgeWorkspace() {
   const { organizationId = '' } = useParams();
-  const user = useAuthStore((state) => state.user);
-  const status = useAuthStore((state) => state.status);
+  useTenantScope(organizationId);
   const [kind, setKind] = useState<AddKind>('url');
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
@@ -30,12 +38,12 @@ export function KnowledgePage() {
   const organization = useApiQuery<{ organization: { name: string; membership: { permissions: readonly OrganizationPermission[] } } }>({
     queryKey: queryKeys.organizations.detail(organizationId),
     path: `/api/organizations/${organizationId}`,
-    enabled: status === 'authenticated' && organizationId.length > 0,
+    enabled: organizationId.length > 0,
   });
   const documents = useApiQuery<KnowledgeDocumentListResponse>({
     queryKey: queryKeys.knowledge.documents(organizationId),
     path: `/api/organizations/${organizationId}/knowledge/documents`,
-    enabled: status === 'authenticated' && organizationId.length > 0,
+    enabled: organizationId.length > 0,
   });
 
   const permissions = organization.data?.organization.membership.permissions ?? [];
@@ -68,14 +76,6 @@ export function KnowledgePage() {
     successMessage: 'Document removed',
   });
 
-  if (status === 'idle' || status === 'loading') {
-    return <p className="p-8 text-sm text-muted-foreground">Checking session…</p>;
-  }
-
-  if (!user) {
-    return <Navigate replace to="/login" />;
-  }
-
   async function onRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await register.mutateAsync();
@@ -103,9 +103,14 @@ export function KnowledgePage() {
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10">
       <PageHeader
         actions={
-          <Button asChild variant="outline">
-            <Link to={`/organizations/${organizationId}`}>Back to organization</Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link to={`/organizations/${organizationId}/onboarding`}>AI setup</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to={`/organizations/${organizationId}`}>Back to organization</Link>
+            </Button>
+          </div>
         }
         description="Ingest PDFs, DOCX files, URLs, and articles. Parsing, chunking, and embeddings run in the AI service."
         title={organization.data?.organization.name ? `${organization.data.organization.name} knowledge` : 'Knowledge'}

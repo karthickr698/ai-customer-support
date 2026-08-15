@@ -1,6 +1,7 @@
 import type { Page, PageRequest } from '@ai-customer-support/shared';
 import type { ToolName } from '@ai-customer-support/contracts';
 import type { OrganizationApiKey } from '../domain/api-key.js';
+import type { PublicApiUsageRecord } from '../domain/api-usage-record.js';
 import type { IntegrationCredential } from '../domain/integration-credential.js';
 import type {
   IntegrationCredentialId,
@@ -8,7 +9,9 @@ import type {
   OAuthConnectorId,
   OAuthGrantId,
   OrganizationApiKeyId,
+  PublicApiUsageId,
   ToolInvocationId,
+  WebhookDeliveryAttemptId,
   WebhookDeliveryId,
   WebhookSubscriptionId,
 } from '../domain/ids.js';
@@ -17,6 +20,7 @@ import type { OAuthConnector } from '../domain/oauth-connector.js';
 import type { OrganizationOAuthGrant } from '../domain/oauth-grant.js';
 import type { ToolInvocation } from '../domain/tool-invocation.js';
 import type { WebhookDelivery } from '../domain/webhook-delivery.js';
+import type { WebhookDeliveryAttempt } from '../domain/webhook-delivery-attempt.js';
 import type { WebhookSubscription } from '../domain/webhook-subscription.js';
 
 export type IntegrationActor = {
@@ -172,6 +176,68 @@ export interface WebhookDeliveryRepository {
     subscriptionId: WebhookSubscriptionId,
     page: PageRequest,
   ): Promise<Page<WebhookDelivery>>;
+  listDue(now: Date, limit: number, tenantId?: string): Promise<WebhookDelivery[]>;
+}
+
+export interface WebhookDeliveryAttemptRepository {
+  save(attempt: WebhookDeliveryAttempt): Promise<void>;
+  findById(tenantId: string, attemptId: WebhookDeliveryAttemptId): Promise<WebhookDeliveryAttempt | null>;
+  listByDelivery(tenantId: string, deliveryId: WebhookDeliveryId): Promise<WebhookDeliveryAttempt[]>;
+}
+
+export type ApiUsageListFilter = {
+  readonly method?: string;
+  readonly route?: string;
+  readonly statusCode?: number;
+  readonly authKind?: string;
+  readonly credentialId?: string;
+  readonly from?: Date;
+  readonly to?: Date;
+};
+
+export type ApiUsageRouteSummary = {
+  readonly method: string;
+  readonly route: string;
+  readonly count: number;
+  readonly errorCount: number;
+  readonly averageDurationMs: number;
+};
+
+export type ApiUsageStatusSummary = {
+  readonly statusClass: string;
+  readonly count: number;
+};
+
+export type ApiUsageAuthSummary = {
+  readonly authKind: string;
+  readonly count: number;
+};
+
+export type ApiUsageDaySummary = {
+  readonly date: string;
+  readonly count: number;
+  readonly errorCount: number;
+};
+
+export type ApiUsageSummary = {
+  readonly totalRequests: number;
+  readonly errorCount: number;
+  readonly averageDurationMs: number;
+  readonly byRoute: readonly ApiUsageRouteSummary[];
+  readonly byStatus: readonly ApiUsageStatusSummary[];
+  readonly byAuthKind: readonly ApiUsageAuthSummary[];
+  readonly byDay: readonly ApiUsageDaySummary[];
+};
+
+export interface ApiUsageRepository {
+  save(record: PublicApiUsageRecord): Promise<void>;
+  findById(tenantId: string, usageId: PublicApiUsageId): Promise<PublicApiUsageRecord | null>;
+  listByTenant(
+    tenantId: string,
+    page: PageRequest,
+    filter: ApiUsageListFilter,
+  ): Promise<Page<PublicApiUsageRecord>>;
+  summarize(tenantId: string, from: Date, to: Date): Promise<ApiUsageSummary>;
 }
 
 export interface OAuthApplicationRepository {
@@ -199,6 +265,8 @@ export type WebhookDispatchRequest = {
 
 export type WebhookDispatchResult = {
   readonly status: number;
+  readonly durationMs: number;
+  readonly bodyPreview?: string;
 };
 
 export interface WebhookDispatcherPort {
@@ -208,4 +276,6 @@ export interface WebhookDispatcherPort {
 export interface WebhookSignerPort {
   sign(secret: string, timestampSeconds: number, body: string): string;
   header(timestampSeconds: number, signature: string): string;
+  parseHeader(header: string): { timestampSeconds: number; signatures: readonly string[] } | undefined;
+  verify(secret: string, timestampSeconds: number, body: string, signature: string): boolean;
 }

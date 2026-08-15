@@ -5,6 +5,7 @@ import {
 } from '@ai-customer-support/contracts';
 import { InvalidWebhookSubscriptionError } from './errors.js';
 import { createWebhookDeliveryId, type WebhookDeliveryId, type WebhookSubscriptionId } from './ids.js';
+import { WEBHOOK_MAX_ATTEMPTS, webhookHasRetriesRemaining, webhookRetryDelaySeconds } from './webhook-retry-policy.js';
 
 export type WebhookDeliverySnapshot = {
   readonly id: WebhookDeliveryId;
@@ -99,23 +100,37 @@ export class WebhookDelivery {
     readonly responseStatus?: number;
     readonly errorMessage: string;
     readonly attemptCount: number;
-    readonly nextAttemptAt: Date;
     readonly now: Date;
   }): WebhookDelivery {
+    const abandoned = !webhookHasRetriesRemaining(input.attemptCount);
     return new WebhookDelivery(
       this.id,
       this.organizationId,
       this.subscriptionId,
       this.eventName,
       this.payload,
-      'failed',
+      abandoned ? 'abandoned' : 'failed',
       input.attemptCount,
       input.responseStatus,
       input.errorMessage.slice(0, 500),
-      input.nextAttemptAt,
+      abandoned
+        ? undefined
+        : new Date(input.now.getTime() + webhookRetryDelaySeconds(input.attemptCount) * 1000),
       this.createdAt,
       input.now,
     );
+  }
+
+  get maxAttempts(): number {
+    return WEBHOOK_MAX_ATTEMPTS;
+  }
+
+  get isDue(): boolean {
+    return this.status === 'pending' || this.status === 'failed';
+  }
+
+  get isAbandoned(): boolean {
+    return this.status === 'abandoned';
   }
 
   toSnapshot(): WebhookDeliverySnapshot {

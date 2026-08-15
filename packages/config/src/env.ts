@@ -63,6 +63,7 @@ const envSchema = z.object({
   SECURITY_ENCRYPTION_KEY_VERSION: z.coerce.number().int().min(1).default(1),
   SECURITY_GLOBAL_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
   SECURITY_MAX_REQUEST_BYTES: z.coerce.number().int().positive().default(1_048_576),
+  PLATFORM_BOOTSTRAP_EMAIL: z.preprocess(emptyToUndefined, z.string().email().optional()),
 });
 
 export type AppConfig = Omit<z.infer<typeof envSchema>, 'LOG_LEVEL'> & {

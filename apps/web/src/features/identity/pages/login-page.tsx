@@ -1,94 +1,125 @@
 import { type FormEvent, useState } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ApiError } from '@/services/api-error';
 import { identityApi } from '../api';
+import { toApiMessage } from '../api-message';
 import { useAuthStore } from '../auth-store';
-import { AuthFooterLink, AuthForm, AuthLayout, FieldError } from '../components/auth-layout';
+import { AuthAlert } from '../components/auth-alert';
+import { AuthFooterLink, AuthForm, AuthLayout } from '../components/auth-layout';
 import { GoogleSignInButton } from '../components/google-sign-in-button';
+import { GuestOnly } from '../components/guest-only';
+import { PasswordInput } from '../components/password-input';
+import { SubmitButton } from '../components/submit-button';
+import { safeNextPath } from '../safe-next-path';
+import { validateEmail, validateLoginPassword } from '../validation';
 
 export function LoginPage() {
-  const user = useAuthStore((state) => state.user);
+  return (
+    <GuestOnly>
+      <LoginForm />
+    </GuestOnly>
+  );
+}
+
+function LoginForm() {
   const setUser = useAuthStore((state) => state.setUser);
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const [error, setError] = useState(googleErrorMessage(searchParams.get('error')));
   const [pending, setPending] = useState(false);
-
-  if (user) {
-    const next = searchParams.get('next');
-    return <Navigate replace to={safeNextPath(next)} />;
-  }
+  const [googlePending, setGooglePending] = useState(false);
+  const next = searchParams.get('next');
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const nextErrors = {
+      email: validateEmail(email),
+      password: validateLoginPassword(password),
+    };
+    setFieldErrors(nextErrors);
+    if (nextErrors.email || nextErrors.password) {
+      return;
+    }
+
     setPending(true);
     setError(undefined);
 
     try {
-      const response = await identityApi.login({ email, password });
+      const response = await identityApi.login({ email: email.trim(), password });
       setUser(response.user);
     } catch (caught: unknown) {
-      setError(toMessage(caught, 'Unable to sign in'));
+      setError(toApiMessage(caught, 'Unable to sign in'));
     } finally {
       setPending(false);
     }
   }
 
   async function onGoogle() {
-    setPending(true);
+    setGooglePending(true);
     setError(undefined);
 
     try {
       const response = await identityApi.startGoogle();
       window.location.assign(response.authorizationUrl);
     } catch (caught: unknown) {
-      setError(toMessage(caught, 'Google sign-in is unavailable'));
-      setPending(false);
+      setError(toApiMessage(caught, 'Google sign-in is unavailable'));
+      setGooglePending(false);
     }
   }
 
+  const busy = pending || googlePending;
+  const registerTo = next ? `/register?next=${encodeURIComponent(safeNextPath(next))}` : '/register';
+
   return (
     <AuthLayout description="Sign in with your work email or Google." title="Welcome back">
-      <AuthForm onSubmit={onSubmit}>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+      <AuthForm disabled={busy} onSubmit={(event) => void onSubmit(event)}>
+        <Field error={fieldErrors.email} id="email" label="Work email" required>
           <Input
             autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
             id="email"
-            onChange={(event) => setEmail(event.target.value)}
-            required
+            onChange={(event) => {
+              setEmail(event.target.value);
+              setFieldErrors((current) => ({ ...current, email: undefined }));
+            }}
+            spellCheck={false}
             type="email"
             value={email}
           />
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-            <Link className="text-xs text-primary hover:underline" to="/forgot-password">
-              Forgot password?
-            </Link>
-          </div>
-          <Input
+        </Field>
+        <Field
+          error={fieldErrors.password}
+          id="password"
+          label="Password"
+          required
+        >
+          <PasswordInput
             autoComplete="current-password"
             id="password"
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            type="password"
+            onChange={(event) => {
+              setPassword(event.target.value);
+              setFieldErrors((current) => ({ ...current, password: undefined }));
+            }}
             value={password}
           />
+        </Field>
+        <div className="-mt-2 flex justify-end">
+          <Link className="text-xs font-medium text-primary hover:underline" to="/forgot-password">
+            Forgot password?
+          </Link>
         </div>
-        <FieldError message={error} />
-        <Button className="w-full" disabled={pending} type="submit">
-          {pending ? 'Signing in…' : 'Sign in'}
-        </Button>
+        <AuthAlert message={error} title="Sign-in failed" />
+        <SubmitButton pending={pending} pendingLabel="Signing in…">
+          Sign in
+        </SubmitButton>
       </AuthForm>
       <div className="my-4 text-center text-xs uppercase tracking-wide text-muted-foreground">or</div>
-      <GoogleSignInButton disabled={pending} onClick={() => void onGoogle()} />
-      <AuthFooterLink label="Create an account" prompt="No account yet?" to="/register" />
+      <GoogleSignInButton disabled={busy} onClick={() => void onGoogle()} pending={googlePending} />
+      <AuthFooterLink label="Create an account" prompt="No account yet?" to={registerTo} />
     </AuthLayout>
   );
 }
@@ -99,16 +130,4 @@ function googleErrorMessage(error: string | null): string | undefined {
   }
 
   return undefined;
-}
-
-function toMessage(error: unknown, fallback: string): string {
-  return error instanceof ApiError ? error.message : fallback;
-}
-
-function safeNextPath(next: string | null): string {
-  if (next && next.startsWith('/') && !next.startsWith('//')) {
-    return next;
-  }
-
-  return '/organizations';
 }

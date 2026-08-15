@@ -13,6 +13,7 @@ import { composeAnalytics } from '../modules/analytics/compose-analytics.js';
 import { composeNotifications } from '../modules/notifications/compose-notifications.js';
 import { composeBilling } from '../modules/billing/compose-billing.js';
 import { composeSecurity } from '../modules/security/compose-security.js';
+import { composePlatform } from '../modules/platform/compose-platform.js';
 import { composeIdentity } from '../modules/identity/compose-identity.js';
 import { composeOrganizations } from '../modules/organizations/compose-organizations.js';
 import { composeIntegrations } from '../modules/integrations/compose-integrations.js';
@@ -188,11 +189,25 @@ export async function initializeInfrastructure(
     maxRequestBytes: config.SECURITY_MAX_REQUEST_BYTES,
   });
 
+  const platform = composePlatform({
+    prisma: database.forRepositoryAdapter(),
+    database,
+    redis,
+    aiService,
+    eventBus,
+    logger,
+    authenticate: identity.authenticate,
+    userQuery: identity.userQuery,
+    organizationAdmin: organizations.adminQuery,
+    bootstrapEmail: config.PLATFORM_BOOTSTRAP_EMAIL,
+  });
+
   const integrations = composeIntegrations({
     prisma: database.forRepositoryAdapter(),
     redis: redis.forAdapter(),
     config,
     eventBus,
+    logger,
     aiService,
     authenticate: identity.authenticate,
     resolveTenantAccess: organizations.resolveTenantAccess,
@@ -241,6 +256,7 @@ export async function initializeInfrastructure(
     notifications,
     billing,
     security,
+    platform,
     agents,
     conversations,
     knowledge,

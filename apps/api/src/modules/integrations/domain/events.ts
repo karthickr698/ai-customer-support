@@ -114,6 +114,19 @@ export class WebhookDeliveryAttemptedEvent implements DomainEvent {
   ) {}
 }
 
+export class WebhookDeliveryAbandonedEvent implements DomainEvent {
+  readonly eventName = 'WebhookDeliveryAbandoned';
+
+  constructor(
+    readonly eventId: string,
+    readonly occurredAt: Date,
+    readonly tenantId: string,
+    readonly subscriptionId: string,
+    readonly deliveryId: string,
+    readonly correlationId?: string,
+  ) {}
+}
+
 export class OAuthApplicationCreatedEvent implements DomainEvent {
   readonly eventName = 'OAuthApplicationCreated';
 

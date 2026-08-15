@@ -1,6 +1,6 @@
 import type { AppConfig } from '@ai-customer-support/config';
 import { integrationCredentialsKey } from '@ai-customer-support/config';
-import type { EventBus } from '@ai-customer-support/shared';
+import type { EventBus, Logger } from '@ai-customer-support/shared';
 import type { PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
 import type { Redis } from 'ioredis';
@@ -14,6 +14,7 @@ import {
   type AuthenticatePreHandler,
 } from './adapters/inbound/http/integration-routes.js';
 import { registerPublicApiRoutes } from './adapters/inbound/http/public-api-routes.js';
+import { registerPublicApiHooks } from './adapters/inbound/http/register-public-api-hooks.js';
 import { SystemClock } from './adapters/outbound/clock.js';
 import {
   AesGcmSecretCipher,
@@ -27,9 +28,11 @@ import { InProcessPlatformToolHandler } from './adapters/outbound/in-process-pla
 import { OrganizationsTenantAccessAdapter } from './adapters/outbound/organizations-tenant-access-adapter.js';
 import { FetchOAuthTokenExchangeAdapter } from './adapters/outbound/oauth-token-exchange-adapter.js';
 import {
+  PostgresApiUsageRepository,
   PostgresOAuthApplicationRepository,
   PostgresOAuthGrantRepository,
   PostgresOrganizationApiKeyRepository,
+  PostgresWebhookDeliveryAttemptRepository,
   PostgresWebhookDeliveryRepository,
   PostgresWebhookSubscriptionRepository,
 } from './adapters/outbound/postgres-developer-platform-repositories.js';
@@ -50,6 +53,11 @@ import {
   RevokeOrganizationApiKeyUseCase,
 } from './application/use-cases/api-key-use-cases.js';
 import { AuthenticateApiCredentialUseCase } from './application/use-cases/authenticate-api-credential-use-case.js';
+import {
+  GetApiUsageSummaryUseCase,
+  ListApiUsageUseCase,
+  RecordApiUsageUseCase,
+} from './application/use-cases/api-usage-use-cases.js';
 import {
   ListIntegrationCredentialsUseCase,
   RevokeIntegrationCredentialUseCase,
@@ -85,18 +93,25 @@ import {
 import {
   CreateWebhookSubscriptionUseCase,
   DeleteWebhookSubscriptionUseCase,
+  DispatchDueWebhookDeliveriesUseCase,
+  GetWebhookDeliveryUseCase,
   GetWebhookSubscriptionUseCase,
   ListWebhookDeliveriesUseCase,
+  ListWebhookDeliveryAttemptsUseCase,
   ListWebhookSubscriptionsUseCase,
   RetryWebhookDeliveryUseCase,
   RotateWebhookSecretUseCase,
   UpdateWebhookSubscriptionUseCase,
+  VerifyWebhookSignatureUseCase,
 } from './application/use-cases/webhook-use-cases.js';
 import { WEBHOOK_SOURCE_DOMAIN_EVENTS } from './domain/webhook-events.js';
+import { WEBHOOK_DISPATCH_INTERVAL_MS } from './domain/webhook-retry-policy.js';
 
 export type IntegrationsModule = {
   readonly executeToolCall: ExecuteToolCallUseCase;
   register(app: FastifyInstance): Promise<void>;
+  start(): void;
+  stop(): void;
 };
 
 export function composeIntegrations(input: {
@@ -104,6 +119,7 @@ export function composeIntegrations(input: {
   readonly redis: Redis;
   readonly config: AppConfig;
   readonly eventBus: EventBus;
+  readonly logger: Logger;
   readonly aiService: AIServicePort;
   readonly authenticate: AuthenticatePreHandler;
   readonly resolveTenantAccess: ResolveTenantAccessUseCase;
@@ -119,6 +135,9 @@ export function composeIntegrations(input: {
   const apiKeys = new PostgresOrganizationApiKeyRepository(input.prisma);
   const webhooks = new PostgresWebhookSubscriptionRepository(input.prisma);
   const deliveries = new PostgresWebhookDeliveryRepository(input.prisma);
+  const attempts = new PostgresWebhookDeliveryAttemptRepository(input.prisma);
+  const apiUsage = new PostgresApiUsageRepository(input.prisma);
+  const hmacSigner = new HmacWebhookSigner();
   const oauthApps = new PostgresOAuthApplicationRepository(input.prisma);
   const oauthGrants = new PostgresOAuthGrantRepository(input.prisma);
   const oauthState = new RedisOAuthConnectorStateStore(input.redis);
@@ -191,8 +210,9 @@ export function composeIntegrations(input: {
   const dispatchWebhooks = new DispatchWebhooksUseCase(
     webhooks,
     deliveries,
+    attempts,
     new FetchWebhookDispatcher(),
-    new HmacWebhookSigner(),
+    hmacSigner,
     cipher,
     clock,
     input.eventBus,
@@ -244,12 +264,30 @@ export function composeIntegrations(input: {
   const rotateWebhookSecret = new RotateWebhookSecretUseCase(tenantAccess, webhooks, cipher, tokens, clock);
   const deleteWebhook = new DeleteWebhookSubscriptionUseCase(tenantAccess, webhooks, clock);
   const listWebhookDeliveries = new ListWebhookDeliveriesUseCase(tenantAccess, webhooks, deliveries);
+  const getWebhookDelivery = new GetWebhookDeliveryUseCase(tenantAccess, webhooks, deliveries);
+  const listWebhookDeliveryAttempts = new ListWebhookDeliveryAttemptsUseCase(
+    tenantAccess,
+    webhooks,
+    deliveries,
+    attempts,
+  );
   const retryWebhookDelivery = new RetryWebhookDeliveryUseCase(
     tenantAccess,
     webhooks,
     deliveries,
     dispatchWebhooks,
   );
+  const verifyWebhookSignature = new VerifyWebhookSignatureUseCase(
+    tenantAccess,
+    webhooks,
+    cipher,
+    hmacSigner,
+    clock,
+  );
+  const dispatchDueWebhooks = new DispatchDueWebhookDeliveriesUseCase(tenantAccess, dispatchWebhooks);
+  const recordApiUsage = new RecordApiUsageUseCase(apiUsage, clock);
+  const listApiUsage = new ListApiUsageUseCase(tenantAccess, apiUsage);
+  const getApiUsageSummary = new GetApiUsageSummaryUseCase(tenantAccess, apiUsage, clock);
   const listConnectorCatalog = new ListConnectorCatalogUseCase(tenantAccess);
   const listConnectorConnections = new ListConnectorConnectionsUseCase(tenantAccess, credentials, connectors);
   const createOAuthApplication = new CreateOAuthApplicationUseCase(
@@ -293,9 +331,12 @@ export function composeIntegrations(input: {
     input.config.API_OAUTH_ACCESS_TOKEN_TTL_SECONDS,
   );
 
+  let timer: ReturnType<typeof setInterval> | undefined;
+
   return {
     executeToolCall,
     async register(app: FastifyInstance): Promise<void> {
+      registerPublicApiHooks(app, recordApiUsage, input.logger);
       await registerIntegrationRoutes(
         app,
         {
@@ -332,7 +373,13 @@ export function composeIntegrations(input: {
           rotateWebhookSecret,
           deleteWebhook,
           listWebhookDeliveries,
+          getWebhookDelivery,
+          listWebhookDeliveryAttempts,
           retryWebhookDelivery,
+          verifyWebhookSignature,
+          dispatchWebhooks: dispatchDueWebhooks,
+          getApiUsageSummary,
+          listApiUsage,
           listConnectorCatalog,
           listConnectorConnections,
           createOAuthApplication,
@@ -345,6 +392,20 @@ export function composeIntegrations(input: {
         authenticatePublicApi,
         input.authenticate,
       );
+    },
+    start(): void {
+      timer = setInterval(() => {
+        void dispatchWebhooks.retryDue().catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : 'Webhook retry dispatch failed';
+          input.logger.warn('Webhook retry dispatch failed', { message });
+        });
+      }, WEBHOOK_DISPATCH_INTERVAL_MS);
+      timer.unref();
+    },
+    stop(): void {
+      if (timer) {
+        clearInterval(timer);
+      }
     },
   };
 }

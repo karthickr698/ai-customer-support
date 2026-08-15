@@ -4,16 +4,22 @@
  */
 
 export const PUBLIC_API_VERSION = 'v1' as const;
-export const PUBLIC_API_SCHEMA_VERSION = 1 as const;
+export const PUBLIC_API_SCHEMA_VERSION = 2 as const;
 
 export const API_KEY_STATUSES = ['active', 'revoked', 'expired'] as const;
 export type ApiKeyStatus = (typeof API_KEY_STATUSES)[number];
 
+export const PUBLIC_API_AUTH_KINDS = ['session', 'api_key', 'oauth_token'] as const;
+export type PublicApiAuthKind = (typeof PUBLIC_API_AUTH_KINDS)[number];
+
 export const WEBHOOK_STATUSES = ['active', 'paused', 'disabled'] as const;
 export type WebhookStatus = (typeof WEBHOOK_STATUSES)[number];
 
-export const WEBHOOK_DELIVERY_STATUSES = ['pending', 'succeeded', 'failed'] as const;
+export const WEBHOOK_DELIVERY_STATUSES = ['pending', 'succeeded', 'failed', 'abandoned'] as const;
 export type WebhookDeliveryStatus = (typeof WEBHOOK_DELIVERY_STATUSES)[number];
+
+export const WEBHOOK_ATTEMPT_STATUSES = ['succeeded', 'failed'] as const;
+export type WebhookAttemptStatus = (typeof WEBHOOK_ATTEMPT_STATUSES)[number];
 
 export const WEBHOOK_EVENT_NAMES = [
   'conversation.created',
@@ -67,7 +73,7 @@ export type PublicApiSessionResponse = {
   readonly apiVersion: typeof PUBLIC_API_VERSION;
   readonly organizationId: string;
   readonly auth: {
-    readonly kind: 'session' | 'api_key' | 'oauth_token';
+    readonly kind: PublicApiAuthKind;
     readonly scopes: readonly string[];
   };
 };
@@ -153,8 +159,10 @@ export type WebhookDeliveryDto = {
   readonly eventName: WebhookEventName;
   readonly status: WebhookDeliveryStatus;
   readonly attemptCount: number;
+  readonly maxAttempts: number;
   readonly responseStatus: number | null;
   readonly errorMessage: string | null;
+  readonly nextAttemptAt: string | null;
   readonly createdAt: string;
   readonly completedAt: string | null;
 };
@@ -168,6 +176,105 @@ export type WebhookDeliveryListResponse = {
 
 export type WebhookDeliveryResponse = {
   readonly delivery: WebhookDeliveryDto;
+};
+
+export type WebhookDeliveryDetailResponse = {
+  readonly delivery: WebhookDeliveryDto;
+  readonly payload: Record<string, unknown>;
+};
+
+export type WebhookDeliveryAttemptDto = {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly deliveryId: string;
+  readonly attempt: number;
+  readonly status: WebhookAttemptStatus;
+  readonly responseStatus: number | null;
+  readonly durationMs: number;
+  readonly signatureTimestamp: number;
+  readonly signatureHeader: string;
+  readonly errorMessage: string | null;
+  readonly responseBodyPreview: string | null;
+  readonly startedAt: string;
+  readonly finishedAt: string;
+};
+
+export type WebhookDeliveryAttemptListResponse = {
+  readonly items: readonly WebhookDeliveryAttemptDto[];
+};
+
+export type VerifyWebhookSignatureRequest = {
+  readonly signatureHeader: string;
+  readonly body: string;
+  readonly toleranceSeconds?: number;
+};
+
+export type VerifyWebhookSignatureResponse = {
+  readonly valid: boolean;
+  readonly timestamp: number | null;
+  readonly reason: string | null;
+};
+
+export type DispatchWebhooksResponse = {
+  readonly retried: number;
+};
+
+export type PublicApiUsageRecordDto = {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly actorId: string | null;
+  readonly authKind: PublicApiAuthKind;
+  readonly credentialId: string | null;
+  readonly method: string;
+  readonly path: string;
+  readonly route: string;
+  readonly statusCode: number;
+  readonly durationMs: number;
+  readonly requestId: string | null;
+  readonly occurredAt: string;
+};
+
+export type PublicApiUsageListResponse = {
+  readonly items: readonly PublicApiUsageRecordDto[];
+  readonly total: number;
+  readonly page: number;
+  readonly pageSize: number;
+};
+
+export type PublicApiUsageRouteCountDto = {
+  readonly method: string;
+  readonly route: string;
+  readonly count: number;
+  readonly errorCount: number;
+  readonly averageDurationMs: number;
+};
+
+export type PublicApiUsageStatusCountDto = {
+  readonly statusClass: string;
+  readonly count: number;
+};
+
+export type PublicApiUsageAuthCountDto = {
+  readonly authKind: PublicApiAuthKind;
+  readonly count: number;
+};
+
+export type PublicApiUsageDayCountDto = {
+  readonly date: string;
+  readonly count: number;
+  readonly errorCount: number;
+};
+
+export type PublicApiUsageSummaryResponse = {
+  readonly from: string;
+  readonly to: string;
+  readonly totalRequests: number;
+  readonly errorCount: number;
+  readonly averageDurationMs: number;
+  readonly byRoute: readonly PublicApiUsageRouteCountDto[];
+  readonly byStatus: readonly PublicApiUsageStatusCountDto[];
+  readonly byAuthKind: readonly PublicApiUsageAuthCountDto[];
+  readonly byDay: readonly PublicApiUsageDayCountDto[];
 };
 
 export type ConnectorDefinitionDto = {

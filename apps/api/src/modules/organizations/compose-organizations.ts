@@ -13,6 +13,7 @@ import { ConsoleInvitationEmailSender } from './adapters/outbound/email/console-
 import { SmtpInvitationEmailSender } from './adapters/outbound/email/smtp-invitation-email-sender.js';
 import { PostgresInvitationRepository } from './adapters/outbound/persistence/postgres-invitation-repository.js';
 import { PostgresMembershipRepository } from './adapters/outbound/persistence/postgres-membership-repository.js';
+import { PostgresOrganizationCatalog } from './adapters/outbound/persistence/postgres-organization-catalog.js';
 import { PostgresOrganizationRepository } from './adapters/outbound/persistence/postgres-organization-repository.js';
 import { RedisRateLimiter } from './adapters/outbound/redis/redis-rate-limiter.js';
 import {
@@ -20,6 +21,7 @@ import {
   type AuthenticatePreHandler,
 } from './adapters/inbound/http/organization-routes.js';
 import { LoadTenantMembershipService } from './application/load-tenant-membership-service.js';
+import { OrganizationAdminQuery } from './application/organization-admin-query.js';
 import { OrganizationMemberQuery } from './application/organization-member-query.js';
 import type { InvitationEmailPort } from './application/ports/invitation-email-port.js';
 import type { UserDirectoryPort } from './application/ports/user-directory-port.js';
@@ -46,6 +48,7 @@ export type OrganizationsHttpRegistrar = {
 export type OrganizationsModule = OrganizationsHttpRegistrar & {
   readonly resolveTenantAccess: ResolveTenantAccessUseCase;
   readonly memberQuery: OrganizationMemberQuery;
+  readonly adminQuery: OrganizationAdminQuery;
 };
 
 export function composeOrganizations(input: {
@@ -58,6 +61,7 @@ export function composeOrganizations(input: {
   readonly authenticate: AuthenticatePreHandler;
 }): OrganizationsModule {
   const organizations = new PostgresOrganizationRepository(input.prisma);
+  const catalog = new PostgresOrganizationCatalog(input.prisma);
   const memberships = new PostgresMembershipRepository(input.prisma);
   const invitations = new PostgresInvitationRepository(input.prisma);
   const auditLog = new PostgresOrganizationAuditLog(input.prisma);
@@ -150,6 +154,7 @@ export function composeOrganizations(input: {
   return {
     resolveTenantAccess: useCases.resolveTenantAccess,
     memberQuery: new OrganizationMemberQuery(memberships),
+    adminQuery: new OrganizationAdminQuery(organizations, catalog, input.eventBus),
     async register(app: FastifyInstance): Promise<void> {
       await registerOrganizationRoutes(app, useCases, input.authenticate);
     },

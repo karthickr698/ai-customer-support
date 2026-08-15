@@ -6,5 +6,7 @@ export async function initializeApplication(deps: AppDependencies): Promise<void
   deps.tickets?.start();
   deps.automations?.start();
   deps.notifications?.start();
+  deps.integrations?.start();
   await deps.billing?.start();
+  await deps.platform?.start();
 }

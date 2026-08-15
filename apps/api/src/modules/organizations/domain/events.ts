@@ -13,6 +13,20 @@ export class OrganizationCreatedEvent implements DomainEvent {
   ) {}
 }
 
+export class OrganizationStatusChangedEvent implements DomainEvent {
+  readonly eventName = 'OrganizationStatusChanged';
+
+  constructor(
+    readonly eventId: string,
+    readonly occurredAt: Date,
+    readonly tenantId: string,
+    readonly organizationId: string,
+    readonly status: 'active' | 'disabled',
+    readonly previousStatus: 'active' | 'disabled',
+    readonly correlationId?: string,
+  ) {}
+}
+
 export class OrganizationUpdatedEvent implements DomainEvent {
   readonly eventName = 'OrganizationUpdated';
 

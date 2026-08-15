@@ -2,8 +2,14 @@ import { useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import type { InvitationPreviewResponse, OrganizationResponse } from '@ai-customer-support/contracts';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { useAuthStore } from '@/features/identity/auth-store';
-import { AuthLayout, FieldError } from '@/features/identity/components/auth-layout';
+import { AuthAlert } from '@/features/identity/components/auth-alert';
+import { AuthLayout } from '@/features/identity/components/auth-layout';
+import { SessionLoading } from '@/features/identity/components/session-loading';
+import { loginPathWithNext } from '@/features/identity/safe-next-path';
+import { roleLabel } from '@/features/organizations/permissions';
 import { useApiMutation, useApiQuery } from '@/hooks/use-api';
 import { ApiError } from '@/services/api-error';
 import { queryKeys } from '@/services/query-keys';
@@ -34,16 +40,34 @@ export function AcceptInvitationPage() {
   });
 
   if (status === 'idle' || status === 'loading') {
-    return <p className="p-8 text-sm text-muted-foreground">Checking session…</p>;
+    return <SessionLoading />;
   }
 
   if (acceptedId) {
-    return <Navigate replace to={`/organizations/${acceptedId}`} />;
+    const role = accept.data?.organization.membership.role;
+    const destination =
+      role === 'owner' || role === 'admin'
+        ? `/organizations/${acceptedId}/onboarding`
+        : `/organizations/${acceptedId}`;
+    return <Navigate replace to={destination} />;
   }
 
   if (!user) {
     const next = `/invitations/accept?token=${encodeURIComponent(token)}`;
-    return <Navigate replace to={`/login?next=${encodeURIComponent(next)}`} />;
+    return <Navigate replace to={loginPathWithNext(next)} />;
+  }
+
+  if (!token) {
+    return (
+      <AuthLayout description="This invitation link is missing a token." title="Organization invitation">
+        <AuthAlert message="Ask your admin to send a new invite." title="Invalid invitation" />
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          <Link className="text-primary hover:underline" to="/organizations">
+            Back to organizations
+          </Link>
+        </p>
+      </AuthLayout>
+    );
   }
 
   const invitation = preview.data?.invitation;
@@ -58,14 +82,27 @@ export function AcceptInvitationPage() {
     <AuthLayout
       description={
         invitation
-          ? `Join ${invitation.organizationName} as ${invitation.role}. Sign in with ${invitation.email}.`
+          ? `Join ${invitation.organizationName} as ${roleLabel(invitation.role)}. Sign in with ${invitation.email}.`
           : 'Review and accept your team invitation.'
       }
       title="Organization invitation"
     >
-      <FieldError message={error} />
-      <Button className="w-full" disabled={!token || accept.isPending || !invitation} onClick={() => accept.mutate()} type="button">
-        {accept.isPending ? 'Joining…' : 'Accept invitation'}
+      {preview.isLoading ? <Skeleton className="h-16 w-full" /> : null}
+      <AuthAlert message={error} title="Invitation error" />
+      <Button
+        className="w-full"
+        disabled={!token || accept.isPending || !invitation}
+        onClick={() => accept.mutate()}
+        type="button"
+      >
+        {accept.isPending ? (
+          <>
+            <Spinner label="Joining organization" />
+            Joining…
+          </>
+        ) : (
+          'Accept invitation'
+        )}
       </Button>
       <p className="mt-6 text-center text-sm text-muted-foreground">
         <Link className="text-primary hover:underline" to="/organizations">

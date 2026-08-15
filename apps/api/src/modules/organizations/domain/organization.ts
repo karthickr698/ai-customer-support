@@ -85,7 +85,18 @@ export class Organization {
   }
 
   disable(now: Date): void {
+    if (this.statusValue === 'disabled') {
+      return;
+    }
     this.statusValue = 'disabled';
+    this.updatedAtValue = now;
+  }
+
+  enable(now: Date): void {
+    if (this.statusValue === 'active') {
+      return;
+    }
+    this.statusValue = 'active';
     this.updatedAtValue = now;
   }
 

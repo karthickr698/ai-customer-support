@@ -1,6 +1,8 @@
 export type OrganizationApiKeyId = string & { readonly __brand: 'OrganizationApiKeyId' };
 export type WebhookSubscriptionId = string & { readonly __brand: 'WebhookSubscriptionId' };
 export type WebhookDeliveryId = string & { readonly __brand: 'WebhookDeliveryId' };
+export type WebhookDeliveryAttemptId = string & { readonly __brand: 'WebhookDeliveryAttemptId' };
+export type PublicApiUsageId = string & { readonly __brand: 'PublicApiUsageId' };
 export type OAuthApplicationId = string & { readonly __brand: 'OAuthApplicationId' };
 export type OAuthGrantId = string & { readonly __brand: 'OAuthGrantId' };
 export type IntegrationCredentialId = string & { readonly __brand: 'IntegrationCredentialId' };
@@ -31,6 +33,16 @@ export function createWebhookSubscriptionId(id: string = crypto.randomUUID()): W
 
 export function createWebhookDeliveryId(id: string = crypto.randomUUID()): WebhookDeliveryId {
   return id as WebhookDeliveryId;
+}
+
+export function createWebhookDeliveryAttemptId(
+  id: string = crypto.randomUUID(),
+): WebhookDeliveryAttemptId {
+  return id as WebhookDeliveryAttemptId;
+}
+
+export function createPublicApiUsageId(id: string = crypto.randomUUID()): PublicApiUsageId {
+  return id as PublicApiUsageId;
 }
 
 export function createOAuthApplicationId(id: string = crypto.randomUUID()): OAuthApplicationId {

@@ -60,6 +60,10 @@ export async function buildServer(
     await deps.security.register(app);
   }
 
+  if (deps.platform) {
+    await deps.platform.register(app);
+  }
+
   if (deps.identity) {
     await deps.identity.register(app);
   }

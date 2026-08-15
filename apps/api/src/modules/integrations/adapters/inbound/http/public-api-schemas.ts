@@ -58,3 +58,26 @@ export const deliveryQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
+
+export const verifyWebhookSignatureBodySchema = z.object({
+  signatureHeader: z.string().trim().min(10).max(500),
+  body: z.string().min(1).max(200_000),
+  toleranceSeconds: z.number().int().min(0).max(3_600).optional(),
+});
+
+export const apiUsageQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  method: z.string().trim().min(1).max(10).optional(),
+  route: z.string().trim().min(1).max(500).optional(),
+  statusCode: z.coerce.number().int().min(100).max(599).optional(),
+  authKind: z.enum(['session', 'api_key', 'oauth_token']).optional(),
+  credentialId: z.string().uuid().optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+});
+
+export const apiUsageSummaryQuerySchema = z.object({
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+});

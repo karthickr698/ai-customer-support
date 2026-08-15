@@ -1,5 +1,9 @@
 import type { EventBus, PageRequest } from '@ai-customer-support/shared';
 import type {
+  DispatchWebhooksResponse,
+  VerifyWebhookSignatureResponse,
+  WebhookDeliveryAttemptListResponse,
+  WebhookDeliveryDetailResponse,
   WebhookDeliveryListResponse,
   WebhookDeliveryResponse,
   WebhookSecretRotatedResponse,
@@ -18,7 +22,7 @@ import { WebhookSubscriptionCreatedEvent, WebhookSubscriptionUpdatedEvent } from
 import { createWebhookDeliveryId, createWebhookSubscriptionId } from '../../domain/ids.js';
 import { IntegrationPolicy } from '../../domain/integration-policy.js';
 import { WebhookSubscription } from '../../domain/webhook-subscription.js';
-import { toWebhookDeliveryDto, toWebhookDto, type RequestSecurityContext } from '../dtos.js';
+import { toWebhookDeliveryAttemptDto, toWebhookDeliveryDto, toWebhookDto, type RequestSecurityContext } from '../dtos.js';
 import { PUBLIC_API_RATE_LIMITS } from '../rate-limits.js';
 import type {
   ClockPort,
@@ -26,9 +30,16 @@ import type {
   SecureTokenGeneratorPort,
   TenantAccessPort,
   RateLimiterPort,
+  WebhookDeliveryAttemptRepository,
   WebhookDeliveryRepository,
+  WebhookSignerPort,
   WebhookSubscriptionRepository,
 } from '../ports.js';
+import { WEBHOOK_SIGNATURE_TOLERANCE_SECONDS, WEBHOOK_DISPATCH_BATCH_SIZE } from '../../domain/webhook-retry-policy.js';
+import {
+  isWebhookTimestampFresh,
+  parseWebhookSignatureHeader,
+} from '../../domain/webhook-signature.js';
 import type { DispatchWebhooksUseCase } from './dispatch-webhooks-use-case.js';
 
 export class CreateWebhookSubscriptionUseCase {
@@ -307,4 +318,141 @@ export class RetryWebhookDeliveryUseCase {
     const retried = await this.dispatch.retry(subscription, delivery);
     return { delivery: toWebhookDeliveryDto(retried) };
   }
+}
+
+export class GetWebhookDeliveryUseCase {
+  constructor(
+    private readonly tenantAccess: TenantAccessPort,
+    private readonly subscriptions: WebhookSubscriptionRepository,
+    private readonly deliveries: WebhookDeliveryRepository,
+  ) {}
+
+  async execute(input: {
+    readonly tenantId: string;
+    readonly actorId: string;
+    readonly webhookId: string;
+    readonly deliveryId: string;
+  }): Promise<WebhookDeliveryDetailResponse> {
+    const { delivery } = await loadDelivery(
+      this.tenantAccess,
+      this.subscriptions,
+      this.deliveries,
+      input,
+    );
+    return { delivery: toWebhookDeliveryDto(delivery), payload: delivery.payload };
+  }
+}
+
+export class ListWebhookDeliveryAttemptsUseCase {
+  constructor(
+    private readonly tenantAccess: TenantAccessPort,
+    private readonly subscriptions: WebhookSubscriptionRepository,
+    private readonly deliveries: WebhookDeliveryRepository,
+    private readonly attempts: WebhookDeliveryAttemptRepository,
+  ) {}
+
+  async execute(input: {
+    readonly tenantId: string;
+    readonly actorId: string;
+    readonly webhookId: string;
+    readonly deliveryId: string;
+  }): Promise<WebhookDeliveryAttemptListResponse> {
+    const { delivery } = await loadDelivery(
+      this.tenantAccess,
+      this.subscriptions,
+      this.deliveries,
+      input,
+    );
+    const items = await this.attempts.listByDelivery(delivery.organizationId, delivery.id);
+    return { items: items.map(toWebhookDeliveryAttemptDto) };
+  }
+}
+
+export class VerifyWebhookSignatureUseCase {
+  constructor(
+    private readonly tenantAccess: TenantAccessPort,
+    private readonly subscriptions: WebhookSubscriptionRepository,
+    private readonly cipher: SecretCipherPort,
+    private readonly signer: WebhookSignerPort,
+    private readonly clock: ClockPort,
+  ) {}
+
+  async execute(input: {
+    readonly tenantId: string;
+    readonly actorId: string;
+    readonly webhookId: string;
+    readonly signatureHeader: string;
+    readonly body: string;
+    readonly toleranceSeconds?: number;
+  }): Promise<VerifyWebhookSignatureResponse> {
+    const actor = await this.tenantAccess.loadActor(input.tenantId, input.actorId);
+    IntegrationPolicy.assertCanManage(actor.permissions);
+    const subscription = await this.subscriptions.findById(
+      actor.tenantId,
+      createWebhookSubscriptionId(input.webhookId),
+    );
+    if (!subscription) {
+      throw new WebhookSubscriptionNotFoundError();
+    }
+    const parsed = this.signer.parseHeader(input.signatureHeader) ?? parseWebhookSignatureHeader(input.signatureHeader);
+    if (!parsed) {
+      return { valid: false, timestamp: null, reason: 'Signature header is missing t or v1' };
+    }
+    const tolerance = input.toleranceSeconds ?? WEBHOOK_SIGNATURE_TOLERANCE_SECONDS;
+    if (!isWebhookTimestampFresh(parsed.timestampSeconds, this.clock.now(), tolerance)) {
+      return {
+        valid: false,
+        timestamp: parsed.timestampSeconds,
+        reason: `Timestamp is outside the ${tolerance}s tolerance window`,
+      };
+    }
+    const secret = this.cipher.decrypt(subscription.secret.ciphertext, subscription.secret.nonce);
+    const matched = parsed.signatures.some((signature) =>
+      this.signer.verify(secret, parsed.timestampSeconds, input.body, signature),
+    );
+    return {
+      valid: matched,
+      timestamp: parsed.timestampSeconds,
+      reason: matched ? null : 'HMAC-SHA256 signature did not match',
+    };
+  }
+}
+
+export class DispatchDueWebhookDeliveriesUseCase {
+  constructor(
+    private readonly tenantAccess: TenantAccessPort,
+    private readonly dispatch: DispatchWebhooksUseCase,
+  ) {}
+
+  async execute(input: {
+    readonly tenantId: string;
+    readonly actorId: string;
+  }): Promise<DispatchWebhooksResponse> {
+    const actor = await this.tenantAccess.loadActor(input.tenantId, input.actorId);
+    IntegrationPolicy.assertCanManage(actor.permissions);
+    const retried = await this.dispatch.retryDue(WEBHOOK_DISPATCH_BATCH_SIZE, actor.tenantId);
+    return { retried };
+  }
+}
+
+async function loadDelivery(
+  tenantAccess: TenantAccessPort,
+  subscriptions: WebhookSubscriptionRepository,
+  deliveries: WebhookDeliveryRepository,
+  input: { readonly tenantId: string; readonly actorId: string; readonly webhookId: string; readonly deliveryId: string },
+) {
+  const actor = await tenantAccess.loadActor(input.tenantId, input.actorId);
+  IntegrationPolicy.assertCanManage(actor.permissions);
+  const subscription = await subscriptions.findById(
+    actor.tenantId,
+    createWebhookSubscriptionId(input.webhookId),
+  );
+  if (!subscription) {
+    throw new WebhookSubscriptionNotFoundError();
+  }
+  const delivery = await deliveries.findById(actor.tenantId, createWebhookDeliveryId(input.deliveryId));
+  if (!delivery || delivery.subscriptionId !== subscription.id) {
+    throw new WebhookDeliveryNotFoundError();
+  }
+  return { actor, subscription, delivery };
 }

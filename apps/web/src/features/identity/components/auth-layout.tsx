@@ -29,12 +29,19 @@ export function AuthLayout({
 export function AuthForm({
   onSubmit,
   children,
+  disabled,
 }: {
   readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   readonly children: ReactNode;
+  readonly disabled?: boolean;
 }) {
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
+    <form
+      aria-busy={disabled}
+      className="space-y-4"
+      noValidate
+      onSubmit={onSubmit}
+    >
       {children}
     </form>
   );
@@ -51,18 +58,10 @@ export function AuthFooterLink({
 }) {
   return (
     <p className="mt-6 text-center text-sm text-muted-foreground">
-      {prompt}{' '}
+      {prompt ? `${prompt} ` : null}
       <Link className="font-medium text-primary hover:underline" to={to}>
         {label}
       </Link>
     </p>
   );
-}
-
-export function FieldError({ message }: { readonly message?: string }) {
-  if (!message) {
-    return null;
-  }
-
-  return <p className="text-sm text-destructive">{message}</p>;
 }

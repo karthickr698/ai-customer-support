@@ -49,8 +49,10 @@ model Organization {
   apiKeys OrganizationApiKey[]
   webhookSubscriptions WebhookSubscription[]
   webhookDeliveries WebhookDelivery[]
+  webhookDeliveryAttempts WebhookDeliveryAttempt[]
   oauthApplications OrganizationOAuthApplication[]
   oauthGrants OrganizationOAuthGrant[]
+  publicApiUsageRecords PublicApiUsageRecord[]
   customers Customer[]
   products Product[]
   orders CommerceOrder[]
@@ -79,6 +81,7 @@ model Organization {
   securityIpAllowlistEntries SecurityIpAllowlistEntry[]
   securitySecrets SecuritySecret[]
   securityAuditEvents SecurityAuditEvent[]
+  platformFeatureFlagOverrides PlatformFeatureFlagOverride[]
 
   @@map("organizations")
 }
@@ -578,12 +581,61 @@ model WebhookDelivery {
   createdAt      DateTime  @map("created_at")
   completedAt    DateTime? @map("completed_at")
 
-  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  subscription WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription WebhookSubscription     @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  attempts     WebhookDeliveryAttempt[]
 
   @@index([organizationId, createdAt])
   @@index([subscriptionId, createdAt])
+  @@index([status, nextAttemptAt])
   @@map("webhook_deliveries")
+}
+
+model WebhookDeliveryAttempt {
+  id                   String    @id @db.Uuid
+  organizationId       String    @map("organization_id") @db.Uuid
+  deliveryId           String    @map("delivery_id") @db.Uuid
+  attempt              Int
+  status               String
+  responseStatus       Int?      @map("response_status")
+  durationMs           Int       @map("duration_ms")
+  signatureTimestamp   Int       @map("signature_timestamp")
+  signatureHeader      String    @map("signature_header")
+  errorMessage         String?   @map("error_message")
+  responseBodyPreview  String?   @map("response_body_preview")
+  startedAt            DateTime  @map("started_at")
+  finishedAt           DateTime  @map("finished_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  delivery     WebhookDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, startedAt])
+  @@index([deliveryId, attempt])
+  @@map("webhook_delivery_attempts")
+}
+
+model PublicApiUsageRecord {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  actorId        String?  @map("actor_id") @db.Uuid
+  authKind       String   @map("auth_kind")
+  credentialId   String?  @map("credential_id") @db.Uuid
+  method         String
+  path           String
+  route          String
+  statusCode     Int      @map("status_code")
+  durationMs     Int      @map("duration_ms")
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  requestId      String?  @map("request_id")
+  occurredAt     DateTime @map("occurred_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, occurredAt])
+  @@index([organizationId, route, occurredAt])
+  @@index([organizationId, credentialId, occurredAt], map: "public_api_usage_org_cred_occurred_idx")
+  @@map("public_api_usage_records")
 }
 
 model OrganizationOAuthApplication {
@@ -1318,4 +1370,72 @@ model SecurityAuditEvent {
   @@index([organizationId, action, occurredAt])
   @@index([organizationId, outcome, occurredAt])
   @@map("security_audit_events")
+}
+
+model PlatformOperator {
+  id              String    @id @db.Uuid
+  userId          String    @unique @map("user_id") @db.Uuid
+  role            String
+  status          String
+  grantedByUserId String?   @map("granted_by_user_id") @db.Uuid
+  createdAt       DateTime  @map("created_at")
+  updatedAt       DateTime  @map("updated_at")
+  revokedAt       DateTime? @map("revoked_at")
+
+  @@index([status, role])
+  @@map("platform_operators")
+}
+
+model PlatformFeatureFlag {
+  id          String   @id @db.Uuid
+  key         String   @unique
+  description String?
+  enabled     Boolean
+  createdBy   String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @map("created_at")
+  updatedAt   DateTime @map("updated_at")
+
+  overrides PlatformFeatureFlagOverride[]
+
+  @@index([enabled])
+  @@map("platform_feature_flags")
+}
+
+model PlatformFeatureFlagOverride {
+  id             String   @id @db.Uuid
+  flagId         String   @map("flag_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  enabled        Boolean
+  createdBy      String   @map("created_by") @db.Uuid
+  createdAt      DateTime @map("created_at")
+  updatedAt      DateTime @map("updated_at")
+
+  flag         PlatformFeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([flagId, organizationId])
+  @@index([organizationId])
+  @@map("platform_feature_flag_overrides")
+}
+
+model PlatformOperationalAuditLog {
+  id             String   @id @db.Uuid
+  actorId        String?  @map("actor_id") @db.Uuid
+  action         String
+  resourceType   String   @map("resource_type")
+  resourceId     String?  @map("resource_id") @db.Uuid
+  outcome        String
+  organizationId String?  @map("organization_id") @db.Uuid
+  metadata       Json?
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  requestId      String?  @map("request_id")
+  occurredAt     DateTime @map("occurred_at")
+
+  @@index([occurredAt])
+  @@index([action, occurredAt])
+  @@index([actorId, occurredAt])
+  @@index([organizationId, occurredAt])
+  @@index([outcome, occurredAt])
+  @@map("platform_operational_audit_logs")
 }
