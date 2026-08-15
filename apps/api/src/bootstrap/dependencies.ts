@@ -13,6 +13,7 @@ import type { AutomationsModule } from '../modules/automations/compose-automatio
 import type { AnalyticsModule } from '../modules/analytics/compose-analytics.js';
 import type { NotificationsModule } from '../modules/notifications/compose-notifications.js';
 import type { BillingModule } from '../modules/billing/compose-billing.js';
+import type { SecurityModule } from '../modules/security/compose-security.js';
 import type { TicketsModule } from '../modules/tickets/compose-tickets.js';
 import type { WidgetModule } from '../modules/widget/compose-widget.js';
 import type { DatabasePort } from '../shared/application/ports/database-port.js';
@@ -37,6 +38,7 @@ export interface AppDependencies {
   readonly analytics?: AnalyticsModule;
   readonly notifications?: NotificationsModule;
   readonly billing?: BillingModule;
+  readonly security?: SecurityModule;
   readonly agents?: AgentsModule;
   readonly conversations?: ConversationsHttpRegistrar;
   readonly knowledge?: KnowledgeModule;

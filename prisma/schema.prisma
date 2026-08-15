@@ -75,6 +75,10 @@ model Organization {
   billingInvoices BillingInvoice[]
   billingInvoiceLines BillingInvoiceLine[]
   billingPaymentMethods BillingPaymentMethod[]
+  securityPolicy SecurityPolicy?
+  securityIpAllowlistEntries SecurityIpAllowlistEntry[]
+  securitySecrets SecuritySecret[]
+  securityAuditEvents SecurityAuditEvent[]
 
   @@map("organizations")
 }
@@ -1239,4 +1243,79 @@ model BillingProviderEvent {
 
   @@index([provider, type, createdAt])
   @@map("billing_provider_events")
+}
+
+model SecurityPolicy {
+  organizationId              String   @id @map("organization_id") @db.Uuid
+  ipAllowlistEnabled          Boolean  @map("ip_allowlist_enabled")
+  mfaRequired                 Boolean  @map("mfa_required")
+  sessionIdleTimeoutSeconds   Int      @map("session_idle_timeout_seconds")
+  maxRequestBytes             Int      @map("max_request_bytes")
+  rateLimitPerMinute          Int      @map("rate_limit_per_minute")
+  auditRetentionDays          Int      @map("audit_retention_days")
+  createdAt                   DateTime @map("created_at")
+  updatedAt                   DateTime @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("security_policies")
+}
+
+model SecurityIpAllowlistEntry {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  cidr           String
+  label          String?
+  createdBy      String   @map("created_by") @db.Uuid
+  createdAt      DateTime @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, cidr])
+  @@index([organizationId])
+  @@map("security_ip_allowlist_entries")
+}
+
+model SecuritySecret {
+  id             String    @id @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  name           String
+  purpose        String
+  ciphertext     String
+  nonce          String
+  keyVersion     Int       @map("key_version")
+  lastAccessedAt DateTime? @map("last_accessed_at")
+  rotatedAt      DateTime? @map("rotated_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdBy      String    @map("created_by") @db.Uuid
+  createdAt      DateTime  @map("created_at")
+  updatedAt      DateTime  @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@index([organizationId, revokedAt])
+  @@map("security_secrets")
+}
+
+model SecurityAuditEvent {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  actorId        String?  @map("actor_id") @db.Uuid
+  action         String
+  resourceType   String   @map("resource_type")
+  resourceId     String?  @map("resource_id")
+  outcome        String
+  metadata       Json?
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  requestId      String?  @map("request_id")
+  occurredAt     DateTime @map("occurred_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, occurredAt])
+  @@index([organizationId, action, occurredAt])
+  @@index([organizationId, outcome, occurredAt])
+  @@map("security_audit_events")
 }

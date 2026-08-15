@@ -16,6 +16,7 @@ export async function buildServer(
   const app: FastifyInstance = Fastify({
     loggerInstance: rootLogger as FastifyBaseLogger,
     trustProxy: true,
+    bodyLimit: Math.max(deps.config.SECURITY_MAX_REQUEST_BYTES ?? 1_048_576, 10 * 1024 * 1024),
     genReqId: () => crypto.randomUUID(),
     requestIdHeader: 'x-request-id',
     logController: new LogController({
@@ -54,6 +55,10 @@ export async function buildServer(
   });
 
   registerHealthRoutes(app, deps.healthChecker);
+
+  if (deps.security) {
+    await deps.security.register(app);
+  }
 
   if (deps.identity) {
     await deps.identity.register(app);

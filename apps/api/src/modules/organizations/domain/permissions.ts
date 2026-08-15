@@ -21,6 +21,8 @@ export const Permissions = {
   NOTIFICATION_MANAGE: 'notification.manage',
   BILLING_READ: 'billing.read',
   BILLING_MANAGE: 'billing.manage',
+  SECURITY_READ: 'security.read',
+  SECURITY_MANAGE: 'security.manage',
 } as const;
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];
@@ -48,6 +50,7 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly Permission[]> =
     Permissions.ANALYTICS_VIEW,
     Permissions.NOTIFICATION_READ,
     Permissions.BILLING_READ,
+    Permissions.SECURITY_READ,
   ],
   viewer: [
     Permissions.ORGANIZATION_READ,
@@ -56,6 +59,7 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly Permission[]> =
     Permissions.ANALYTICS_VIEW,
     Permissions.NOTIFICATION_READ,
     Permissions.BILLING_READ,
+    Permissions.SECURITY_READ,
   ],
 };
 

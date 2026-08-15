@@ -24,6 +24,8 @@ export const ORGANIZATION_PERMISSIONS = [
   'notification.manage',
   'billing.read',
   'billing.manage',
+  'security.read',
+  'security.manage',
 ] as const;
 export type OrganizationPermission = (typeof ORGANIZATION_PERMISSIONS)[number];
 

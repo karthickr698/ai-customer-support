@@ -59,6 +59,10 @@ const envSchema = z.object({
   BILLING_WEBHOOK_SECRET: optionalSecret,
   BILLING_SUCCESS_URL: optionalUrl,
   BILLING_CANCEL_URL: optionalUrl,
+  SECURITY_ENCRYPTION_KEY: optionalSecret,
+  SECURITY_ENCRYPTION_KEY_VERSION: z.coerce.number().int().min(1).default(1),
+  SECURITY_GLOBAL_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
+  SECURITY_MAX_REQUEST_BYTES: z.coerce.number().int().positive().default(1_048_576),
 });
 
 export type AppConfig = Omit<z.infer<typeof envSchema>, 'LOG_LEVEL'> & {
@@ -96,10 +100,20 @@ function assertProductionSecrets(config: AppConfig): void {
       'INTEGRATION_CREDENTIALS_KEY must not use the example value in production',
     );
   }
+
+  if (config.SECURITY_ENCRYPTION_KEY === EXAMPLE_JWT_SECRET) {
+    throw new ConfigurationError(
+      'SECURITY_ENCRYPTION_KEY must not use the example value in production',
+    );
+  }
 }
 
 export function integrationCredentialsKey(config: AppConfig): string {
   return config.INTEGRATION_CREDENTIALS_KEY ?? config.JWT_SECRET;
+}
+
+export function securityEncryptionKey(config: AppConfig): string {
+  return config.SECURITY_ENCRYPTION_KEY ?? config.JWT_SECRET;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {

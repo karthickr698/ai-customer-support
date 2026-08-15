@@ -1,4 +1,4 @@
-import type { AppConfig } from '@ai-customer-support/config';
+import { securityEncryptionKey, type AppConfig } from '@ai-customer-support/config';
 import type { Logger } from '@ai-customer-support/shared';
 import type { AppDependencies } from './dependencies.js';
 import { PythonAIServiceAdapter } from '../modules/ai/adapters/outbound/python-ai/python-ai-service-adapter.js';
@@ -12,6 +12,7 @@ import { composeAutomations } from '../modules/automations/compose-automations.j
 import { composeAnalytics } from '../modules/analytics/compose-analytics.js';
 import { composeNotifications } from '../modules/notifications/compose-notifications.js';
 import { composeBilling } from '../modules/billing/compose-billing.js';
+import { composeSecurity } from '../modules/security/compose-security.js';
 import { composeIdentity } from '../modules/identity/compose-identity.js';
 import { composeOrganizations } from '../modules/organizations/compose-organizations.js';
 import { composeIntegrations } from '../modules/integrations/compose-integrations.js';
@@ -174,6 +175,19 @@ export async function initializeInfrastructure(
     allowLocalHttp: config.NODE_ENV !== 'production',
   });
 
+  const security = composeSecurity({
+    prisma: database.forRepositoryAdapter(),
+    redis: redis.forAdapter(),
+    eventBus,
+    authenticate: identity.authenticate,
+    resolveTenantAccess: organizations.resolveTenantAccess,
+    encryptionKey: securityEncryptionKey(config),
+    encryptionKeyVersion: config.SECURITY_ENCRYPTION_KEY_VERSION,
+    production: config.NODE_ENV === 'production',
+    globalRateLimitPerMinute: config.SECURITY_GLOBAL_RATE_LIMIT_PER_MINUTE,
+    maxRequestBytes: config.SECURITY_MAX_REQUEST_BYTES,
+  });
+
   const integrations = composeIntegrations({
     prisma: database.forRepositoryAdapter(),
     redis: redis.forAdapter(),
@@ -226,6 +240,7 @@ export async function initializeInfrastructure(
     analytics,
     notifications,
     billing,
+    security,
     agents,
     conversations,
     knowledge,
