@@ -10,6 +10,8 @@ import { composeCustomers } from '../modules/customers/compose-customers.js';
 import { composeTickets } from '../modules/tickets/compose-tickets.js';
 import { composeAutomations } from '../modules/automations/compose-automations.js';
 import { composeAnalytics } from '../modules/analytics/compose-analytics.js';
+import { composeNotifications } from '../modules/notifications/compose-notifications.js';
+import { composeBilling } from '../modules/billing/compose-billing.js';
 import { composeIdentity } from '../modules/identity/compose-identity.js';
 import { composeOrganizations } from '../modules/organizations/compose-organizations.js';
 import { composeIntegrations } from '../modules/integrations/compose-integrations.js';
@@ -142,6 +144,36 @@ export async function initializeInfrastructure(
     resolveTenantAccess: organizations.resolveTenantAccess,
   });
 
+  const notifications = composeNotifications({
+    prisma: database.forRepositoryAdapter(),
+    eventBus,
+    queue,
+    logger,
+    authenticate: identity.authenticate,
+    resolveTenantAccess: organizations.resolveTenantAccess,
+    emailFrom: config.EMAIL_FROM,
+    smtpUrl: config.SMTP_URL,
+    nodeEnv: config.NODE_ENV,
+    allowLocalHttp: config.NODE_ENV !== 'production',
+    webhookTimeoutMs: config.WEBHOOK_DELIVERY_TIMEOUT_MS,
+  });
+
+  const billing = composeBilling({
+    prisma: database.forRepositoryAdapter(),
+    eventBus,
+    logger,
+    authenticate: identity.authenticate,
+    resolveTenantAccess: organizations.resolveTenantAccess,
+    billingProvider: config.BILLING_PROVIDER,
+    stripeSecretKey: config.STRIPE_SECRET_KEY,
+    stripeWebhookSecret: config.STRIPE_WEBHOOK_SECRET,
+    stripeApiBaseUrl: config.STRIPE_API_BASE_URL,
+    billingWebhookSecret: config.BILLING_WEBHOOK_SECRET,
+    successUrl: config.BILLING_SUCCESS_URL ?? `${config.WEB_ORIGIN}/billing/success`,
+    cancelUrl: config.BILLING_CANCEL_URL ?? `${config.WEB_ORIGIN}/billing/cancel`,
+    allowLocalHttp: config.NODE_ENV !== 'production',
+  });
+
   const integrations = composeIntegrations({
     prisma: database.forRepositoryAdapter(),
     redis: redis.forAdapter(),
@@ -192,6 +224,8 @@ export async function initializeInfrastructure(
     tickets,
     automations,
     analytics,
+    notifications,
+    billing,
     agents,
     conversations,
     knowledge,

@@ -17,6 +17,10 @@ export const Permissions = {
   INTEGRATION_MANAGE: 'integration.manage',
   AUTOMATION_READ: 'automation.read',
   AUTOMATION_MANAGE: 'automation.manage',
+  NOTIFICATION_READ: 'notification.read',
+  NOTIFICATION_MANAGE: 'notification.manage',
+  BILLING_READ: 'billing.read',
+  BILLING_MANAGE: 'billing.manage',
 } as const;
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];
@@ -42,12 +46,16 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly Permission[]> =
     Permissions.KNOWLEDGE_MANAGE,
     Permissions.AUTOMATION_READ,
     Permissions.ANALYTICS_VIEW,
+    Permissions.NOTIFICATION_READ,
+    Permissions.BILLING_READ,
   ],
   viewer: [
     Permissions.ORGANIZATION_READ,
     Permissions.CONVERSATION_READ,
     Permissions.CUSTOMER_READ,
     Permissions.ANALYTICS_VIEW,
+    Permissions.NOTIFICATION_READ,
+    Permissions.BILLING_READ,
   ],
 };
 

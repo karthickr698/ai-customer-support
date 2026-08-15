@@ -16,7 +16,7 @@ async function main(): Promise<void> {
   const logger = new PinoLogger(rootLogger);
 
   const deps = await initializeInfrastructure(config, logger);
-  initializeApplication(deps);
+  await initializeApplication(deps);
 
   const app = await buildServer(deps, rootLogger);
   registerProcessHandlers(app, deps);

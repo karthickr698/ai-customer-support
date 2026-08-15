@@ -52,6 +52,13 @@ const envSchema = z.object({
   PUBLIC_API_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
   WEBHOOK_DELIVERY_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   API_OAUTH_ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(3_600),
+  BILLING_PROVIDER: z.enum(['console', 'stripe']).default('console'),
+  STRIPE_SECRET_KEY: optionalSecret,
+  STRIPE_WEBHOOK_SECRET: optionalSecret,
+  STRIPE_API_BASE_URL: optionalUrl,
+  BILLING_WEBHOOK_SECRET: optionalSecret,
+  BILLING_SUCCESS_URL: optionalUrl,
+  BILLING_CANCEL_URL: optionalUrl,
 });
 
 export type AppConfig = Omit<z.infer<typeof envSchema>, 'LOG_LEVEL'> & {

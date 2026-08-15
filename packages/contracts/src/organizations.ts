@@ -20,6 +20,10 @@ export const ORGANIZATION_PERMISSIONS = [
   'integration.manage',
   'automation.read',
   'automation.manage',
+  'notification.read',
+  'notification.manage',
+  'billing.read',
+  'billing.manage',
 ] as const;
 export type OrganizationPermission = (typeof ORGANIZATION_PERMISSIONS)[number];
 

@@ -79,6 +79,14 @@ export async function buildServer(
     await deps.analytics.register(app);
   }
 
+  if (deps.notifications) {
+    await deps.notifications.register(app);
+  }
+
+  if (deps.billing) {
+    await deps.billing.register(app);
+  }
+
   if (deps.agents) {
     await deps.agents.register(app);
   }

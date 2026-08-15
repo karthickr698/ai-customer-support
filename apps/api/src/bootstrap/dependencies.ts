@@ -11,6 +11,8 @@ import type { OrganizationsHttpRegistrar } from '../modules/organizations/compos
 import type { IntegrationsModule } from '../modules/integrations/compose-integrations.js';
 import type { AutomationsModule } from '../modules/automations/compose-automations.js';
 import type { AnalyticsModule } from '../modules/analytics/compose-analytics.js';
+import type { NotificationsModule } from '../modules/notifications/compose-notifications.js';
+import type { BillingModule } from '../modules/billing/compose-billing.js';
 import type { TicketsModule } from '../modules/tickets/compose-tickets.js';
 import type { WidgetModule } from '../modules/widget/compose-widget.js';
 import type { DatabasePort } from '../shared/application/ports/database-port.js';
@@ -33,6 +35,8 @@ export interface AppDependencies {
   readonly tickets?: TicketsModule;
   readonly automations?: AutomationsModule;
   readonly analytics?: AnalyticsModule;
+  readonly notifications?: NotificationsModule;
+  readonly billing?: BillingModule;
   readonly agents?: AgentsModule;
   readonly conversations?: ConversationsHttpRegistrar;
   readonly knowledge?: KnowledgeModule;

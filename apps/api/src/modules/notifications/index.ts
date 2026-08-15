@@ -1,2 +1,2 @@
-/** Public surface of the notifications module. Feature commands add use cases and adapters here. */
-export {};
+export type { NotificationsModule } from './compose-notifications.js';
+export { composeNotifications } from './compose-notifications.js';

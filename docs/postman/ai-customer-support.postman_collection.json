@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "c4e8d2b1-7a91-4f3e-8c5a-ai-customer-support",
     "name": "AI Customer Support API",
-    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support — Local** environment.\n3. Keep cookies enabled (Postman → Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in → open `googleAuthorizationUrl` in a browser → after redirect, put the `code` query value into `googleLoginCode` → Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate — copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign / assign available, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\n**Tickets**\nTenant routes under `/api/organizations/:organizationId/tickets`, `/ticket-sla-policies`, and `/ticket-escalation-policies`. Requires `ticket.manage` (agent+).\n1. Create a conversation, then Create ticket (optional `conversationId`; saves `ticketId`). SLA due dates apply from a matching policy or defaults.\n2. Assign / unassign / assign available, change status (`open` → `pending` | `resolved` | `closed` | `escalated`), escalate (bumps priority).\n3. Add notes and upload attachments (form-data `file`).\n4. SLA policies: one per priority (`any`/`low`/`normal`/`high`/`urgent`). Escalation policies fire on overdue first response, overdue resolution, or unassigned time.\n5. Evaluate now with `POST .../ticket-escalation-policies/evaluate` (also runs every 30s).\nAI conversations: escalating a conversation (including widget/AI) opens a ticket if none is open. Tools `createTicket` / `updateTicket` persist through TypeScript (`POST .../tools/calls`).\n\n**Automations**\nTenant routes under `/api/organizations/:organizationId/automations`, `/automation-jobs`, and `/automation-logs`. Manage requires `automation.manage` (admin+); list/get requires `automation.read` (agent+).\n1. Create an event rule (`TicketCreated` + conditions) or a schedule (`every:{n}m`, `hourly:{mm}`, `daily:{HH:MM}`, `weekly:{0-6}:{HH:MM}` UTC).\n2. Matching domain events enqueue idempotent jobs (`evt:{tenant}:{rule}:{eventId}`). Schedules enqueue `sch:{tenant}:{rule}:{slot}`.\n3. The worker executes `record`, `http_request`, or `emit_event` with retries and exponential backoff. Duplicate idempotency keys are no-ops.\n4. Inspect jobs and execution logs, retry `dead`/`skipped` jobs, or `POST .../automations/dispatch` to run due work now (also every 5s).\n5. `POST .../automations/:ruleId/run` with `idempotencyKey` for a manual, idempotent enqueue.\n\n**Analytics**\nTenant routes under `/api/organizations/:organizationId/analytics`. Requires `analytics.view` (viewer+, and agents). All queries are organization-scoped and run SQL aggregations (`COUNT`/`AVG`/`date_trunc`) over indexed `created_at` / `resolved_at` columns — never load full row sets.\n1. Overview KPIs (`GET .../overview`): conversations, tickets, SLA, messages, customers, knowledge, widget sessions. Optional `from`, `to` (ISO-8601, default last 30 days, max 366), `granularity`, `channel`, `status`, `assignedAgentId`.\n2. Time series (`GET .../timeseries`): `metrics` comma list (`conversations.created`, `tickets.created`, `messages.ai`, …) and `granularity` `hour` (max 14 days) / `day` / `week` / `month`. Missing buckets are filled with 0 (UTC).\n3. Reports: `GET .../conversations`, `/tickets`, `/agents`, `/customers`.\n4. CSV export: `GET .../exports/:report` where report is `overview` | `timeseries` | `conversations` | `tickets` | `agents` | `customers`. Returns `text/csv` with `Content-Disposition: attachment`.\n\n**Customers / commerce lookup**\nTenant routes under `/api/organizations/:organizationId/customers`, `/products`, `/orders`, `/shipments`, and `/returns`. Writes require `customer.manage` (admin+). Reads and AI lookup tools require `customer.read` (viewer+). Every query includes the organization id — records never leak across tenants. Register a customer, then product, order, shipment, and return. AI tools `getCustomerDetails`, `getProductDetails`, `getOrderDetails`, `getShipmentDetails`, and `getReturnDetails` are executed by TypeScript (`POST .../tools/calls`).\n\n**Realtime, presence, and escalation rules**\nWebSocket: `GET {{wsUrl}}/api/organizations/:organizationId/realtime?lastEventId=&access_token=` (session cookie or `access_token` query). On connect the server sends `connected`, missed `event`s, and `presence.snapshot`. Client messages: `heartbeat`, `resume`, `presence.set`, `subscribe` / `unsubscribe`.\nHTTP catch-up: `GET .../realtime/events?after=`.\nPresence: list/set/heartbeat under `/agents/presence`.\nEscalation rules: CRUD + `POST .../evaluate`. Assign available picks an online owner/admin/agent (round-robin).\n\n**Onboarding / knowledge**\nTenant routes under `/api/organizations/:organizationId/onboarding`, `/knowledge/sources`, and `/knowledge/documents`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Run onboarding setup (saves profile, tones, agent settings; optional knowledge sources)\n2. Or step through Generate business profile → Generate tone presets → Select tone → Generate agent settings\n3. Register extra knowledge sources (URL, help center, sitemap, text, file)\n4. Add documents: article/URL JSON, or upload PDF/DOCX — TypeScript owns lifecycle; Python indexes for RAG\n5. List documents, reindex, or delete (delete also drops vector index entries)\nPermissions: `organization.update` for LLM setup (admin+), `knowledge.manage` to register sources and documents (agent+), `organization.read` to view.\n\n**Python AI service**\nFolder `Python AI service` calls `apps/ai` directly (`{{aiServiceUrl}}`, default http://localhost:8000) for local RAG/onboarding debugging. Production clients use the TypeScript API only.\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` → `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.\n\n**Widget**\nStaff: `GET/PATCH /api/organizations/:organizationId/widget` and `POST .../rotate-key` (session cookies + `x-tenant-id`). Public embed: `GET /api/widget/:publicKey/config`, then `POST /api/widget/:publicKey/sessions` (anonymous or email/name). Send `sessionToken` as `Authorization: Bearer` on `/api/widget/sessions/*` and `/api/widget/conversations*`.\n1. Get widget configuration (saves `widgetPublicKey`)\n2. Create anonymous session (saves `widgetSessionToken`) or Create customer session\n3. Start widget conversation (saves `widgetConversationId`)\n4. Send message, or stream AI reply (`text/event-stream`)\n5. Upload attachment (form-data `file`) then send `attachmentIds`\nTenant isolation: sessions, conversations, attachments, and AI calls are scoped to the organization behind the public key. Allowed origins are enforced when configured.\n\n**Tools and integrations**\nPython proposes allowlisted tool calls (`POST .../tools/propose`); TypeScript schema-validates, authorizes, executes, and audits (`POST .../tools/calls`). Tenant credentials and OAuth connectors are encrypted per organization. Mutating tools never run in Python. Permission: `integration.manage` (admin+) for secrets.\n\n**Public API v1**\nVersioned REST at `/api/v1` (OpenAPI `/api/v1/openapi.json`, docs `/api/v1/docs`). Create API keys, HMAC-signed webhooks, inbound OAuth apps, and inspect the connector catalog. Programmatic auth: `Authorization: Bearer acs_live_…` or `X-API-Key`. Existing dashboard routes remain under `/api`.",
+    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support — Local** environment.\n3. Keep cookies enabled (Postman → Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in → open `googleAuthorizationUrl` in a browser → after redirect, put the `code` query value into `googleLoginCode` → Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate — copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign / assign available, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\n**Tickets**\nTenant routes under `/api/organizations/:organizationId/tickets`, `/ticket-sla-policies`, and `/ticket-escalation-policies`. Requires `ticket.manage` (agent+).\n1. Create a conversation, then Create ticket (optional `conversationId`; saves `ticketId`). SLA due dates apply from a matching policy or defaults.\n2. Assign / unassign / assign available, change status (`open` → `pending` | `resolved` | `closed` | `escalated`), escalate (bumps priority).\n3. Add notes and upload attachments (form-data `file`).\n4. SLA policies: one per priority (`any`/`low`/`normal`/`high`/`urgent`). Escalation policies fire on overdue first response, overdue resolution, or unassigned time.\n5. Evaluate now with `POST .../ticket-escalation-policies/evaluate` (also runs every 30s).\nAI conversations: escalating a conversation (including widget/AI) opens a ticket if none is open. Tools `createTicket` / `updateTicket` persist through TypeScript (`POST .../tools/calls`).\n\n**Automations**\nTenant routes under `/api/organizations/:organizationId/automations`, `/automation-jobs`, and `/automation-logs`. Manage requires `automation.manage` (admin+); list/get requires `automation.read` (agent+).\n1. Create an event rule (`TicketCreated` + conditions) or a schedule (`every:{n}m`, `hourly:{mm}`, `daily:{HH:MM}`, `weekly:{0-6}:{HH:MM}` UTC).\n2. Matching domain events enqueue idempotent jobs (`evt:{tenant}:{rule}:{eventId}`). Schedules enqueue `sch:{tenant}:{rule}:{slot}`.\n3. The worker executes `record`, `http_request`, or `emit_event` with retries and exponential backoff. Duplicate idempotency keys are no-ops.\n4. Inspect jobs and execution logs, retry `dead`/`skipped` jobs, or `POST .../automations/dispatch` to run due work now (also every 5s).\n5. `POST .../automations/:ruleId/run` with `idempotencyKey` for a manual, idempotent enqueue.\n\n**Analytics**\nTenant routes under `/api/organizations/:organizationId/analytics`. Requires `analytics.view` (viewer+, and agents). All queries are organization-scoped and run SQL aggregations (`COUNT`/`AVG`/`date_trunc`) over indexed `created_at` / `resolved_at` columns — never load full row sets.\n1. Overview KPIs (`GET .../overview`): conversations, tickets, SLA, messages, customers, knowledge, widget sessions. Optional `from`, `to` (ISO-8601, default last 30 days, max 366), `granularity`, `channel`, `status`, `assignedAgentId`.\n2. Time series (`GET .../timeseries`): `metrics` comma list (`conversations.created`, `tickets.created`, `messages.ai`, …) and `granularity` `hour` (max 14 days) / `day` / `week` / `month`. Missing buckets are filled with 0 (UTC).\n3. Reports: `GET .../conversations`, `/tickets`, `/agents`, `/customers`.\n4. CSV export: `GET .../exports/:report` where report is `overview` | `timeseries` | `conversations` | `tickets` | `agents` | `customers`. Returns `text/csv` with `Content-Disposition: attachment`.\n\n**Notifications**\nTenant routes under `/api/organizations/:organizationId/notification-templates`, `/notifications`, `/notification-preferences`, `/notification-deliveries`, and `/notification-attempts`. Manage requires `notification.manage` (admin+); inbox, preferences, and delivery tracking require `notification.read` (viewer+).\n1. Create a template (`email` / `in_app` / `sms` / `webhook`) with `{{variable}}` placeholders, a recipient type, and optional `recipientField` for event-driven sends.\n2. Matching domain events enqueue idempotent deliveries (`evt:{tenant}:{template}:{eventId}:{recipient}`). Manual send: `POST .../notifications` with `idempotencyKey`.\n3. Channel providers are abstracted (SMTP or console email, in-app inbox, console SMS, HTTPS webhook). Deliveries retry with exponential backoff; inspect attempts and retry `dead`/`skipped`.\n4. Recipients opt out per event/channel (`*` mutes a channel). Default is opted in. In-app items land in `GET .../notifications/inbox`.\n5. `POST .../notifications/dispatch` runs due work now (also every 5s).\n\n**Billing**\nTenant routes under `/api/organizations/:organizationId/billing`. Catalog: `GET /api/billing/plans`. Provider webhooks: `POST /api/billing/webhooks/:provider` (public, HMAC for Stripe). Manage requires `billing.manage` (admin+); reads require `billing.read` (viewer+).\n1. Creating an organization provisions a free/trial subscription. List plans, then Start checkout (`starter`/`growth`/`scale`) and Complete checkout (console) or wait for the Stripe webhook.\n2. Usage is metered from domain events (`ConversationCreated`, `TicketCreated`, `MessageReceived` including `ai_replies`, knowledge uploads, seats) and `POST .../billing/usage`. Check remaining quota with `POST .../billing/quotas/check` (HTTP 402 when exceeded).\n3. Issue invoices for the current period (plan + overage), pay or void them, and inspect payment methods.\n4. Cancel at period end / resume, or `POST .../billing/renew` to close due periods (also every 30s).\nProviders: `BILLING_PROVIDER=console` locally, `stripe` with `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`.\n\n**Customers / commerce lookup**\nTenant routes under `/api/organizations/:organizationId/customers`, `/products`, `/orders`, `/shipments`, and `/returns`. Writes require `customer.manage` (admin+). Reads and AI lookup tools require `customer.read` (viewer+). Every query includes the organization id — records never leak across tenants. Register a customer, then product, order, shipment, and return. AI tools `getCustomerDetails`, `getProductDetails`, `getOrderDetails`, `getShipmentDetails`, and `getReturnDetails` are executed by TypeScript (`POST .../tools/calls`).\n\n**Realtime, presence, and escalation rules**\nWebSocket: `GET {{wsUrl}}/api/organizations/:organizationId/realtime?lastEventId=&access_token=` (session cookie or `access_token` query). On connect the server sends `connected`, missed `event`s, and `presence.snapshot`. Client messages: `heartbeat`, `resume`, `presence.set`, `subscribe` / `unsubscribe`.\nHTTP catch-up: `GET .../realtime/events?after=`.\nPresence: list/set/heartbeat under `/agents/presence`.\nEscalation rules: CRUD + `POST .../evaluate`. Assign available picks an online owner/admin/agent (round-robin).\n\n**Onboarding / knowledge**\nTenant routes under `/api/organizations/:organizationId/onboarding`, `/knowledge/sources`, and `/knowledge/documents`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Run onboarding setup (saves profile, tones, agent settings; optional knowledge sources)\n2. Or step through Generate business profile → Generate tone presets → Select tone → Generate agent settings\n3. Register extra knowledge sources (URL, help center, sitemap, text, file)\n4. Add documents: article/URL JSON, or upload PDF/DOCX — TypeScript owns lifecycle; Python indexes for RAG\n5. List documents, reindex, or delete (delete also drops vector index entries)\nPermissions: `organization.update` for LLM setup (admin+), `knowledge.manage` to register sources and documents (agent+), `organization.read` to view.\n\n**Python AI service**\nFolder `Python AI service` calls `apps/ai` directly (`{{aiServiceUrl}}`, default http://localhost:8000) for local RAG/onboarding debugging. Production clients use the TypeScript API only.\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` → `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.\n\n**Widget**\nStaff: `GET/PATCH /api/organizations/:organizationId/widget` and `POST .../rotate-key` (session cookies + `x-tenant-id`). Public embed: `GET /api/widget/:publicKey/config`, then `POST /api/widget/:publicKey/sessions` (anonymous or email/name). Send `sessionToken` as `Authorization: Bearer` on `/api/widget/sessions/*` and `/api/widget/conversations*`.\n1. Get widget configuration (saves `widgetPublicKey`)\n2. Create anonymous session (saves `widgetSessionToken`) or Create customer session\n3. Start widget conversation (saves `widgetConversationId`)\n4. Send message, or stream AI reply (`text/event-stream`)\n5. Upload attachment (form-data `file`) then send `attachmentIds`\nTenant isolation: sessions, conversations, attachments, and AI calls are scoped to the organization behind the public key. Allowed origins are enforced when configured.\n\n**Tools and integrations**\nPython proposes allowlisted tool calls (`POST .../tools/propose`); TypeScript schema-validates, authorizes, executes, and audits (`POST .../tools/calls`). Tenant credentials and OAuth connectors are encrypted per organization. Mutating tools never run in Python. Permission: `integration.manage` (admin+) for secrets.\n\n**Public API v1**\nVersioned REST at `/api/v1` (OpenAPI `/api/v1/openapi.json`, docs `/api/v1/docs`). Create API keys, HMAC-signed webhooks, inbound OAuth apps, and inspect the connector catalog. Programmatic auth: `Authorization: Bearer acs_live_…` or `X-API-Key`. Existing dashboard routes remain under `/api`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -2747,6 +2747,1044 @@
             "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/exports/customers?from={{analyticsFrom}}&to={{analyticsTo}}",
             "description": "CSV of new-customer counts plus the top customers by conversation volume."
           }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Templates",
+          "item": [
+            {
+              "name": "Create email template",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-templates",
+                "description": "Create a tenant-scoped notification template. Placeholders use `{{variable}}` (dotted paths allowed). `recipientField` is read from matching domain-event payloads for event-driven sends. Requires `notification.manage` (admin+). Channels: `email`, `in_app`, `sms`, `webhook`. Retry policy defaults to 5 attempts with 2s exponential backoff.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ticket assigned\",\n  \"slug\": \"ticket-assigned-email\",\n  \"channel\": \"email\",\n  \"eventType\": \"TicketAssigned\",\n  \"subject\": \"Ticket assigned\",\n  \"body\": \"A ticket was assigned to you. Use template placeholders like double-brace field names (ticketId, assigneeName, subject).\",\n  \"recipientType\": \"email\",\n  \"recipientField\": \"assigneeEmail\",\n  \"enabled\": true,\n  \"maxAttempts\": 5,\n  \"backoffMs\": 2000\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('notificationTemplateId', pm.response.json().template.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create in-app template",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-templates",
+                "description": "In-app templates deliver to a user UUID (`recipientType: user`) and write an inbox item. Event matching uses `recipientField` (for example `assignedAgentId`).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ticket assigned in-app\",\n  \"slug\": \"ticket-assigned-in-app\",\n  \"channel\": \"in_app\",\n  \"eventType\": \"TicketAssigned\",\n  \"subject\": \"Ticket assigned\",\n  \"body\": \"A ticket was assigned to you.\",\n  \"recipientType\": \"user\",\n  \"recipientField\": \"assignedAgentId\",\n  \"enabled\": true\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('notificationTemplateId', pm.response.json().template.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List templates",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-templates",
+                "description": "List notification templates for the organization. Requires `notification.read` (viewer+)."
+              }
+            },
+            {
+              "name": "Get template",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-templates/{{notificationTemplateId}}",
+                "description": "Load one template including channel, event type, body, recipient mapping, and retry policy. Lookup is tenant-scoped."
+              }
+            },
+            {
+              "name": "Update template",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-templates/{{notificationTemplateId}}",
+                "description": "Update name, body, recipient mapping, or retry policy. Requires `notification.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": true,\n  \"maxAttempts\": 8,\n  \"backoffMs\": 3000\n}"
+                }
+              }
+            },
+            {
+              "name": "Delete template",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-templates/{{notificationTemplateId}}",
+                "description": "Delete a template. Existing deliveries keep a null templateId. Requires `notification.manage`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send and dispatch",
+          "item": [
+            {
+              "name": "Send from template",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notifications",
+                "description": "Enqueue a delivery from a template. Repeat with the same `idempotencyKey` returns the existing delivery (`created: false`). Honors recipient preferences unless `ignorePreferences` is true. Requires `notification.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"templateId\": \"{{notificationTemplateId}}\",\n  \"recipient\": { \"type\": \"email\", \"address\": \"agent@example.com\" },\n  \"data\": { \"subject\": \"Cannot checkout\", \"assigneeName\": \"Alex\", \"ticketId\": \"demo-ticket\" },\n  \"idempotencyKey\": \"{{notificationIdempotencyKey}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201 || pm.response.code === 200) {",
+                      "  pm.environment.set('notificationDeliveryId', pm.response.json().delivery.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Send ad-hoc email",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notifications",
+                "description": "Enqueue an ad-hoc notification without a template. `channel` and `body` are required. Providers: SMTP when `SMTP_URL` is set, otherwise the development console logger.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"channel\": \"email\",\n  \"eventType\": \"manual\",\n  \"recipient\": { \"type\": \"email\", \"address\": \"agent@example.com\" },\n  \"subject\": \"Manual ping\",\n  \"body\": \"This is a one-off notification.\",\n  \"idempotencyKey\": \"postman-adhoc-1\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201 || pm.response.code === 200) {",
+                      "  pm.environment.set('notificationDeliveryId', pm.response.json().delivery.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Send in-app",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notifications",
+                "description": "Enqueue an in-app notification to a member user id (`assignedAgentId` from Assign conversation). On delivery the inbox item is created for that user.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"channel\": \"in_app\",\n  \"eventType\": \"manual\",\n  \"recipient\": { \"type\": \"user\", \"address\": \"{{assignedAgentId}}\" },\n  \"subject\": \"Welcome\",\n  \"body\": \"You have a new support assignment.\",\n  \"idempotencyKey\": \"postman-inbox-1\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201 || pm.response.code === 200) {",
+                      "  pm.environment.set('notificationDeliveryId', pm.response.json().delivery.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Dispatch due deliveries",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notifications/dispatch",
+                "description": "Enqueue pending and stale sending deliveries now. The worker also runs every 5s. Requires `notification.manage`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Preferences",
+          "item": [
+            {
+              "name": "List my preferences",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-preferences",
+                "description": "List the current member's channel preferences. Missing rows mean opted in. `eventType` of `*` mutes an entire channel. Requires `notification.read`."
+              }
+            },
+            {
+              "name": "Upsert my preferences",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-preferences",
+                "description": "Create or update the current member's preferences. Opt out of email for `TicketAssigned`, or mute a channel with `eventType: \"*\"`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    { \"eventType\": \"TicketAssigned\", \"channel\": \"email\", \"enabled\": false },\n    { \"eventType\": \"*\", \"channel\": \"sms\", \"enabled\": false }\n  ]\n}"
+                }
+              }
+            },
+            {
+              "name": "List preferences for a subject",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-preferences?subjectType=email&subjectKey=agent@example.com",
+                "description": "Admins can list another recipient's preferences (`subjectType` + `subjectKey`). Requires `notification.manage` when the subject is not the current user."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deliveries",
+          "item": [
+            {
+              "name": "List deliveries",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-deliveries?page=1&pageSize=20",
+                "description": "List queued and completed deliveries. Filter with `templateId`, `status` (`pending`, `sending`, `delivered`, `skipped`, `dead`), `channel`, and `recipient`. Requires `notification.read`."
+              }
+            },
+            {
+              "name": "Get delivery",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-deliveries/{{notificationDeliveryId}}",
+                "description": "Load one delivery including rendered body, provider, attempt count, and tracking timestamps. Lookup is tenant-scoped."
+              }
+            },
+            {
+              "name": "Retry delivery",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-deliveries/{{notificationDeliveryId}}/retry",
+                "description": "Re-queue a `dead` or `skipped` delivery. Requires `notification.manage`."
+              }
+            },
+            {
+              "name": "List attempts for delivery",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-deliveries/{{notificationDeliveryId}}/attempts?page=1&pageSize=20",
+                "description": "List provider attempts for one delivery (`started`, `delivered`, `failed`, `skipped`) with provider message ids."
+              }
+            },
+            {
+              "name": "List attempts",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notification-attempts?page=1&pageSize=20",
+                "description": "List delivery attempts across the organization. Filter with `deliveryId` and `status`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inbox",
+          "item": [
+            {
+              "name": "List inbox",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notifications/inbox?page=1&pageSize=20",
+                "description": "List in-app notifications for the current member. Add `unreadOnly=true` to hide read items. Returns `unreadCount`. Requires `notification.read`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const items = pm.response.json().items || [];",
+                      "  if (items[0]) pm.environment.set('notificationInboxItemId', items[0].id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Mark item read",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notifications/inbox/{{notificationInboxItemId}}/read",
+                "description": "Mark one inbox item as read. Only the recipient can update their inbox."
+              }
+            },
+            {
+              "name": "Mark all read",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/notifications/inbox/read-all",
+                "description": "Mark every unread inbox item for the current member as read. Returns `{ updated }`."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Billing",
+      "item": [
+        {
+          "name": "Plans",
+          "item": [
+            {
+              "name": "List plans",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/billing/plans",
+                "description": "Public catalog of active subscription plans (`free`, `starter`, `growth`, `scale`) with included quotas and overage rates. Requires a session cookie. Saves `billingPlanSlug` from the first paid plan."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const items = pm.response.json().items || [];",
+                      "  const paid = items.find((plan) => plan.amountCents > 0) || items[0];",
+                      "  if (paid) pm.environment.set(\"billingPlanSlug\", paid.slug);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Subscription",
+          "item": [
+            {
+              "name": "Get subscription",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/subscription",
+                "description": "Current organization subscription. Created automatically on `OrganizationCreated` (free/trial). Requires `billing.read` (viewer+)."
+              }
+            },
+            {
+              "name": "Start checkout",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/checkout",
+                "description": "Start a paid-plan checkout. Console provider returns a session with no hosted URL — complete it with Complete checkout. Stripe returns a Checkout URL. Requires `billing.manage` (admin+).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"planSlug\": \"{{billingPlanSlug}}\",\n  \"successUrl\": \"http://localhost:5173/billing/success\",\n  \"cancelUrl\": \"http://localhost:5173/billing/cancel\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set(\"billingCheckoutSessionId\", pm.response.json().checkout.id);",
+                      "  pm.environment.set(\"billingPlanSlug\", pm.response.json().checkout.planSlug);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Complete checkout",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/checkout/complete",
+                "description": "Activates the paid plan for a pending console checkout session. Stripe activations arrive via `POST /api/billing/webhooks/stripe` instead.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sessionId\": \"{{billingCheckoutSessionId}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Change plan",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/subscription/change-plan",
+                "description": "Switch the active subscription to another catalog plan. Paid Stripe subscriptions also update the provider.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"planSlug\": \"growth\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Cancel at period end",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/subscription/cancel",
+                "description": "Schedule cancellation at the end of the current period (`immediately: false`) or cancel now.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"immediately\": false\n}"
+                }
+              }
+            },
+            {
+              "name": "Resume subscription",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/subscription/resume",
+                "description": "Undo a pending cancel-at-period-end. Fully canceled subscriptions must start a new checkout."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Usage and quotas",
+          "item": [
+            {
+              "name": "Get usage",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/usage",
+                "description": "Current-period usage vs included quotas for conversations, AI replies, seats, knowledge documents, tickets, and messages. Event metering is automatic. Requires `billing.read`."
+              }
+            },
+            {
+              "name": "Get quotas",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/quotas",
+                "description": "Same payload as Get usage — remaining included units and overage for the current period."
+              }
+            },
+            {
+              "name": "Check quota",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/quotas/check",
+                "description": "Ask whether `quantity` of a metric is allowed under the current plan and subscription status. `allowed: false` when the subscription is inactive or the included quota would be exceeded.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"metric\": \"conversations\",\n  \"quantity\": 1\n}"
+                }
+              }
+            },
+            {
+              "name": "Record usage",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/usage",
+                "description": "Manually record metered usage. Duplicate `idempotencyKey` values are no-ops. `enforceQuota` defaults to true (HTTP 402 `QUOTA_EXCEEDED`). Requires `billing.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"metric\": \"conversations\",\n  \"quantity\": 1,\n  \"idempotencyKey\": \"{{billingUsageIdempotencyKey}}\",\n  \"enforceQuota\": true\n}"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invoices",
+          "item": [
+            {
+              "name": "List invoices",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/invoices?page=1&pageSize=20",
+                "description": "Tenant-scoped invoices. Filter with `status` (`draft` | `open` | `paid` | `void` | `uncollectible`). Requires `billing.read`."
+              }
+            },
+            {
+              "name": "Issue invoice",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/invoices",
+                "description": "Finalize an invoice for the current (or supplied) billing period: plan fee plus usage overage. Duplicate periods return 409. $0 invoices are marked paid. Requires `billing.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set(\"billingInvoiceId\", pm.response.json().invoice.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get invoice",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/invoices/{{billingInvoiceId}}",
+                "description": "Invoice header and line items (plan, usage overage, credits, tax)."
+              }
+            },
+            {
+              "name": "Pay invoice",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/invoices/{{billingInvoiceId}}/pay",
+                "description": "Mark an open invoice paid (console/local). Reactivates `past_due` / `unpaid` subscriptions. Stripe invoice.paid webhooks do the same."
+              }
+            },
+            {
+              "name": "Void invoice",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/invoices/{{billingInvoiceId}}/void",
+                "description": "Void an unpaid invoice. Paid invoices cannot be voided."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment methods",
+          "item": [
+            {
+              "name": "List payment methods",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/payment-methods",
+                "description": "Stored payment methods for the organization (brand, last four). Populated after checkout completion or a provider webhook."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Provider webhooks",
+          "item": [
+            {
+              "name": "Console webhook",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-billing-signature",
+                    "value": "{{billingWebhookSignature}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/billing/webhooks/console",
+                "description": "Inbound payment-provider webhook (no session cookie). Console events are accepted unsigned when `BILLING_WEBHOOK_SECRET` is empty. Stripe uses `POST /api/billing/webhooks/stripe` with `Stripe-Signature`. Events are idempotent on `id`. Types: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"id\": \"{{billingWebhookEventId}}\",\n  \"type\": \"checkout.session.completed\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"cs_console_example\",\n      \"client_reference_id\": \"{{organizationId}}\",\n      \"customer\": \"cus_console_example\",\n      \"subscription\": \"sub_console_example\",\n      \"status\": \"complete\",\n      \"metadata\": {\n        \"organizationId\": \"{{organizationId}}\",\n        \"planSlug\": \"{{billingPlanSlug}}\",\n        \"checkoutSessionId\": \"{{billingCheckoutSessionId}}\"\n      }\n    }\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "Renew due subscriptions",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/billing/renew",
+                "description": "Issue invoices and advance periods for subscriptions whose `currentPeriodEnd` is due (also runs every 30s). Cancel-at-period-end subscriptions are canceled. Requires `billing.manage`."
+              }
+            }
+          ]
         }
       ]
     },
