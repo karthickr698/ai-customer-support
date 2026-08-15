@@ -14,6 +14,7 @@ import { composeNotifications } from '../modules/notifications/compose-notificat
 import { composeBilling } from '../modules/billing/compose-billing.js';
 import { composeSecurity } from '../modules/security/compose-security.js';
 import { composePlatform } from '../modules/platform/compose-platform.js';
+import { composeObservability } from '../modules/observability/compose-observability.js';
 import { composeIdentity } from '../modules/identity/compose-identity.js';
 import { composeOrganizations } from '../modules/organizations/compose-organizations.js';
 import { composeIntegrations } from '../modules/integrations/compose-integrations.js';
@@ -45,7 +46,11 @@ export async function initializeInfrastructure(
   logger.info('Redis connected');
 
   const healthChecker = new InfrastructureHealthChecker(database, redis);
-  const aiService = new PythonAIServiceAdapter(config.AI_SERVICE_URL, logger);
+  const observabilityPlaceholder: { telemetry?: import('../modules/ai/application/ports/ai-service-port.js').AICallTelemetryPort } =
+    {};
+  const aiService = new PythonAIServiceAdapter(config.AI_SERVICE_URL, logger, fetch, {
+    record: (telemetry) => observabilityPlaceholder.telemetry?.record(telemetry) ?? Promise.resolve(),
+  });
   const identity = composeIdentity({
     prisma: database.forRepositoryAdapter(),
     redis: redis.forAdapter(),
@@ -202,6 +207,18 @@ export async function initializeInfrastructure(
     bootstrapEmail: config.PLATFORM_BOOTSTRAP_EMAIL,
   });
 
+  const observability = composeObservability({
+    prisma: database.forRepositoryAdapter(),
+    redis: redis.forAdapter(),
+    eventBus,
+    logger,
+    config,
+    authenticate: identity.authenticate,
+    platformActors: platform.actors,
+    resolveTenantAccess: organizations.resolveTenantAccess,
+  });
+  observabilityPlaceholder.telemetry = observability.telemetry;
+
   const integrations = composeIntegrations({
     prisma: database.forRepositoryAdapter(),
     redis: redis.forAdapter(),
@@ -257,6 +274,7 @@ export async function initializeInfrastructure(
     billing,
     security,
     platform,
+    observability,
     agents,
     conversations,
     knowledge,

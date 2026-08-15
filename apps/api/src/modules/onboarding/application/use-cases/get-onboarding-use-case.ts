@@ -50,6 +50,8 @@ export function aiContext(tenantId: string, security: RequestSecurityContext) {
     tenantId,
     requestId: security.requestId,
     correlationId: security.correlationId ?? security.requestId,
+    traceId: security.traceId,
+    spanId: security.spanId,
   };
 }
 

@@ -32,7 +32,36 @@ export type AICallContext = {
   readonly tenantId: string;
   readonly requestId: string;
   readonly correlationId: string;
+  readonly traceId?: string;
+  readonly spanId?: string;
 };
+
+export type AICallTelemetry = {
+  readonly operation: string;
+  readonly path: string;
+  readonly tenantId: string;
+  readonly requestId: string;
+  readonly correlationId: string;
+  readonly traceId?: string;
+  readonly parentSpanId?: string;
+  readonly latencyMs: number;
+  readonly statusCode: number;
+  readonly ok: boolean;
+  readonly model?: string;
+  readonly promptTokens?: number;
+  readonly completionTokens?: number;
+  readonly evaluationVerdict?: 'passed' | 'degraded' | 'failed';
+  readonly evaluationScore?: number;
+  readonly evaluationReason?: string;
+  readonly inputGuardrail?: string;
+  readonly outputGuardrail?: string;
+  readonly citationCount?: number;
+  readonly errorCode?: string;
+};
+
+export interface AICallTelemetryPort {
+  record(telemetry: AICallTelemetry): Promise<void>;
+}
 
 export type SupportToneGenerationResult = {
   readonly items: readonly SupportTonePresetDto[];

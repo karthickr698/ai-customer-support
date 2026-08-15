@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import type { KnowledgeDocumentKind, KnowledgeDocumentListResponse, OrganizationPermission } from '@ai-customer-support/contracts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -102,18 +102,8 @@ function KnowledgeWorkspace() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10">
       <PageHeader
-        actions={
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <Link to={`/organizations/${organizationId}/onboarding`}>AI setup</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link to={`/organizations/${organizationId}`}>Back to organization</Link>
-            </Button>
-          </div>
-        }
         description="Ingest PDFs, DOCX files, URLs, and articles. Parsing, chunking, and embeddings run in the AI service."
-        title={organization.data?.organization.name ? `${organization.data.organization.name} knowledge` : 'Knowledge'}
+        title="Knowledge"
       />
 
       {canManage ? (

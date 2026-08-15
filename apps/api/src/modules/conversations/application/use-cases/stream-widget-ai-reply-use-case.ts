@@ -113,6 +113,8 @@ export class StreamWidgetAiReplyUseCase {
           tenantId: actor.tenantId,
           requestId: input.security.requestId,
           correlationId: input.security.correlationId ?? input.security.requestId,
+          traceId: input.security.traceId,
+          spanId: input.security.spanId,
         },
         request,
       )) {

@@ -64,6 +64,10 @@ const envSchema = z.object({
   SECURITY_GLOBAL_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
   SECURITY_MAX_REQUEST_BYTES: z.coerce.number().int().positive().default(1_048_576),
   PLATFORM_BOOTSTRAP_EMAIL: z.preprocess(emptyToUndefined, z.string().email().optional()),
+  OBSERVABILITY_ERROR_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
+  OBSERVABILITY_ERROR_RATE_THRESHOLD: z.coerce.number().min(0.01).max(1).default(0.2),
+  OBSERVABILITY_MIN_SAMPLE_SIZE: z.coerce.number().int().positive().default(20),
+  OBSERVABILITY_AI_FAILURE_THRESHOLD: z.coerce.number().int().positive().default(5),
 });
 
 export type AppConfig = Omit<z.infer<typeof envSchema>, 'LOG_LEVEL'> & {

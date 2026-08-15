@@ -82,6 +82,11 @@ model Organization {
   securitySecrets SecuritySecret[]
   securityAuditEvents SecurityAuditEvent[]
   platformFeatureFlagOverrides PlatformFeatureFlagOverride[]
+  observabilityLogs ObservabilityLog[]
+  observabilityTraces ObservabilityTrace[]
+  observabilityMetricBuckets ObservabilityMetricBucket[]
+  observabilityIncidents ObservabilityIncident[]
+  observabilityAiEvaluations ObservabilityAiEvaluation[]
 
   @@map("organizations")
 }
@@ -1438,4 +1443,154 @@ model PlatformOperationalAuditLog {
   @@index([organizationId, occurredAt])
   @@index([outcome, occurredAt])
   @@map("platform_operational_audit_logs")
+}
+
+model ObservabilityLog {
+  id             String   @id @db.Uuid
+  occurredAt     DateTime @map("occurred_at")
+  level          String
+  service        String
+  message        String
+  requestId      String?  @map("request_id")
+  correlationId  String?  @map("correlation_id")
+  traceId        String?  @map("trace_id")
+  organizationId String?  @map("organization_id") @db.Uuid
+  actorId        String?  @map("actor_id") @db.Uuid
+  method         String?
+  path           String?
+  route          String?
+  statusCode     Int?     @map("status_code")
+  latencyMs      Int?     @map("latency_ms")
+  errorCode      String?  @map("error_code")
+  attributes     Json?
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([occurredAt])
+  @@index([organizationId, occurredAt])
+  @@index([traceId, occurredAt])
+  @@index([level, occurredAt])
+  @@index([service, occurredAt])
+  @@index([route, occurredAt])
+  @@map("observability_logs")
+}
+
+model ObservabilityTrace {
+  id             String   @id @db.Uuid
+  correlationId  String?  @map("correlation_id")
+  organizationId String?  @map("organization_id") @db.Uuid
+  name           String
+  service        String
+  status         String
+  startedAt      DateTime @map("started_at")
+  endedAt        DateTime @map("ended_at")
+  durationMs     Int      @map("duration_ms")
+  spanCount      Int      @map("span_count")
+
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  spans        ObservabilitySpan[]
+
+  @@index([startedAt])
+  @@index([organizationId, startedAt])
+  @@index([status, startedAt])
+  @@index([correlationId])
+  @@map("observability_traces")
+}
+
+model ObservabilitySpan {
+  id           String   @id @db.Uuid
+  traceId      String   @map("trace_id") @db.Uuid
+  parentSpanId String?  @map("parent_span_id") @db.Uuid
+  name         String
+  service      String
+  kind         String
+  status       String
+  startedAt    DateTime @map("started_at")
+  endedAt      DateTime @map("ended_at")
+  durationMs   Int      @map("duration_ms")
+  attributes   Json?
+
+  trace ObservabilityTrace @relation(fields: [traceId], references: [id], onDelete: Cascade)
+
+  @@index([traceId, startedAt])
+  @@map("observability_spans")
+}
+
+model ObservabilityMetricBucket {
+  id             String   @id @db.Uuid
+  name           String
+  labelsHash     String   @map("labels_hash")
+  labels         Json
+  bucketStart    DateTime @map("bucket_start")
+  organizationId String?  @map("organization_id") @db.Uuid
+  count          Int
+  sum            Float
+  min            Float
+  max            Float
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([name, labelsHash, bucketStart])
+  @@index([bucketStart])
+  @@index([organizationId, name, bucketStart])
+  @@index([name, bucketStart])
+  @@map("observability_metric_buckets")
+}
+
+model ObservabilityIncident {
+  id              String    @id @db.Uuid
+  fingerprint     String
+  title           String
+  message         String
+  source          String
+  severity        String
+  status          String
+  organizationId  String?   @map("organization_id") @db.Uuid
+  errorCode       String?   @map("error_code")
+  route           String?
+  count           Int
+  firstSeenAt     DateTime  @map("first_seen_at")
+  lastSeenAt      DateTime  @map("last_seen_at")
+  acknowledgedAt  DateTime? @map("acknowledged_at")
+  acknowledgedBy  String?   @map("acknowledged_by") @db.Uuid
+  resolvedAt      DateTime? @map("resolved_at")
+  resolvedBy      String?   @map("resolved_by") @db.Uuid
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([status, lastSeenAt])
+  @@index([organizationId, status, lastSeenAt])
+  @@index([fingerprint, status])
+  @@index([source, lastSeenAt])
+  @@map("observability_incidents")
+}
+
+model ObservabilityAiEvaluation {
+  id              String   @id @db.Uuid
+  occurredAt      DateTime @map("occurred_at")
+  organizationId  String?  @map("organization_id") @db.Uuid
+  correlationId   String?  @map("correlation_id")
+  traceId         String?  @map("trace_id")
+  operation       String
+  model           String?
+  verdict         String
+  score           Float
+  reason          String?
+  latencyMs       Int      @map("latency_ms")
+  promptTokens    Int      @map("prompt_tokens")
+  completionTokens Int     @map("completion_tokens")
+  inputGuardrail  String?  @map("input_guardrail")
+  outputGuardrail String?  @map("output_guardrail")
+  citationCount   Int      @map("citation_count")
+  errorCode       String?  @map("error_code")
+  attributes      Json?
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([occurredAt])
+  @@index([organizationId, occurredAt])
+  @@index([verdict, occurredAt])
+  @@index([operation, occurredAt])
+  @@index([traceId])
+  @@map("observability_ai_evaluations")
 }

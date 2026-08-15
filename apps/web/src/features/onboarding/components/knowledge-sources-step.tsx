@@ -11,6 +11,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { knowledgeSourcePayload, validateKnowledgeSource } from '../validation';
+import { sourceTypeLabel } from '../wizard';
 
 const SOURCE_OPTIONS = KNOWLEDGE_SOURCE_TYPES.map((type) => ({
   value: type,
@@ -170,19 +171,3 @@ export function KnowledgeSourcesStep({
   );
 }
 
-function sourceTypeLabel(type: KnowledgeSourceType): string {
-  switch (type) {
-    case 'help_center':
-      return 'Help center';
-    case 'sitemap':
-      return 'Sitemap';
-    case 'url':
-      return 'URL';
-    case 'text':
-      return 'Text';
-    case 'file':
-      return 'File';
-    default:
-      return type;
-  }
-}

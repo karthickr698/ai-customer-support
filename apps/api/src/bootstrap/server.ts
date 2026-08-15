@@ -64,6 +64,10 @@ export async function buildServer(
     await deps.platform.register(app);
   }
 
+  if (deps.observability) {
+    await deps.observability.register(app);
+  }
+
   if (deps.identity) {
     await deps.identity.register(app);
   }

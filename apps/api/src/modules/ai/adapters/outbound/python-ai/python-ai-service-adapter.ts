@@ -43,6 +43,7 @@ import {
 } from '../../../application/errors.js';
 import type {
   AICallContext,
+  AICallTelemetryPort,
   AIServicePort,
   SupportToneGenerationResult,
 } from '../../../application/ports/ai-service-port.js';
@@ -53,7 +54,7 @@ const SETUP_TIMEOUT_MS = 90_000;
 const INGEST_TIMEOUT_MS = 90_000;
 
 export function pythonAiRequestHeaders(
-  context: Pick<RequestContext, 'requestId' | 'correlationId' | 'tenantId'>,
+  context: Pick<RequestContext, 'requestId' | 'correlationId' | 'tenantId' | 'traceId' | 'spanId'>,
 ): Record<string, string> {
   const headers: Record<string, string> = {
     'x-request-id': context.requestId,
@@ -62,6 +63,12 @@ export function pythonAiRequestHeaders(
 
   if (context.tenantId) {
     headers['x-tenant-id'] = context.tenantId;
+  }
+  if (context.traceId) {
+    headers['x-trace-id'] = context.traceId;
+  }
+  if (context.spanId) {
+    headers['x-parent-span-id'] = context.spanId;
   }
 
   return headers;
@@ -74,6 +81,7 @@ export class PythonAIServiceAdapter implements AIServicePort {
     baseUrl: string,
     private readonly logger: Logger,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly telemetry?: AICallTelemetryPort,
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
   }
@@ -152,11 +160,14 @@ export class PythonAIServiceAdapter implements AIServicePort {
         requestId: context.requestId,
         correlationId: context.correlationId,
         tenantId: context.tenantId,
+        traceId: context.traceId,
+        spanId: context.spanId,
       }),
       Accept: 'text/event-stream',
       'Content-Type': 'application/json',
     };
 
+    const started = Date.now();
     let response: Response;
     try {
       response = await this.fetchImpl(`${this.baseUrl}/v1/support/reply/stream`, {
@@ -171,6 +182,7 @@ export class PythonAIServiceAdapter implements AIServicePort {
         message,
         tenantId: context.tenantId,
       });
+      await this.recordTelemetry(context, '/v1/support/reply/stream', Date.now() - started, 0, false, undefined, 'AI_SERVICE_UNAVAILABLE');
       throw new AIServiceUnavailableError();
     }
 
@@ -179,6 +191,7 @@ export class PythonAIServiceAdapter implements AIServicePort {
         tenantId: context.tenantId,
         status: response.status,
       });
+      await this.recordTelemetry(context, '/v1/support/reply/stream', Date.now() - started, response.status, false, response.headers);
       throw response.status >= 500 ? new AIProviderError() : new InvalidAIPayloadError();
     }
 
@@ -206,6 +219,14 @@ export class PythonAIServiceAdapter implements AIServicePort {
     if (trailing) {
       yield trailing;
     }
+    await this.recordTelemetry(
+      context,
+      '/v1/support/reply/stream',
+      Date.now() - started,
+      response.status,
+      true,
+      response.headers,
+    );
   }
 
   async ingestKnowledgeDocument(
@@ -282,11 +303,14 @@ export class PythonAIServiceAdapter implements AIServicePort {
         requestId: context.requestId,
         correlationId: context.correlationId,
         tenantId: context.tenantId,
+        traceId: context.traceId,
+        spanId: context.spanId,
       }),
       Accept: 'application/json',
       'Content-Type': 'application/json',
     };
 
+    const started = Date.now();
     let response: Response;
     try {
       response = await this.fetchImpl(`${this.baseUrl}${path}`, {
@@ -302,10 +326,20 @@ export class PythonAIServiceAdapter implements AIServicePort {
         tenantId: context.tenantId,
         path,
       });
+      await this.recordTelemetry(
+        context,
+        path,
+        Date.now() - started,
+        0,
+        false,
+        undefined,
+        'AI_SERVICE_UNAVAILABLE',
+      );
       throw new AIServiceUnavailableError();
     }
 
     if (response.status === 429) {
+      await this.recordTelemetry(context, path, Date.now() - started, 429, false, response.headers, 'AI_PROVIDER_ERROR');
       throw new AIProviderError('The AI service rate limit was exceeded');
     }
 
@@ -315,6 +349,15 @@ export class PythonAIServiceAdapter implements AIServicePort {
         path,
         status: response.status,
       });
+      await this.recordTelemetry(
+        context,
+        path,
+        Date.now() - started,
+        response.status,
+        false,
+        response.headers,
+        response.status >= 500 ? 'AI_PROVIDER_ERROR' : 'INVALID_AI_PAYLOAD',
+      );
       if (response.status >= 500) {
         throw new AIProviderError();
       }
@@ -322,10 +365,110 @@ export class PythonAIServiceAdapter implements AIServicePort {
     }
 
     try {
-      return await response.json();
+      const body: unknown = await response.json();
+      await this.recordTelemetry(context, path, Date.now() - started, response.status, true, response.headers);
+      return body;
     } catch {
+      await this.recordTelemetry(
+        context,
+        path,
+        Date.now() - started,
+        response.status,
+        false,
+        response.headers,
+        'INVALID_AI_PAYLOAD',
+      );
       throw new InvalidAIPayloadError('The AI service returned a malformed response');
     }
+  }
+
+  private async recordTelemetry(
+    context: AICallContext,
+    path: string,
+    latencyMs: number,
+    statusCode: number,
+    ok: boolean,
+    headers?: Headers,
+    errorCode?: string,
+  ): Promise<void> {
+    if (!this.telemetry) {
+      return;
+    }
+    const verdict = header(headers, 'x-ai-eval-verdict');
+    await this.telemetry.record({
+      operation: operationFromPath(path),
+      path,
+      tenantId: context.tenantId,
+      requestId: context.requestId,
+      correlationId: context.correlationId,
+      traceId: context.traceId ?? header(headers, 'x-trace-id') ?? context.correlationId,
+      parentSpanId: context.spanId,
+      latencyMs,
+      statusCode,
+      ok,
+      model: header(headers, 'x-ai-model'),
+      promptTokens: headerInt(headers, 'x-ai-prompt-tokens'),
+      completionTokens: headerInt(headers, 'x-ai-completion-tokens'),
+      evaluationVerdict: verdict === 'passed' || verdict === 'degraded' || verdict === 'failed' ? verdict : undefined,
+      evaluationScore: headerFloat(headers, 'x-ai-eval-score'),
+      evaluationReason: header(headers, 'x-ai-eval-reason'),
+      inputGuardrail: header(headers, 'x-ai-guardrail-in'),
+      outputGuardrail: header(headers, 'x-ai-guardrail-out'),
+      citationCount: headerInt(headers, 'x-ai-citations'),
+      errorCode,
+    });
+  }
+}
+
+function header(headers: Headers | undefined, name: string): string | undefined {
+  const value = headers?.get(name);
+  return value && value.length > 0 ? value : undefined;
+}
+
+function headerInt(headers: Headers | undefined, name: string): number | undefined {
+  const value = header(headers, name);
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function headerFloat(headers: Headers | undefined, name: string): number | undefined {
+  const value = header(headers, name);
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function operationFromPath(path: string): string {
+  switch (path) {
+    case '/v1/onboarding/business-profile':
+      return 'generate_business_profile';
+    case '/v1/onboarding/tone-presets':
+      return 'generate_support_tone_presets';
+    case '/v1/onboarding/agent-settings':
+      return 'generate_initial_agent_settings';
+    case '/v1/onboarding/setup':
+      return 'run_onboarding_setup';
+    case '/v1/support/reply/stream':
+      return 'generate_support_reply';
+    case '/v1/knowledge/ingest':
+      return 'ingest_knowledge_document';
+    case '/v1/knowledge/index/delete':
+      return 'delete_indexed_document';
+    case '/v1/orchestration/intent':
+      return 'detect_intent';
+    case '/v1/orchestration/run':
+      return 'orchestrate_support_turn';
+    case '/v1/tools/propose':
+      return 'propose_tool_calls';
+    case '/v1/tools/apply-results':
+      return 'apply_tool_results';
+    default:
+      return path.replace(/^\//, '').replace(/\//g, '_');
   }
 }
 

@@ -26,6 +26,8 @@ export const ORGANIZATION_PERMISSIONS = [
   'billing.manage',
   'security.read',
   'security.manage',
+  'observability.view',
+  'observability.manage',
 ] as const;
 export type OrganizationPermission = (typeof ORGANIZATION_PERMISSIONS)[number];
 

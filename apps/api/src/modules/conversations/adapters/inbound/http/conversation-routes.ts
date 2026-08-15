@@ -364,5 +364,7 @@ function securityContext(request: FastifyRequest): RequestSecurityContext {
     userAgent: typeof userAgentHeader === 'string' ? userAgentHeader : undefined,
     requestId: request.requestContext.requestId,
     correlationId: request.requestContext.correlationId,
+    traceId: request.requestContext.traceId,
+    spanId: request.requestContext.spanId,
   };
 }

@@ -28,7 +28,7 @@ export function OnboardingReadonly({
           <AlertTitle>Setup is in progress</AlertTitle>
           <AlertDescription>
             Your role ({roleLabel}) can view this workspace, but an owner or admin needs to finish AI onboarding
-            before the assistant is ready.
+            before the assistant is ready. The live preview on the right shows whatever has been generated so far.
           </AlertDescription>
         </Alert>
         {canManageKnowledge ? (
@@ -58,7 +58,8 @@ export function OnboardingReadonly({
       <Alert variant="success">
         <AlertTitle>Workspace is ready</AlertTitle>
         <AlertDescription>
-          You are signed in as {roleLabel}. Profile and agent settings are read-only for your role.
+          You are signed in as {roleLabel}. Profile and agent settings are read-only for your role. The live preview
+          shows the current greeting and tone.
         </AlertDescription>
       </Alert>
       <BusinessProfileReview profile={onboarding.businessProfile} />
@@ -68,7 +69,11 @@ export function OnboardingReadonly({
             <CardTitle>Support tone</CardTitle>
             <CardDescription>
               {selected.name}
-              {selected.recommended ? <Badge className="ml-2" variant="secondary">Recommended</Badge> : null}
+              {selected.recommended ? (
+                <Badge className="ml-2" variant="secondary">
+                  Recommended
+                </Badge>
+              ) : null}
             </CardDescription>
           </CardHeader>
           <CardContent>

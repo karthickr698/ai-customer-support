@@ -72,10 +72,10 @@ export function ToneSelector({
               {pending ? (
                 <>
                   <Spinner label="Generating agent settings" />
-                  Generating agent settings…
+                  Generating assistant…
                 </>
               ) : (
-                'Generate agent settings'
+                'Use this tone'
               )}
             </Button>
           ) : null}

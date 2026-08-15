@@ -15,6 +15,7 @@ import type { NotificationsModule } from '../modules/notifications/compose-notif
 import type { BillingModule } from '../modules/billing/compose-billing.js';
 import type { SecurityModule } from '../modules/security/compose-security.js';
 import type { PlatformModule } from '../modules/platform/compose-platform.js';
+import type { ObservabilityModule } from '../modules/observability/compose-observability.js';
 import type { TicketsModule } from '../modules/tickets/compose-tickets.js';
 import type { WidgetModule } from '../modules/widget/compose-widget.js';
 import type { DatabasePort } from '../shared/application/ports/database-port.js';
@@ -41,6 +42,7 @@ export interface AppDependencies {
   readonly billing?: BillingModule;
   readonly security?: SecurityModule;
   readonly platform?: PlatformModule;
+  readonly observability?: ObservabilityModule;
   readonly agents?: AgentsModule;
   readonly conversations?: ConversationsHttpRegistrar;
   readonly knowledge?: KnowledgeModule;

@@ -13,12 +13,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuthStore } from '@/features/identity/auth-store';
 import { RequireAuth } from '@/features/identity/components/require-auth';
-import { validateOrganizationName } from '@/features/onboarding/validation';
 import { useApiMutation, useApiQuery } from '@/hooks/use-api';
 import { ApiError } from '@/services/api-error';
 import { queryKeys } from '@/services/query-keys';
 import { organizationsApi } from '../api';
 import { hasPermission, roleLabel } from '../permissions';
+import { validateOrganizationName } from '../validation';
 
 export function OrganizationsPage() {
   return (
@@ -42,7 +42,7 @@ function OrganizationsWorkspace() {
   const create = useApiMutation({
     mutationFn: organizationsApi.create,
     invalidateKeys: [queryKeys.organizations.all()],
-    successMessage: 'Organization created',
+    successMessage: 'Workspace created',
     onSuccess: (result) => {
       void navigate(`/organizations/${result.organization.id}/onboarding`);
     },
@@ -70,13 +70,13 @@ function OrganizationsWorkspace() {
             Sign out
           </Button>
         }
-        description="Create a workspace or open one you already belong to. Tenant isolation is enforced on the server."
-        title="Organizations"
+        description="Create a workspace or switch into one you already belong to. Tenant isolation is enforced on the server."
+        title="Workspaces"
       />
 
       <Card>
         <CardHeader>
-          <CardTitle>New organization</CardTitle>
+          <CardTitle>New workspace</CardTitle>
           <CardDescription>
             You become the owner and continue into AI onboarding. Invite teammates after the workspace exists.
           </CardDescription>
@@ -97,7 +97,7 @@ function OrganizationsWorkspace() {
             <Button disabled={create.isPending} type="submit">
               {create.isPending ? (
                 <>
-                  <Spinner label="Creating organization" />
+                  <Spinner label="Creating workspace" />
                   Creating…
                 </>
               ) : (
@@ -115,13 +115,13 @@ function OrganizationsWorkspace() {
         </div>
       ) : loadError ? (
         <Alert variant="destructive">
-          <AlertTitle>Could not load organizations</AlertTitle>
+          <AlertTitle>Could not load workspaces</AlertTitle>
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
       ) : items.length === 0 ? (
         <EmptyState
-          description="Create an organization to start inviting your team and configuring the AI assistant."
-          title="No organizations yet"
+          description="Create a workspace to start inviting your team and configuring the AI assistant."
+          title="No workspaces yet"
         />
       ) : (
         <div className="grid gap-3">
@@ -133,14 +133,14 @@ function OrganizationsWorkspace() {
                 key={organization.id}
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <Link className="min-w-0 hover:underline" to={`/organizations/${organization.id}`}>
+                  <Link className="min-w-0 hover:underline" to={`/organizations/${organization.id}/members`}>
                     <p className="font-medium">{organization.name}</p>
                     <p className="text-sm text-muted-foreground">{organization.slug}</p>
                   </Link>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">{roleLabel(organization.membership.role)}</Badge>
                     <Button asChild size="sm" variant="outline">
-                      <Link to={`/organizations/${organization.id}`}>Open</Link>
+                      <Link to={`/organizations/${organization.id}/members`}>Open workspace</Link>
                     </Button>
                     <Button asChild size="sm" variant={canUpdate ? 'default' : 'outline'}>
                       <Link to={`/organizations/${organization.id}/onboarding`}>

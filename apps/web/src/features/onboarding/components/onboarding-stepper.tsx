@@ -6,9 +6,11 @@ import { STEP_LABELS, WIZARD_STEPS, stepIndex, type WizardStep } from '../wizard
 export function OnboardingStepper({
   current,
   completedThrough,
+  onSelect,
 }: {
   readonly current: WizardStep;
   readonly completedThrough?: WizardStep;
+  readonly onSelect?: (step: WizardStep) => void;
 }) {
   const currentIndex = stepIndex(current);
   const unlockedIndex = completedThrough ? Math.max(currentIndex, stepIndex(completedThrough)) : currentIndex;
@@ -17,20 +19,38 @@ export function OnboardingStepper({
   return (
     <div className="space-y-3">
       <Progress aria-label="Onboarding progress" value={percent} />
-      <ol className="grid grid-cols-5 gap-1 text-center text-xs">
+      <ol className="grid grid-cols-3 gap-1 text-center text-xs">
         {WIZARD_STEPS.map((step, index) => {
           const active = step === current;
           const reached = index <= unlockedIndex;
+          const clickable = Boolean(onSelect) && reached && !active;
+
           return (
-            <li
-              className={cn(
-                'truncate font-medium',
-                active ? 'text-foreground' : reached ? 'text-muted-foreground' : 'text-muted-foreground/60',
+            <li key={step}>
+              {clickable ? (
+                <button
+                  className="w-full truncate font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                  onClick={() => {
+                    onSelect?.(step);
+                  }}
+                  type="button"
+                >
+                  {STEP_LABELS[step]}
+                </button>
+              ) : (
+                <span
+                  aria-current={active ? 'step' : undefined}
+                  className={cn(
+                    'block truncate font-medium',
+                    active ? 'text-foreground' : reached ? 'text-muted-foreground' : 'text-muted-foreground/60',
+                  )}
+                >
+                  <span className="sr-only">
+                    {active ? 'Current step: ' : reached ? 'Completed step: ' : 'Upcoming step: '}
+                  </span>
+                  {STEP_LABELS[step]}
+                </span>
               )}
-              key={step}
-            >
-              <span className="sr-only">{active ? 'Current step: ' : reached ? 'Completed step: ' : 'Upcoming step: '}</span>
-              {STEP_LABELS[step]}
             </li>
           );
         })}
@@ -47,10 +67,7 @@ export function StringList({ items, empty = 'None listed' }: { readonly items: r
   return (
     <ul className="flex flex-wrap gap-1.5">
       {items.map((item) => (
-        <li
-          className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
-          key={item}
-        >
+        <li className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground" key={item}>
           {item}
         </li>
       ))}

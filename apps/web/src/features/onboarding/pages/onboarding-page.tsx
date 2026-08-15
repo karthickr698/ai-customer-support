@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuthStore } from '@/features/identity/auth-store';
 import { RequireAuth } from '@/features/identity/components/require-auth';
 import { hasPermission, roleLabel } from '@/features/organizations/permissions';
 import { useTenantScope } from '@/features/organizations/use-tenant-scope';
@@ -19,15 +20,13 @@ import { useApiMutation, useApiQuery } from '@/hooks/use-api';
 import { ApiError } from '@/services/api-error';
 import { queryKeys } from '@/services/query-keys';
 import { onboardingApi } from '../api';
+import { AgentPreview } from '../components/agent-preview';
 import { AgentSettingsReview } from '../components/agent-settings-form';
-import { BusinessBriefForm } from '../components/business-brief-form';
-import { BusinessProfileReview } from '../components/business-profile-review';
-import { KnowledgeSourcesStep } from '../components/knowledge-sources-step';
+import { OnboardingConversation, type WizardPending } from '../components/onboarding-conversation';
 import { OnboardingReadonly } from '../components/onboarding-readonly';
 import { OnboardingStepper } from '../components/onboarding-stepper';
-import { ToneSelector } from '../components/tone-selector';
 import { briefToSetupRequest, knowledgeSourcePayload, type BriefValues } from '../validation';
-import { inferWizardStep, onboardingStatusLabel, type WizardStep } from '../wizard';
+import { inferWizardStep, onboardingStatusLabel, toAgentPreview, type WizardStep } from '../wizard';
 
 export function OnboardingPage() {
   return (
@@ -40,9 +39,12 @@ export function OnboardingPage() {
 function OnboardingWorkspace() {
   const { organizationId = '' } = useParams();
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
   useTenantScope(organizationId);
   const [stepOverride, setStepOverride] = useState<WizardStep>();
   const [selectedToneId, setSelectedToneId] = useState<SupportToneId | null>(null);
+  const [editingBrief, setEditingBrief] = useState(false);
+  const [agentDraft, setAgentDraft] = useState<UpdateAgentSettingsRequest | null>(null);
 
   const organization = useApiQuery<OrganizationResponse>({
     queryKey: queryKeys.organizations.detail(organizationId),
@@ -60,7 +62,7 @@ function OnboardingWorkspace() {
   const canUpdate = hasPermission(permissions, 'organization.update');
   const canManageKnowledge = hasPermission(permissions, 'knowledge.manage');
   const onboarding = onboardingQuery.data?.onboarding;
-  const inferred = onboarding ? inferWizardStep(onboarding) : 'brief';
+  const inferred = onboarding ? inferWizardStep(onboarding) : 'profile';
   const step = stepOverride ?? inferred;
   const toneId = selectedToneId ?? onboarding?.selectedToneId ?? null;
 
@@ -70,6 +72,7 @@ function OnboardingWorkspace() {
     invalidateKeys: [queryKeys.onboarding.detail(organizationId)],
     successMessage: 'Business profile generated',
     onSuccess: () => {
+      setEditingBrief(false);
       setStepOverride('profile');
     },
   });
@@ -78,6 +81,7 @@ function OnboardingWorkspace() {
     invalidateKeys: [queryKeys.onboarding.detail(organizationId)],
     successMessage: 'AI setup generated',
     onSuccess: () => {
+      setEditingBrief(false);
       setStepOverride('knowledge');
     },
   });
@@ -105,7 +109,8 @@ function OnboardingWorkspace() {
     invalidateKeys: [queryKeys.onboarding.detail(organizationId)],
     successMessage: 'Agent settings generated',
     onSuccess: () => {
-      setStepOverride('agent');
+      setAgentDraft(null);
+      setStepOverride((current) => (current === 'profile' ? 'profile' : 'knowledge'));
     },
   });
   const updateAgent = useApiMutation({
@@ -135,10 +140,13 @@ function OnboardingWorkspace() {
 
   if (organization.isPending || onboardingQuery.isPending) {
     return (
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-10">
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-72 w-full" />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
       </main>
     );
   }
@@ -175,22 +183,24 @@ function OnboardingWorkspace() {
     updateAgent,
     addSource,
   ]);
+  const pending: WizardPending = generateProfile.isPending
+    ? 'profile'
+    : runSetup.isPending
+      ? 'setup'
+      : generateTones.isPending
+        ? 'tones'
+        : generateAgent.isPending
+          ? 'agent'
+          : addSource.isPending
+            ? 'source'
+            : false;
+  const preview = toAgentPreview(onboarding, agentDraft, toneId);
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-10">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10">
       <PageHeader
-        actions={
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <Link to={`/organizations/${organizationId}`}>Workspace</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link to={`/organizations/${organizationId}/knowledge`}>Knowledge</Link>
-            </Button>
-          </div>
-        }
-        description={`Signed in as ${roleLabel(org.membership.role)}. AI setup requires an owner or admin; agents can add knowledge sources.`}
-        title={`${org.name} onboarding`}
+        description={`Signed in as ${roleLabel(org.membership.role)}. Owners and admins walk through profile, tone, and knowledge while the agent preview updates live.`}
+        title="AI setup"
       />
 
       <div className="flex items-center gap-2">
@@ -201,131 +211,109 @@ function OnboardingWorkspace() {
       </div>
 
       {!canUpdate ? (
-        <OnboardingReadonly
-          canManageKnowledge={canManageKnowledge}
-          onAddSource={(body) => addSource.mutateAsync(body).then(() => undefined)}
-          onboarding={onboarding}
-          pendingSource={addSource.isPending}
-          roleLabel={roleLabel(org.membership.role)}
-        />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+          <OnboardingReadonly
+            canManageKnowledge={canManageKnowledge}
+            onAddSource={(body) => addSource.mutateAsync(body).then(() => undefined)}
+            onboarding={onboarding}
+            pendingSource={addSource.isPending}
+            roleLabel={roleLabel(org.membership.role)}
+          />
+          <AgentPreview preview={preview} />
+        </div>
       ) : (
         <>
-          <OnboardingStepper completedThrough={inferred} current={step} />
+          <OnboardingStepper
+            completedThrough={inferred}
+            current={step}
+            onSelect={(next) => {
+              setEditingBrief(false);
+              setStepOverride(next);
+            }}
+          />
           {mutationError ? (
             <Alert variant="destructive">
               <AlertTitle>Something went wrong</AlertTitle>
               <AlertDescription>{mutationError}</AlertDescription>
             </Alert>
           ) : null}
-          {step === 'brief' ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Tell us about the business</CardTitle>
-                <CardDescription>
-                  Generate a structured profile first, or run a complete setup that also picks a tone and agent
-                  settings.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <BusinessBriefForm
-                  initial={briefInitial}
-                  onGenerateProfile={(values) => generateProfile.mutateAsync(values).then(() => undefined)}
-                  onRunFullSetup={(values) => runSetup.mutateAsync(values).then(() => undefined)}
-                  pending={generateProfile.isPending ? 'profile' : runSetup.isPending ? 'setup' : false}
-                />
-              </CardContent>
-            </Card>
-          ) : null}
-          {step === 'profile' && onboarding.businessProfile ? (
-            <BusinessProfileReview
-              onBack={() => {
-                setStepOverride('brief');
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+            <OnboardingConversation
+              briefInitial={briefInitial}
+              canManageKnowledge={canManageKnowledge}
+              editingBrief={editingBrief}
+              onAddSource={(body) => addSource.mutateAsync(body).then(() => undefined)}
+              onBackToProfile={() => {
+                setStepOverride('profile');
               }}
-              onContinue={() => {
+              onBackToTone={() => {
+                setStepOverride('tone');
+              }}
+              onContinueFromTone={() => {
+                if (onboarding.agentSettings && onboarding.selectedToneId === toneId) {
+                  setStepOverride('knowledge');
+                  return;
+                }
+                generateAgent.mutate();
+              }}
+              onContinueToTone={() => {
+                if (onboarding.tonePresets.length > 0) {
+                  setStepOverride('tone');
+                  return;
+                }
                 generateTones.mutate();
               }}
-              pending={generateTones.isPending}
-              profile={onboarding.businessProfile}
+              onEditBrief={() => {
+                setEditingBrief(true);
+              }}
+              onFinish={() => {
+                void navigate(`/organizations/${organizationId}/members`);
+              }}
+              onGenerateProfile={(values) => generateProfile.mutateAsync(values).then(() => undefined)}
+              onRunFullSetup={(values) => runSetup.mutateAsync(values).then(() => undefined)}
+              onSelectTone={(tone) => {
+                setSelectedToneId(tone);
+                selectTone.mutate(tone);
+              }}
+              onboarding={onboarding}
+              organizationName={org.name}
+              pending={pending}
+              step={step}
+              toneId={toneId}
+              userName={user?.displayName ?? 'You'}
             />
-          ) : null}
-          {step === 'tone' ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Choose a support tone</CardTitle>
-                <CardDescription>The selected tone shapes greetings and reply style.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {onboarding.tonePresets.length === 0 ? (
-                  <Button disabled={generateTones.isPending} onClick={() => generateTones.mutate()} type="button">
-                    Generate support tones
-                  </Button>
-                ) : (
-                  <ToneSelector
-                    onBack={() => {
-                      setStepOverride('profile');
-                    }}
-                    onChange={(tone) => {
-                      setSelectedToneId(tone);
-                      selectTone.mutate(tone);
-                    }}
-                    onContinue={() => {
-                      generateAgent.mutate();
-                    }}
-                    pending={generateAgent.isPending}
-                    presets={onboarding.tonePresets}
-                    selectedToneId={toneId}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          ) : null}
-          {step === 'agent' && onboarding.agentSettings ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Review agent settings</CardTitle>
-                <CardDescription>Adjust the greeting and guardrails before going live.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AgentSettingsReview
-                  editable
-                  key={onboarding.updatedAt}
-                  onBack={() => {
-                    setStepOverride('tone');
-                  }}
-                  onContinue={() => {
-                    setStepOverride('knowledge');
-                  }}
-                  onSave={(patch) => updateAgent.mutateAsync(patch).then(() => undefined)}
-                  pending={updateAgent.isPending}
-                  settings={onboarding.agentSettings}
-                />
-              </CardContent>
-            </Card>
-          ) : null}
-          {step === 'knowledge' ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Knowledge sources</CardTitle>
-                <CardDescription>
-                  Optional. Register help content the assistant can retrieve. You can also do this later.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <KnowledgeSourcesStep
-                  canManage={canManageKnowledge}
-                  onAdd={(body) => addSource.mutateAsync(body).then(() => undefined)}
-                  onBack={() => {
-                    setStepOverride(onboarding.agentSettings ? 'agent' : 'brief');
-                  }}
-                  onFinish={() => {
-                    void navigate(`/organizations/${organizationId}`);
-                  }}
-                  pending={addSource.isPending}
-                  sources={onboarding.knowledgeSources}
-                />
-              </CardContent>
-            </Card>
-          ) : null}
+            <aside className="space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
+              <AgentPreview generating={pending === 'agent' || pending === 'setup'} preview={preview} />
+              {onboarding.agentSettings ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Edit agent settings</CardTitle>
+                    <CardDescription>Changes show in the preview immediately. Save to keep them.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Button
+                      disabled={generateAgent.isPending}
+                      onClick={() => {
+                        generateAgent.mutate();
+                      }}
+                      type="button"
+                      variant="outline"
+                    >
+                      {generateAgent.isPending ? 'Regenerating…' : 'Regenerate from current tone'}
+                    </Button>
+                    <AgentSettingsReview
+                      editable
+                      key={onboarding.agentSettings.systemInstructions}
+                      onDraftChange={setAgentDraft}
+                      onSave={(patch) => updateAgent.mutateAsync(patch).then(() => undefined)}
+                      pending={updateAgent.isPending}
+                      settings={onboarding.agentSettings}
+                    />
+                  </CardContent>
+                </Card>
+              ) : null}
+            </aside>
+          </div>
         </>
       )}
     </main>

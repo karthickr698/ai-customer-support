@@ -10,6 +10,8 @@ export const PlatformPermissions = {
   FEATURE_FLAGS_MANAGE: 'platform.feature_flags.manage',
   HEALTH_READ: 'platform.health.read',
   AUDIT_VIEW: 'platform.audit.view',
+  OBSERVABILITY_READ: 'platform.observability.read',
+  OBSERVABILITY_MANAGE: 'platform.observability.manage',
 } as const satisfies Record<string, PlatformPermission>;
 
 const ALL_PERMISSIONS: readonly PlatformPermission[] = Object.values(PlatformPermissions);
@@ -24,6 +26,8 @@ export const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, readonly PlatformPe
     PlatformPermissions.FEATURE_FLAGS_READ,
     PlatformPermissions.HEALTH_READ,
     PlatformPermissions.AUDIT_VIEW,
+    PlatformPermissions.OBSERVABILITY_READ,
+    PlatformPermissions.OBSERVABILITY_MANAGE,
   ],
   auditor: [
     PlatformPermissions.OPERATORS_READ,
@@ -31,6 +35,7 @@ export const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, readonly PlatformPe
     PlatformPermissions.FEATURE_FLAGS_READ,
     PlatformPermissions.HEALTH_READ,
     PlatformPermissions.AUDIT_VIEW,
+    PlatformPermissions.OBSERVABILITY_READ,
   ],
 };
 

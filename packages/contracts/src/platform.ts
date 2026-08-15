@@ -15,6 +15,8 @@ export const PLATFORM_PERMISSIONS = [
   'platform.feature_flags.manage',
   'platform.health.read',
   'platform.audit.view',
+  'platform.observability.read',
+  'platform.observability.manage',
 ] as const;
 export type PlatformPermission = (typeof PLATFORM_PERMISSIONS)[number];
 

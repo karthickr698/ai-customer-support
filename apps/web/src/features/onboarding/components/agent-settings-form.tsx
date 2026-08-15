@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import type { AgentSettingsDto, UpdateAgentSettingsRequest } from '@ai-customer-support/contracts';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
@@ -26,6 +26,7 @@ export function AgentSettingsReview({
   editable,
   pending,
   onSave,
+  onDraftChange,
   onBack,
   onContinue,
 }: {
@@ -33,6 +34,7 @@ export function AgentSettingsReview({
   readonly editable: boolean;
   readonly pending?: boolean;
   readonly onSave?: (patch: UpdateAgentSettingsRequest) => Promise<void>;
+  readonly onDraftChange?: (patch: UpdateAgentSettingsRequest) => void;
   readonly onBack?: () => void;
   readonly onContinue?: () => void;
 }) {
@@ -48,6 +50,42 @@ export function AgentSettingsReview({
   const [collectContactInfo, setCollectContactInfo] = useState(settings.collectContactInfo);
   const [handoffToHuman, setHandoffToHuman] = useState(settings.handoffToHuman);
   const [turnsError, setTurnsError] = useState<string>();
+  const onDraftChangeRef = useRef(onDraftChange);
+  onDraftChangeRef.current = onDraftChange;
+
+  useEffect(() => {
+    if (!editable) {
+      return;
+    }
+    const turns = Number.parseInt(maxAutonomyTurns, 10);
+    onDraftChangeRef.current?.({
+      assistantName,
+      greeting,
+      signature: signature.trim().length > 0 ? signature.trim() : null,
+      language,
+      systemInstructions,
+      allowedTopics: splitList(allowedTopics),
+      forbiddenTopics: splitList(forbiddenTopics),
+      escalateWhen: splitList(escalateWhen),
+      maxAutonomyTurns: Number.isInteger(turns) ? turns : settings.maxAutonomyTurns,
+      collectContactInfo,
+      handoffToHuman,
+    });
+  }, [
+    allowedTopics,
+    assistantName,
+    collectContactInfo,
+    editable,
+    escalateWhen,
+    forbiddenTopics,
+    greeting,
+    handoffToHuman,
+    language,
+    maxAutonomyTurns,
+    settings.maxAutonomyTurns,
+    signature,
+    systemInstructions,
+  ]);
 
   if (!editable) {
     return (
@@ -174,7 +212,7 @@ export function AgentSettingsReview({
         </Button>
         {onContinue ? (
           <Button onClick={onContinue} type="button" variant="secondary">
-            Continue
+            Continue to knowledge
           </Button>
         ) : null}
       </div>

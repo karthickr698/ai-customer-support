@@ -21,6 +21,8 @@ export class ProposeToolCallsUseCase {
     readonly actorId: string;
     readonly requestId: string;
     readonly correlationId: string;
+    readonly traceId?: string;
+    readonly spanId?: string;
     readonly body: ProposeToolCallsRequest;
   }): Promise<ProposeToolCallsResponse> {
     const actor = await this.tenantAccess.loadActor(input.tenantId, input.actorId);
@@ -45,6 +47,8 @@ export class ApplyToolResultsUseCase {
     readonly actorId: string;
     readonly requestId: string;
     readonly correlationId: string;
+    readonly traceId?: string;
+    readonly spanId?: string;
     readonly body: ApplyToolResultsRequest;
   }): Promise<ApplyToolResultsResponse> {
     const actor = await this.tenantAccess.loadActor(input.tenantId, input.actorId);
@@ -55,11 +59,13 @@ export class ApplyToolResultsUseCase {
 
 function aiContext(
   tenantId: string,
-  input: { requestId: string; correlationId: string },
+  input: { requestId: string; correlationId: string; traceId?: string; spanId?: string },
 ): AICallContext {
   return {
     tenantId,
     requestId: input.requestId,
     correlationId: input.correlationId,
+    traceId: input.traceId,
+    spanId: input.spanId,
   };
 }

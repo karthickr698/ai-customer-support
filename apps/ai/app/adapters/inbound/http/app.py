@@ -7,6 +7,7 @@ from app.adapters.inbound.http.errors import register_exception_handlers
 from app.adapters.inbound.http.health import router as health_router
 from app.adapters.inbound.http.ingestion import router as ingestion_router
 from app.adapters.inbound.http.middleware import RequestContextMiddleware
+from app.adapters.inbound.http.observability_middleware import ObservabilityMiddleware
 from app.adapters.inbound.http.onboarding import router as onboarding_router
 from app.adapters.inbound.http.orchestration import router as orchestration_router
 from app.adapters.inbound.http.support import router as support_router
@@ -78,6 +79,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     _wire_onboarding(application, resolved)
     _wire_ingestion(application, resolved)
     _wire_orchestration(application, resolved)
+    application.add_middleware(ObservabilityMiddleware)
     application.add_middleware(RequestContextMiddleware)
     register_exception_handlers(application)
     application.include_router(health_router)

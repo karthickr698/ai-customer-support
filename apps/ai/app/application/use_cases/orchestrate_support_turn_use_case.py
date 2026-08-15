@@ -7,7 +7,7 @@ from app.application.use_cases.retrieve_knowledge_use_case import (
     RetrieveKnowledgeUseCase,
     RetrievalResult,
 )
-from app.domain.errors import AIError, InvalidOrchestrationInputError, TenantContextRequiredError
+from app.evaluation import record_evaluation, score_evaluation
 from app.domain.onboarding import require_tenant_id
 from app.domain.orchestration import (
     GuardrailVerdict,
@@ -240,7 +240,7 @@ class OrchestrateSupportTurnUseCase:
         output_guardrail: GuardrailVerdict,
     ) -> OrchestrationResult:
         del command
-        return OrchestrationResult(
+        result = OrchestrationResult(
             intent=intent,
             intent_confidence=intent_confidence,
             route=route_name,
@@ -256,3 +256,16 @@ class OrchestrateSupportTurnUseCase:
             input_guardrail=input_guardrail,
             output_guardrail=output_guardrail,
         )
+        record_evaluation(
+            score_evaluation(
+                operation="orchestrate_support_turn",
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                citation_count=len(citations),
+                input_guardrail=input_guardrail,
+                output_guardrail=output_guardrail,
+                used_fallback=used_fallback,
+                model=model,
+            )
+        )
+        return result

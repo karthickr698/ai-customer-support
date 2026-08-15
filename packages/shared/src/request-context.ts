@@ -3,4 +3,6 @@ export interface RequestContext {
   readonly correlationId: string;
   readonly tenantId?: string;
   readonly actorId?: string;
+  readonly traceId?: string;
+  readonly spanId?: string;
 }

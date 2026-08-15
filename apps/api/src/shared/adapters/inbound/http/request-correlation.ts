@@ -9,18 +9,25 @@ export function registerRequestCorrelation(app: FastifyInstance): void {
         ? correlationHeader
         : requestId;
 
+    const traceHeader = request.headers['x-trace-id'];
+    const traceId =
+      typeof traceHeader === 'string' && traceHeader.length > 0 ? traceHeader : correlationId;
+
     // tenantId and actorId are set by authentication, not by client headers.
     request.requestContext = {
       requestId,
       correlationId,
+      traceId,
     };
 
     request.log = request.log.child({
       requestId,
       correlationId,
+      traceId,
     });
 
     reply.header('x-request-id', requestId);
     reply.header('x-correlation-id', correlationId);
+    reply.header('x-trace-id', traceId);
   });
 }

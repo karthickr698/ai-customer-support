@@ -39,6 +39,8 @@ _STANDARD_RECORD_ATTRS = frozenset(
         "request_id",
         "correlation_id",
         "tenant_id",
+        "trace_id",
+        "span_id",
     }
 )
 
@@ -49,6 +51,8 @@ class RequestContextFilter(logging.Filter):
         record.request_id = context.request_id if context else "-"
         record.correlation_id = context.correlation_id if context else "-"
         record.tenant_id = context.tenant_id if context and context.tenant_id else "-"
+        record.trace_id = context.trace_id if context and context.trace_id else "-"
+        record.span_id = context.span_id if context and context.span_id else "-"
         return True
 
 
@@ -72,6 +76,12 @@ class JsonFormatter(logging.Formatter):
             payload["correlationId"] = correlation_id
         if tenant_id and tenant_id != "-":
             payload["tenantId"] = tenant_id
+        trace_id = getattr(record, "trace_id", "-")
+        span_id = getattr(record, "span_id", "-")
+        if trace_id and trace_id != "-":
+            payload["traceId"] = trace_id
+        if span_id and span_id != "-":
+            payload["spanId"] = span_id
 
         for key, value in record.__dict__.items():
             if key in _STANDARD_RECORD_ATTRS or key.startswith("_"):

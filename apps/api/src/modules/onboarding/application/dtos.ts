@@ -6,6 +6,8 @@ export type RequestSecurityContext = {
   readonly userAgent?: string;
   readonly requestId: string;
   readonly correlationId?: string;
+  readonly traceId?: string;
+  readonly spanId?: string;
 };
 
 export function toOnboardingDto(

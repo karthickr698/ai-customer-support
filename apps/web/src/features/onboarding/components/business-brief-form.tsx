@@ -107,7 +107,7 @@ export function BusinessBriefForm({
       </Field>
       <Field
         error={fieldErrors.description}
-        hint="Products, customers, and how you support them. Required."
+        hint="Products, customers, and how you support them. I use this to draft the assistant."
         id="description"
         label="Business description"
         required
@@ -174,7 +174,7 @@ export function BusinessBriefForm({
               Generating complete setup…
             </>
           ) : (
-            'Generate complete setup'
+            'Skip ahead: generate complete setup'
           )}
         </Button>
       </div>

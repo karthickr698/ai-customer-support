@@ -52,6 +52,7 @@ import {
 export type PlatformModule = {
   register(app: FastifyInstance): Promise<void>;
   start(): Promise<void>;
+  readonly actors: LoadPlatformActorService;
 };
 
 export function composePlatform(input: {
@@ -86,6 +87,7 @@ export function composePlatform(input: {
   );
 
   return {
+    actors,
     async register(app: FastifyInstance): Promise<void> {
       await registerPlatformRoutes(
         app,

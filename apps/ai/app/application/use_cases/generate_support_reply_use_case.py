@@ -13,6 +13,7 @@ from app.application.use_cases.retrieve_knowledge_use_case import (
     RetrievalResult,
 )
 from app.domain.errors import AIError, InvalidAIOutputError, TenantContextRequiredError
+from app.evaluation import record_evaluation, score_evaluation
 from app.domain.onboarding import require_tenant_id
 from app.domain.orchestration import BLOCKED_INPUT_REPLY, SupportChatMessage
 from app.domain.retrieval import Citation, RetrievalFilter
@@ -195,6 +196,15 @@ class GenerateSupportReplyUseCase:
                         "citationCount": len(citations),
                     },
                 )
+                record_evaluation(
+                    score_evaluation(
+                        operation="generate_support_reply",
+                        prompt_tokens=chunk.result.prompt_tokens,
+                        completion_tokens=chunk.result.completion_tokens,
+                        citation_count=len(citations),
+                        model=chunk.result.model,
+                    )
+                )
                 yield SupportReplyStreamChunk(
                     delta="",
                     done=True,
@@ -209,6 +219,13 @@ class GenerateSupportReplyUseCase:
 
     async def _blocked_stream(self, reason: str) -> AsyncIterator[SupportReplyStreamChunk]:
         del reason
+        record_evaluation(
+            score_evaluation(
+                operation="generate_support_reply",
+                input_guardrail="blocked",
+                model="guardrail",
+            )
+        )
         yield SupportReplyStreamChunk(delta=BLOCKED_INPUT_REPLY)
         yield SupportReplyStreamChunk(
             delta="",

@@ -126,6 +126,8 @@ export async function registerIntegrationRoutes(
         actorId: requireUserId(request),
         requestId: request.requestContext.requestId,
         correlationId: request.requestContext.correlationId,
+        traceId: request.requestContext.traceId,
+        spanId: request.requestContext.spanId,
         body,
       });
       return reply.status(200).send(result);
@@ -142,6 +144,8 @@ export async function registerIntegrationRoutes(
         actorId: requireUserId(request),
         requestId: request.requestContext.requestId,
         correlationId: request.requestContext.correlationId,
+        traceId: request.requestContext.traceId,
+        spanId: request.requestContext.spanId,
         body,
       });
       return reply.status(200).send(result);

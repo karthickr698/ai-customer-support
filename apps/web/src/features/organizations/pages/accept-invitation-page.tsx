@@ -48,7 +48,7 @@ export function AcceptInvitationPage() {
     const destination =
       role === 'owner' || role === 'admin'
         ? `/organizations/${acceptedId}/onboarding`
-        : `/organizations/${acceptedId}`;
+        : `/organizations/${acceptedId}/members`;
     return <Navigate replace to={destination} />;
   }
 
