@@ -4,4 +4,5 @@ export function initializeApplication(deps: AppDependencies): void {
   deps.agents?.start();
   deps.conversations?.start();
   deps.tickets?.start();
+  deps.automations?.start();
 }

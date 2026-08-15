@@ -10,6 +10,7 @@ export async function shutdown(
 
   deps.agents?.stop();
   deps.tickets?.stop();
+  deps.automations?.stop();
   if (deps.conversations) {
     await deps.conversations.stop();
   }

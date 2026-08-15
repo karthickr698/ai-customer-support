@@ -9,6 +9,8 @@ import type { KnowledgeModule } from '../modules/knowledge/compose-knowledge.js'
 import type { OnboardingModule } from '../modules/onboarding/compose-onboarding.js';
 import type { OrganizationsHttpRegistrar } from '../modules/organizations/compose-organizations.js';
 import type { IntegrationsModule } from '../modules/integrations/compose-integrations.js';
+import type { AutomationsModule } from '../modules/automations/compose-automations.js';
+import type { AnalyticsModule } from '../modules/analytics/compose-analytics.js';
 import type { TicketsModule } from '../modules/tickets/compose-tickets.js';
 import type { WidgetModule } from '../modules/widget/compose-widget.js';
 import type { DatabasePort } from '../shared/application/ports/database-port.js';
@@ -29,6 +31,8 @@ export interface AppDependencies {
   readonly organizations?: OrganizationsHttpRegistrar;
   readonly customers?: CustomersModule;
   readonly tickets?: TicketsModule;
+  readonly automations?: AutomationsModule;
+  readonly analytics?: AnalyticsModule;
   readonly agents?: AgentsModule;
   readonly conversations?: ConversationsHttpRegistrar;
   readonly knowledge?: KnowledgeModule;

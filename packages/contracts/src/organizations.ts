@@ -18,6 +18,8 @@ export const ORGANIZATION_PERMISSIONS = [
   'knowledge.manage',
   'analytics.view',
   'integration.manage',
+  'automation.read',
+  'automation.manage',
 ] as const;
 export type OrganizationPermission = (typeof ORGANIZATION_PERMISSIONS)[number];
 

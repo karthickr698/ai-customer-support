@@ -8,6 +8,8 @@ import { composeKnowledge } from '../modules/knowledge/compose-knowledge.js';
 import { composeOnboarding } from '../modules/onboarding/compose-onboarding.js';
 import { composeCustomers } from '../modules/customers/compose-customers.js';
 import { composeTickets } from '../modules/tickets/compose-tickets.js';
+import { composeAutomations } from '../modules/automations/compose-automations.js';
+import { composeAnalytics } from '../modules/analytics/compose-analytics.js';
 import { composeIdentity } from '../modules/identity/compose-identity.js';
 import { composeOrganizations } from '../modules/organizations/compose-organizations.js';
 import { composeIntegrations } from '../modules/integrations/compose-integrations.js';
@@ -123,6 +125,23 @@ export async function initializeInfrastructure(
     attachmentStorageDir: config.ATTACHMENT_STORAGE_DIR,
   });
 
+  const automations = composeAutomations({
+    prisma: database.forRepositoryAdapter(),
+    eventBus,
+    queue,
+    logger,
+    authenticate: identity.authenticate,
+    resolveTenantAccess: organizations.resolveTenantAccess,
+    allowLocalHttp: config.NODE_ENV !== 'production',
+  });
+
+  const analytics = composeAnalytics({
+    prisma: database.forRepositoryAdapter(),
+    eventBus,
+    authenticate: identity.authenticate,
+    resolveTenantAccess: organizations.resolveTenantAccess,
+  });
+
   const integrations = composeIntegrations({
     prisma: database.forRepositoryAdapter(),
     redis: redis.forAdapter(),
@@ -171,6 +190,8 @@ export async function initializeInfrastructure(
     organizations,
     customers,
     tickets,
+    automations,
+    analytics,
     agents,
     conversations,
     knowledge,

@@ -1,2 +1,2 @@
-/** Public surface of the analytics module. Feature commands add use cases and adapters here. */
-export {};
+export type { AnalyticsModule } from './compose-analytics.js';
+export { composeAnalytics } from './compose-analytics.js';

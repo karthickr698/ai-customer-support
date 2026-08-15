@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "c4e8d2b1-7a91-4f3e-8c5a-ai-customer-support",
     "name": "AI Customer Support API",
-    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support \u2014 Local** environment.\n3. Keep cookies enabled (Postman \u2192 Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in \u2192 open `googleAuthorizationUrl` in a browser \u2192 after redirect, put the `code` query value into `googleLoginCode` \u2192 Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate \u2014 copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign / assign available, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\n**Tickets**\nTenant routes under `/api/organizations/:organizationId/tickets`, `/ticket-sla-policies`, and `/ticket-escalation-policies`. Requires `ticket.manage` (agent+).\n1. Create a conversation, then Create ticket (optional `conversationId`; saves `ticketId`). SLA due dates apply from a matching policy or defaults.\n2. Assign / unassign / assign available, change status (`open` \u2192 `pending` | `resolved` | `closed` | `escalated`), escalate (bumps priority).\n3. Add notes and upload attachments (form-data `file`).\n4. SLA policies: one per priority (`any`/`low`/`normal`/`high`/`urgent`). Escalation policies fire on overdue first response, overdue resolution, or unassigned time.\n5. Evaluate now with `POST .../ticket-escalation-policies/evaluate` (also runs every 30s).\nAI conversations: escalating a conversation (including widget/AI) opens a ticket if none is open. Tools `createTicket` / `updateTicket` persist through TypeScript (`POST .../tools/calls`).\n\n**Customers / commerce lookup**\nTenant routes under `/api/organizations/:organizationId/customers`, `/products`, `/orders`, `/shipments`, and `/returns`. Writes require `customer.manage` (admin+). Reads and AI lookup tools require `customer.read` (viewer+). Every query includes the organization id \u2014 records never leak across tenants. Register a customer, then product, order, shipment, and return. AI tools `getCustomerDetails`, `getProductDetails`, `getOrderDetails`, `getShipmentDetails`, and `getReturnDetails` are executed by TypeScript (`POST .../tools/calls`).\n\n**Realtime, presence, and escalation rules**\nWebSocket: `GET {{wsUrl}}/api/organizations/:organizationId/realtime?lastEventId=&access_token=` (session cookie or `access_token` query). On connect the server sends `connected`, missed `event`s, and `presence.snapshot`. Client messages: `heartbeat`, `resume`, `presence.set`, `subscribe` / `unsubscribe`.\nHTTP catch-up: `GET .../realtime/events?after=`.\nPresence: list/set/heartbeat under `/agents/presence`.\nEscalation rules: CRUD + `POST .../evaluate`. Assign available picks an online owner/admin/agent (round-robin).\n\n**Onboarding / knowledge**\nTenant routes under `/api/organizations/:organizationId/onboarding`, `/knowledge/sources`, and `/knowledge/documents`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Run onboarding setup (saves profile, tones, agent settings; optional knowledge sources)\n2. Or step through Generate business profile \u2192 Generate tone presets \u2192 Select tone \u2192 Generate agent settings\n3. Register extra knowledge sources (URL, help center, sitemap, text, file)\n4. Add documents: article/URL JSON, or upload PDF/DOCX \u2014 TypeScript owns lifecycle; Python indexes for RAG\n5. List documents, reindex, or delete (delete also drops vector index entries)\nPermissions: `organization.update` for LLM setup (admin+), `knowledge.manage` to register sources and documents (agent+), `organization.read` to view.\n\n**Python AI service**\nFolder `Python AI service` calls `apps/ai` directly (`{{aiServiceUrl}}`, default http://localhost:8000) for local RAG/onboarding debugging. Production clients use the TypeScript API only.\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` \u2192 `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.\n\n**Widget**\nStaff: `GET/PATCH /api/organizations/:organizationId/widget` and `POST .../rotate-key` (session cookies + `x-tenant-id`). Public embed: `GET /api/widget/:publicKey/config`, then `POST /api/widget/:publicKey/sessions` (anonymous or email/name). Send `sessionToken` as `Authorization: Bearer` on `/api/widget/sessions/*` and `/api/widget/conversations*`.\n1. Get widget configuration (saves `widgetPublicKey`)\n2. Create anonymous session (saves `widgetSessionToken`) or Create customer session\n3. Start widget conversation (saves `widgetConversationId`)\n4. Send message, or stream AI reply (`text/event-stream`)\n5. Upload attachment (form-data `file`) then send `attachmentIds`\nTenant isolation: sessions, conversations, attachments, and AI calls are scoped to the organization behind the public key. Allowed origins are enforced when configured.\n\n**Tools and integrations**\nPython proposes allowlisted tool calls (`POST .../tools/propose`); TypeScript schema-validates, authorizes, executes, and audits (`POST .../tools/calls`). Tenant credentials and OAuth connectors are encrypted per organization. Mutating tools never run in Python. Permission: `integration.manage` (admin+) for secrets.\n\n**Public API v1**\nVersioned REST at `/api/v1` (OpenAPI `/api/v1/openapi.json`, docs `/api/v1/docs`). Create API keys, HMAC-signed webhooks, inbound OAuth apps, and inspect the connector catalog. Programmatic auth: `Authorization: Bearer acs_live_\u2026` or `X-API-Key`. Existing dashboard routes remain under `/api`.",
+    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support — Local** environment.\n3. Keep cookies enabled (Postman → Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in → open `googleAuthorizationUrl` in a browser → after redirect, put the `code` query value into `googleLoginCode` → Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate — copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign / assign available, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\n**Tickets**\nTenant routes under `/api/organizations/:organizationId/tickets`, `/ticket-sla-policies`, and `/ticket-escalation-policies`. Requires `ticket.manage` (agent+).\n1. Create a conversation, then Create ticket (optional `conversationId`; saves `ticketId`). SLA due dates apply from a matching policy or defaults.\n2. Assign / unassign / assign available, change status (`open` → `pending` | `resolved` | `closed` | `escalated`), escalate (bumps priority).\n3. Add notes and upload attachments (form-data `file`).\n4. SLA policies: one per priority (`any`/`low`/`normal`/`high`/`urgent`). Escalation policies fire on overdue first response, overdue resolution, or unassigned time.\n5. Evaluate now with `POST .../ticket-escalation-policies/evaluate` (also runs every 30s).\nAI conversations: escalating a conversation (including widget/AI) opens a ticket if none is open. Tools `createTicket` / `updateTicket` persist through TypeScript (`POST .../tools/calls`).\n\n**Automations**\nTenant routes under `/api/organizations/:organizationId/automations`, `/automation-jobs`, and `/automation-logs`. Manage requires `automation.manage` (admin+); list/get requires `automation.read` (agent+).\n1. Create an event rule (`TicketCreated` + conditions) or a schedule (`every:{n}m`, `hourly:{mm}`, `daily:{HH:MM}`, `weekly:{0-6}:{HH:MM}` UTC).\n2. Matching domain events enqueue idempotent jobs (`evt:{tenant}:{rule}:{eventId}`). Schedules enqueue `sch:{tenant}:{rule}:{slot}`.\n3. The worker executes `record`, `http_request`, or `emit_event` with retries and exponential backoff. Duplicate idempotency keys are no-ops.\n4. Inspect jobs and execution logs, retry `dead`/`skipped` jobs, or `POST .../automations/dispatch` to run due work now (also every 5s).\n5. `POST .../automations/:ruleId/run` with `idempotencyKey` for a manual, idempotent enqueue.\n\n**Analytics**\nTenant routes under `/api/organizations/:organizationId/analytics`. Requires `analytics.view` (viewer+, and agents). All queries are organization-scoped and run SQL aggregations (`COUNT`/`AVG`/`date_trunc`) over indexed `created_at` / `resolved_at` columns — never load full row sets.\n1. Overview KPIs (`GET .../overview`): conversations, tickets, SLA, messages, customers, knowledge, widget sessions. Optional `from`, `to` (ISO-8601, default last 30 days, max 366), `granularity`, `channel`, `status`, `assignedAgentId`.\n2. Time series (`GET .../timeseries`): `metrics` comma list (`conversations.created`, `tickets.created`, `messages.ai`, …) and `granularity` `hour` (max 14 days) / `day` / `week` / `month`. Missing buckets are filled with 0 (UTC).\n3. Reports: `GET .../conversations`, `/tickets`, `/agents`, `/customers`.\n4. CSV export: `GET .../exports/:report` where report is `overview` | `timeseries` | `conversations` | `tickets` | `agents` | `customers`. Returns `text/csv` with `Content-Disposition: attachment`.\n\n**Customers / commerce lookup**\nTenant routes under `/api/organizations/:organizationId/customers`, `/products`, `/orders`, `/shipments`, and `/returns`. Writes require `customer.manage` (admin+). Reads and AI lookup tools require `customer.read` (viewer+). Every query includes the organization id — records never leak across tenants. Register a customer, then product, order, shipment, and return. AI tools `getCustomerDetails`, `getProductDetails`, `getOrderDetails`, `getShipmentDetails`, and `getReturnDetails` are executed by TypeScript (`POST .../tools/calls`).\n\n**Realtime, presence, and escalation rules**\nWebSocket: `GET {{wsUrl}}/api/organizations/:organizationId/realtime?lastEventId=&access_token=` (session cookie or `access_token` query). On connect the server sends `connected`, missed `event`s, and `presence.snapshot`. Client messages: `heartbeat`, `resume`, `presence.set`, `subscribe` / `unsubscribe`.\nHTTP catch-up: `GET .../realtime/events?after=`.\nPresence: list/set/heartbeat under `/agents/presence`.\nEscalation rules: CRUD + `POST .../evaluate`. Assign available picks an online owner/admin/agent (round-robin).\n\n**Onboarding / knowledge**\nTenant routes under `/api/organizations/:organizationId/onboarding`, `/knowledge/sources`, and `/knowledge/documents`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Run onboarding setup (saves profile, tones, agent settings; optional knowledge sources)\n2. Or step through Generate business profile → Generate tone presets → Select tone → Generate agent settings\n3. Register extra knowledge sources (URL, help center, sitemap, text, file)\n4. Add documents: article/URL JSON, or upload PDF/DOCX — TypeScript owns lifecycle; Python indexes for RAG\n5. List documents, reindex, or delete (delete also drops vector index entries)\nPermissions: `organization.update` for LLM setup (admin+), `knowledge.manage` to register sources and documents (agent+), `organization.read` to view.\n\n**Python AI service**\nFolder `Python AI service` calls `apps/ai` directly (`{{aiServiceUrl}}`, default http://localhost:8000) for local RAG/onboarding debugging. Production clients use the TypeScript API only.\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` → `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.\n\n**Widget**\nStaff: `GET/PATCH /api/organizations/:organizationId/widget` and `POST .../rotate-key` (session cookies + `x-tenant-id`). Public embed: `GET /api/widget/:publicKey/config`, then `POST /api/widget/:publicKey/sessions` (anonymous or email/name). Send `sessionToken` as `Authorization: Bearer` on `/api/widget/sessions/*` and `/api/widget/conversations*`.\n1. Get widget configuration (saves `widgetPublicKey`)\n2. Create anonymous session (saves `widgetSessionToken`) or Create customer session\n3. Start widget conversation (saves `widgetConversationId`)\n4. Send message, or stream AI reply (`text/event-stream`)\n5. Upload attachment (form-data `file`) then send `attachmentIds`\nTenant isolation: sessions, conversations, attachments, and AI calls are scoped to the organization behind the public key. Allowed origins are enforced when configured.\n\n**Tools and integrations**\nPython proposes allowlisted tool calls (`POST .../tools/propose`); TypeScript schema-validates, authorizes, executes, and audits (`POST .../tools/calls`). Tenant credentials and OAuth connectors are encrypted per organization. Mutating tools never run in Python. Permission: `integration.manage` (admin+) for secrets.\n\n**Public API v1**\nVersioned REST at `/api/v1` (OpenAPI `/api/v1/openapi.json`, docs `/api/v1/docs`). Create API keys, HMAC-signed webhooks, inbound OAuth apps, and inspect the connector catalog. Programmatic auth: `Authorization: Bearer acs_live_…` or `X-API-Key`. Existing dashboard routes remain under `/api`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -352,7 +352,7 @@
                   "raw": "{\n  \"email\": \"{{email}}\"\n}"
                 },
                 "url": "{{baseUrl}}/api/auth/password/forgot",
-                "description": "Requests a password reset email. Always returns a generic success message. In development the reset URL is logged by the console email adapter \u2014 copy `?token=` into `resetToken`."
+                "description": "Requests a password reset email. Always returns a generic success message. In development the reset URL is logged by the console email adapter — copy `?token=` into `resetToken`."
               },
               "event": [
                 {
@@ -633,7 +633,7 @@
                   "raw": "{\n  \"name\": \"{{organizationName}}\",\n  \"slug\": \"{{organizationSlug}}\"\n}"
                 },
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}",
-                "description": "Updates name and/or slug. Requires `organization.update` (owner or admin). Slug must be 3\u201348 lowercase letters, numbers, or hyphens."
+                "description": "Updates name and/or slug. Requires `organization.update` (owner or admin). Slug must be 3–48 lowercase letters, numbers, or hyphens."
               },
               "event": [
                 {
@@ -800,7 +800,7 @@
                   "raw": "{\n  \"email\": \"{{inviteEmail}}\",\n  \"role\": \"{{inviteRole}}\"\n}"
                 },
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/invitations",
-                "description": "Sends a team invitation. Requires `organization.invitations.manage`. Role must be `admin`, `agent`, or `viewer` (not `owner`). In development the accept URL is logged \u2014 copy `?token=` into `invitationToken`."
+                "description": "Sends a team invitation. Requires `organization.invitations.manage`. Role must be `admin`, `agent`, or `viewer` (not `owner`). In development the accept URL is logged — copy `?token=` into `invitationToken`."
               },
               "event": [
                 {
@@ -904,7 +904,7 @@
                   "raw": "{\n  \"token\": \"{{invitationToken}}\"\n}"
                 },
                 "url": "{{baseUrl}}/api/invitations/accept",
-                "description": "Accepts the invitation for the signed-in user. The session email must match the invited address. Does not use `x-tenant-id` \u2014 tenant comes from the invitation."
+                "description": "Accepts the invitation for the signed-in user. The session email must match the invited address. Does not use `x-tenant-id` — tenant comes from the invitation."
               },
               "event": [
                 {
@@ -962,7 +962,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/audit-logs?page={{auditPage}}&pageSize={{auditPageSize}}",
-                "description": "Tenant-scoped audit log. Requires `organization.audit.view` (owner or admin). Query: `page` (min 1), `pageSize` (1\u2013100). Actions include `organization.created`, `organization.member.invited`, `organization.invitation.accepted`, `organization.member.role_changed`."
+                "description": "Tenant-scoped audit log. Requires `organization.audit.view` (owner or admin). Query: `page` (min 1), `pageSize` (1–100). Actions include `organization.created`, `organization.member.invited`, `organization.invitation.accepted`, `organization.member.role_changed`."
               },
               "event": [
                 {
@@ -1052,7 +1052,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations?page={{conversationPage}}&pageSize={{conversationPageSize}}&q={{conversationSearch}}&status={{conversationStatus}}&assignedAgentId={{assignedAgentId}}&tag={{conversationTag}}",
-                "description": "Paginated inbox search. Requires `conversation.read`. Query: `page`, `pageSize` (1\u2013100), `q` (subject, customer, tags, message body), `status`, `assignedAgentId` (user id or `unassigned`), `tag`."
+                "description": "Paginated inbox search. Requires `conversation.read`. Query: `page`, `pageSize` (1–100), `q` (subject, customer, tags, message body), `status`, `assignedAgentId` (user id or `unassigned`), `tag`."
               },
               "event": [
                 {
@@ -1310,7 +1310,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/tags",
-                "description": "Adds a tag (1\u201332 lowercase letters, numbers, or hyphens; max 20 tags). Requires `conversation.write`.",
+                "description": "Adds a tag (1–32 lowercase letters, numbers, or hyphens; max 20 tags). Requires `conversation.write`.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"{{conversationTag}}\"\n}"
@@ -1619,7 +1619,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tickets/{{ticketId}}/status",
-                "description": "Lifecycle transition: open \u2192 pending | resolved | closed | escalated. Pending pauses resolution SLA. Resolved/closed records first response. Requires `ticket.manage`.",
+                "description": "Lifecycle transition: open → pending | resolved | closed | escalated. Pending pauses resolution SLA. Resolved/closed records first response. Requires `ticket.manage`.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"status\": \"pending\"\n}"
@@ -2138,6 +2138,615 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Automations",
+      "item": [
+        {
+          "name": "Rules",
+          "item": [
+            {
+              "name": "Create event rule",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automations",
+                "description": "Create a tenant-scoped automation rule that fires on a domain event. Requires `automation.manage` (admin+). Conditions use dotted payload fields (`eq`, `neq`, `contains`, `exists`, `gt`, `gte`, `lt`, `lte`, `in`, `not_in`). Actions: `record`, `http_request`, or `emit_event`. Jobs are queued with retries, exponential backoff, and an idempotency key of `evt:{tenant}:{rule}:{eventId}`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Log AI-opened tickets\",\n  \"description\": \"Record when an AI conversation opens a ticket\",\n  \"enabled\": true,\n  \"triggerType\": \"event\",\n  \"eventName\": \"TicketCreated\",\n  \"match\": \"all\",\n  \"conditions\": [\n    { \"field\": \"source\", \"operator\": \"eq\", \"value\": \"ai_conversation\" }\n  ],\n  \"actionType\": \"record\",\n  \"action\": { \"message\": \"AI conversation opened a ticket\" },\n  \"maxAttempts\": 3,\n  \"backoffMs\": 2000,\n  \"priority\": 100\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('automationRuleId', pm.response.json().rule.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create schedule rule",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automations",
+                "description": "Create a scheduled rule. `schedule` is `every:{n}m`, `hourly:{mm}`, `daily:{HH:MM}`, or `weekly:{0-6}:{HH:MM}` (UTC). The dispatcher runs every 5s and enqueues due jobs with idempotency key `sch:{tenant}:{rule}:{slot}`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Hourly heartbeat\",\n  \"enabled\": true,\n  \"triggerType\": \"schedule\",\n  \"schedule\": \"hourly:00\",\n  \"actionType\": \"record\",\n  \"action\": { \"message\": \"hourly tick\" },\n  \"maxAttempts\": 3,\n  \"backoffMs\": 5000,\n  \"priority\": 200\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  pm.environment.set('automationRuleId', pm.response.json().rule.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List rules",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automations",
+                "description": "List automation rules for the organization. Requires `automation.read` (agent+)."
+              }
+            },
+            {
+              "name": "Get rule",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automations/{{automationRuleId}}",
+                "description": "Load one rule including conditions, action, retry policy, and next scheduled run. Lookup is tenant-scoped."
+              }
+            },
+            {
+              "name": "Update rule",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automations/{{automationRuleId}}",
+                "description": "Update name, conditions, action, retry policy, or trigger. Requires `automation.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Log AI-opened tickets\",\n  \"enabled\": true,\n  \"maxAttempts\": 5,\n  \"backoffMs\": 3000\n}"
+                }
+              }
+            },
+            {
+              "name": "Enable rule",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automations/{{automationRuleId}}/enable",
+                "description": "Enable a rule. Scheduled rules compute the next run from now."
+              }
+            },
+            {
+              "name": "Disable rule",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automations/{{automationRuleId}}/disable",
+                "description": "Disable a rule so events and schedules no longer enqueue jobs."
+              }
+            },
+            {
+              "name": "Run rule now",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automations/{{automationRuleId}}/run",
+                "description": "Manually enqueue a job. Repeat with the same `idempotencyKey` returns the existing job (`created: false`). Requires `automation.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"idempotencyKey\": \"{{automationIdempotencyKey}}\",\n  \"payload\": { \"reason\": \"manual test\" }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201 || pm.response.code === 200) {",
+                      "  pm.environment.set('automationJobId', pm.response.json().job.id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List jobs for rule",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automations/{{automationRuleId}}/jobs?page=1&pageSize=20",
+                "description": "List queued and completed jobs for one rule."
+              }
+            },
+            {
+              "name": "List logs for rule",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automations/{{automationRuleId}}/logs?page=1&pageSize=20",
+                "description": "List execution attempts for one rule (started, succeeded, failed, skipped)."
+              }
+            },
+            {
+              "name": "Delete rule",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automations/{{automationRuleId}}",
+                "description": "Delete a rule and cascade its jobs and logs. Requires `automation.manage`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Jobs and logs",
+          "item": [
+            {
+              "name": "Dispatch due jobs",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automations/dispatch",
+                "description": "Enqueue due scheduled rules and pending retries now. The same loop also runs every 5s. Requires `automation.manage`."
+              }
+            },
+            {
+              "name": "List jobs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automation-jobs?page=1&pageSize=20&status=pending",
+                "description": "Tenant-scoped job search. Filter with `ruleId` and `status` (`pending`, `running`, `succeeded`, `skipped`, `dead`)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const items = pm.response.json().items || [];",
+                      "  if (items[0]) pm.environment.set('automationJobId', items[0].id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get job",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automation-jobs/{{automationJobId}}",
+                "description": "Load one job including attempt count, last error, and idempotency key."
+              }
+            },
+            {
+              "name": "Retry job",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automation-jobs/{{automationJobId}}/retry",
+                "description": "Re-queue a `dead` or `skipped` job. Failed jobs with remaining attempts retry automatically with exponential backoff."
+              }
+            },
+            {
+              "name": "List execution logs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/automation-logs?page=1&pageSize=20",
+                "description": "List execution attempts. Filter with `ruleId`, `jobId`, and `status` (`started`, `succeeded`, `failed`, `skipped`). Each attempt stores input/output snapshots."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/overview?from={{analyticsFrom}}&to={{analyticsTo}}&granularity={{analyticsGranularity}}",
+            "description": "Tenant-scoped KPI snapshot: conversations, tickets (including SLA), messages, customers, knowledge, and widget sessions. Aggregated in PostgreSQL with `organization_id` predicates. Requires `analytics.view`. Omit `from`/`to` for the last 30 days (UTC). Max range 366 days. Optional filters: `channel`, `status`, `assignedAgentId`."
+          }
+        },
+        {
+          "name": "Time series",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/timeseries?from={{analyticsFrom}}&to={{analyticsTo}}&granularity={{analyticsGranularity}}&metrics=conversations.created,tickets.created,tickets.resolved,messages.created,messages.ai",
+            "description": "UTC time-series via `date_trunc`. `granularity`: `hour` (max 14 days), `day`, `week`, or `month`. `metrics` is a comma list: `conversations.created`, `conversations.resolved`, `tickets.created`, `tickets.resolved`, `tickets.sla_breached`, `messages.created`, `messages.customer`, `messages.agent`, `messages.ai`, `customers.created`, `widget.sessions_created`. Empty buckets are filled with 0."
+          }
+        },
+        {
+          "name": "Conversation report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/conversations?from={{analyticsFrom}}&to={{analyticsTo}}&granularity={{analyticsGranularity}}",
+            "description": "Conversation volume in the period: created count, status/channel/tag breakdowns, unassigned count, and average first-response seconds (first agent/AI message via indexed LATERAL lookup)."
+          }
+        },
+        {
+          "name": "Ticket report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/tickets?from={{analyticsFrom}}&to={{analyticsTo}}&granularity={{analyticsGranularity}}",
+            "description": "Ticket volume in the period: created, resolved (`resolved_at` in range), SLA breaches (`sla_breached_at` in range), status/priority/source breakdowns, unassigned, and average first-response / resolution seconds."
+          }
+        },
+        {
+          "name": "Agent report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/agents?from={{analyticsFrom}}&to={{analyticsTo}}&granularity={{analyticsGranularity}}",
+            "description": "Per-agent assigned/resolved conversations and tickets in the period, plus average ticket first-response and resolution times. Capped at 200 agents. Lookup is tenant-scoped."
+          }
+        },
+        {
+          "name": "Customer report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/customers?from={{analyticsFrom}}&to={{analyticsTo}}&granularity={{analyticsGranularity}}",
+            "description": "New customers in the period, distinct emails with conversations, and top 50 customers by conversation volume (with ticket counts and last seen)."
+          }
+        },
+        {
+          "name": "Export overview CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/csv"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/exports/overview?from={{analyticsFrom}}&to={{analyticsTo}}&granularity={{analyticsGranularity}}",
+            "description": "Download the overview report as CSV (`Content-Disposition: attachment`). Requires `analytics.view`. Other report names: `timeseries`, `conversations`, `tickets`, `agents`, `customers`."
+          }
+        },
+        {
+          "name": "Export time series CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/csv"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/exports/timeseries?from={{analyticsFrom}}&to={{analyticsTo}}&granularity={{analyticsGranularity}}&metrics=conversations.created,tickets.created,messages.created",
+            "description": "CSV of metric,bucket,value rows for the requested time series."
+          }
+        },
+        {
+          "name": "Export conversation report CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/csv"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/exports/conversations?from={{analyticsFrom}}&to={{analyticsTo}}",
+            "description": "CSV of conversation aggregations (counts, status/channel/tag breakdowns, first-response average)."
+          }
+        },
+        {
+          "name": "Export ticket report CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/csv"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/exports/tickets?from={{analyticsFrom}}&to={{analyticsTo}}",
+            "description": "CSV of ticket aggregations including SLA breaches and average first-response / resolution times."
+          }
+        },
+        {
+          "name": "Export agent report CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/csv"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/exports/agents?from={{analyticsFrom}}&to={{analyticsTo}}",
+            "description": "CSV with one row per agent: assigned/resolved conversations and tickets plus averages."
+          }
+        },
+        {
+          "name": "Export customer report CSV",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/csv"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/analytics/exports/customers?from={{analyticsFrom}}&to={{analyticsTo}}",
+            "description": "CSV of new-customer counts plus the top customers by conversation volume."
+          }
         }
       ]
     },
@@ -2800,7 +3409,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/organizations/{{organizationId}}/escalation-rules",
-            "description": "Creates a tenant rule. Requires `conversation.escalate`.\nTriggers: `unanswered_for` / `unassigned_for` (need `triggerMinutes`), `assigned_agent_offline`, `keyword_match` (need `keywords`).\nActions: `escalate`, `escalate_and_unassign`, `assign_available` (falls back to escalate if nobody is online).\nLower `priority` runs first (1\u20131000, default 100). Time-based rules are evaluated every 30s and via Evaluate now.",
+            "description": "Creates a tenant rule. Requires `conversation.escalate`.\nTriggers: `unanswered_for` / `unassigned_for` (need `triggerMinutes`), `assigned_agent_offline`, `keyword_match` (need `keywords`).\nActions: `escalate`, `escalate_and_unassign`, `assign_available` (falls back to escalate if nobody is online).\nLower `priority` runs first (1–1000, default 100). Time-based rules are evaluated every 30s and via Evaluate now.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Unanswered 15 minutes\",\n  \"enabled\": true,\n  \"triggerType\": \"unanswered_for\",\n  \"triggerMinutes\": 15,\n  \"action\": \"escalate\",\n  \"priority\": 100\n}"
@@ -2970,7 +3579,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/organizations/{{organizationId}}/realtime/events?after={{lastRealtimeEventId}}&limit=100",
-            "description": "HTTP catch-up after disconnect. Pass the last `eventId` (Redis stream id) as `after`. Requires `conversation.read`.\nIf `resyncRequired` is true the retained window was trimmed \u2014 reload inbox via List conversations.\nThe WebSocket also replays on connect (`?lastEventId=`) and on a `resume` client message."
+            "description": "HTTP catch-up after disconnect. Pass the last `eventId` (Redis stream id) as `after`. Requires `conversation.read`.\nIf `resyncRequired` is true the retained window was trimmed — reload inbox via List conversations.\nThe WebSocket also replays on connect (`?lastEventId=`) and on a `resume` client message."
           },
           "event": [
             {
@@ -3001,7 +3610,7 @@
               }
             ],
             "url": "{{wsUrl}}/api/organizations/{{organizationId}}/realtime?lastEventId={{lastRealtimeEventId}}",
-            "description": "Upgrade to WebSocket (Postman: New \u2192 WebSocket request, then paste this URL). Auth: session cookie, `Authorization: Bearer`, or `access_token` query.\n\nServer messages: `connected`, `event`, `presence.snapshot`, `resync_required`, `pong`, `error`.\nEvents: `conversation.created` | `message_received` | `message_sent` | `status_changed` | `escalated` | `assigned` | `unassigned` | `note_added` | `agent.presence_changed`.\n\nClient JSON:\n`{\"type\":\"heartbeat\"}`\n`{\"type\":\"resume\",\"lastEventId\":\"{{lastRealtimeEventId}}\"}`\n`{\"type\":\"presence.set\",\"status\":\"online\"}`\n`{\"type\":\"subscribe\",\"conversationId\":\"{{conversationId}}\"}`\n`{\"type\":\"unsubscribe\"}`\n\nReconnect: send the last `event.eventId` as `lastEventId` (query or `resume`). If the server replies `resync_required`, call Replay missed events / List conversations."
+            "description": "Upgrade to WebSocket (Postman: New → WebSocket request, then paste this URL). Auth: session cookie, `Authorization: Bearer`, or `access_token` query.\n\nServer messages: `connected`, `event`, `presence.snapshot`, `resync_required`, `pong`, `error`.\nEvents: `conversation.created` | `message_received` | `message_sent` | `status_changed` | `escalated` | `assigned` | `unassigned` | `note_added` | `agent.presence_changed`.\n\nClient JSON:\n`{\"type\":\"heartbeat\"}`\n`{\"type\":\"resume\",\"lastEventId\":\"{{lastRealtimeEventId}}\"}`\n`{\"type\":\"presence.set\",\"status\":\"online\"}`\n`{\"type\":\"subscribe\",\"conversationId\":\"{{conversationId}}\"}`\n`{\"type\":\"unsubscribe\"}`\n\nReconnect: send the last `event.eventId` as `lastEventId` (query or `resume`). If the server replies `resync_required`, call Replay missed events / List conversations."
           }
         }
       ]
@@ -3308,7 +3917,7 @@
             "description": "Patches persisted agent settings (greeting, instructions, autonomy, and so on). Requires `organization.update`.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"greeting\": \"Hi, thanks for reaching out \u2014 how can I help today?\",\n  \"maxAutonomyTurns\": 8,\n  \"collectContactInfo\": true\n}"
+              "raw": "{\n  \"greeting\": \"Hi, thanks for reaching out — how can I help today?\",\n  \"maxAutonomyTurns\": 8,\n  \"collectContactInfo\": true\n}"
             }
           }
         }
@@ -3699,7 +4308,7 @@
                 "description": "Updates embed appearance, anonymous/identified sessions, attachments, AI replies, and allowed origins. Requires `organization.update`.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"enabled\": true,\n  \"title\": \"{{widgetTitle}}\",\n  \"greeting\": \"Hi \u2014 how can we help today?\",\n  \"primaryColor\": \"{{widgetPrimaryColor}}\",\n  \"position\": \"right\",\n  \"launcherText\": \"Help\",\n  \"collectEmail\": true,\n  \"allowAnonymous\": true,\n  \"allowAttachments\": true,\n  \"aiEnabled\": true,\n  \"offlineMessage\": \"We are away right now. Leave a message and we will get back to you.\",\n  \"allowedOrigins\": []\n}"
+                  "raw": "{\n  \"enabled\": true,\n  \"title\": \"{{widgetTitle}}\",\n  \"greeting\": \"Hi — how can we help today?\",\n  \"primaryColor\": \"{{widgetPrimaryColor}}\",\n  \"position\": \"right\",\n  \"launcherText\": \"Help\",\n  \"collectEmail\": true,\n  \"allowAnonymous\": true,\n  \"allowAttachments\": true,\n  \"aiEnabled\": true,\n  \"offlineMessage\": \"We are away right now. Leave a message and we will get back to you.\",\n  \"allowedOrigins\": []\n}"
                 }
               },
               "event": [
@@ -3782,7 +4391,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/widget/{{widgetPublicKey}}/sessions",
-                "description": "Starts an anonymous visitor session. Returns `sessionToken` once \u2014 send it as `Authorization: Bearer` or `x-widget-session` on later widget calls.",
+                "description": "Starts an anonymous visitor session. Returns `sessionToken` once — send it as `Authorization: Bearer` or `x-widget-session` on later widget calls.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"visitorId\": \"{{widgetVisitorId}}\"\n}"
@@ -4523,7 +5132,7 @@
     },
     {
       "name": "Public API v1",
-      "description": "Versioned REST API at `/api/v1`. Authenticate with session cookies, `Authorization: Bearer {{apiKey}}`, or `X-API-Key`. Management routes also exist under `/api/organizations/:id/...`.\n\n**Setup**\n1. Create organization and sign in (session cookies).\n2. Create API key (saves `apiKey` once \u2014 copy it).\n3. Create webhook, OAuth application, then inspect connectors and OpenAPI docs.\n\nWebhook signatures: `X-Webhook-Signature: t=<unix>,v1=<hex>` is HMAC-SHA256 of `{timestamp}.{rawBody}` using the subscription secret.\nOAuth: PKCE S256. Approve authorization (session) then Exchange token (client secret).",
+      "description": "Versioned REST API at `/api/v1`. Authenticate with session cookies, `Authorization: Bearer {{apiKey}}`, or `X-API-Key`. Management routes also exist under `/api/organizations/:id/...`.\n\n**Setup**\n1. Create organization and sign in (session cookies).\n2. Create API key (saves `apiKey` once — copy it).\n3. Create webhook, OAuth application, then inspect connectors and OpenAPI docs.\n\nWebhook signatures: `X-Webhook-Signature: t=<unix>,v1=<hex>` is HMAC-SHA256 of `{timestamp}.{rawBody}` using the subscription secret.\nOAuth: PKCE S256. Approve authorization (session) then Exchange token (client secret).",
       "item": [
         {
           "name": "Documentation",
@@ -4622,7 +5231,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/api-keys",
-                "description": "Creates a tenant API key. `token` (`acs_live_\u2026`) is shown once. Requires `integration.manage`. Rate-limited.",
+                "description": "Creates a tenant API key. `token` (`acs_live_…`) is shown once. Requires `integration.manage`. Rate-limited.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"CI pipeline\",\n  \"scopes\": [\"organization.read\", \"conversation.read\", \"integration.manage\"]\n}"
@@ -4987,7 +5596,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/oauth/applications",
-                "description": "Registers an inbound OAuth 2.1 app. `clientSecret` (`acs_oas_\u2026`) is shown once. Redirect URIs must be https (localhost HTTP allowed outside production).",
+                "description": "Registers an inbound OAuth 2.1 app. `clientSecret` (`acs_oas_…`) is shown once. Redirect URIs must be https (localhost HTTP allowed outside production).",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"Partner app\",\n  \"redirectUris\": [\"{{oauthAppRedirectUri}}\"],\n  \"scopes\": [\"organization.read\", \"conversation.read\"]\n}"
@@ -5179,7 +5788,7 @@
     },
     {
       "name": "Python AI service",
-      "description": "Direct calls to `apps/ai` (FastAPI) for local debugging. The web app never calls this service \u2014 production traffic goes TypeScript API \u2192 Python. Send `x-tenant-id` (use the organization id). Ingestion and retrieve are tenant-scoped.",
+      "description": "Direct calls to `apps/ai` (FastAPI) for local debugging. The web app never calls this service — production traffic goes TypeScript API → Python. Send `x-tenant-id` (use the organization id). Ingestion and retrieve are tenant-scoped.",
       "item": [
         {
           "name": "Health",
@@ -5407,7 +6016,7 @@
                   }
                 ],
                 "url": "{{aiServiceUrl}}/v1/knowledge/retrieve",
-                "description": "Hybrid keyword + vector retrieval with optional metadata filters, rerank, citations, and configurable `topK` (1\u201320).",
+                "description": "Hybrid keyword + vector retrieval with optional metadata filters, rerank, citations, and configurable `topK` (1–20).",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"query\": \"{{knowledgeRetrieveQuery}}\",\n  \"topK\": {{ragTopK}},\n  \"filters\": {\n    \"documentIds\": [],\n    \"kinds\": [\"article\"]\n  }\n}"
@@ -5488,7 +6097,7 @@
                   }
                 ],
                 "url": "{{aiServiceUrl}}/v1/orchestration/intent",
-                "description": "Classifies a visitor message (greeting, question, complaint, escalation, \u2026) with input guardrails. Tenant header required. Prefer TypeScript `AIServicePort.detectIntent` in production.",
+                "description": "Classifies a visitor message (greeting, question, complaint, escalation, …) with input guardrails. Tenant header required. Prefer TypeScript `AIServicePort.detectIntent` in production.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"visitorMessage\": \"{{knowledgeRetrieveQuery}}\",\n  \"history\": []\n}"
