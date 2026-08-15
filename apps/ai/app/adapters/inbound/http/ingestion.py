@@ -10,10 +10,15 @@ from app.application.use_cases.ingest_document_use_case import (
     IngestDocumentCommand,
     IngestDocumentUseCase,
 )
+from app.application.use_cases.retrieve_knowledge_use_case import (
+    RetrieveKnowledgeCommand,
+    RetrieveKnowledgeUseCase,
+)
 from app.context import get_request_context
 from app.domain.errors import InvalidIngestionInputError, TenantContextRequiredError
 from app.domain.ingestion import INGEST_SCHEMA_VERSION, MAX_BINARY_BYTES
 from app.domain.onboarding import require_tenant_id
+from app.domain.retrieval import MAX_TOP_K, MIN_TOP_K, normalize_retrieval_filter
 
 router = APIRouter(prefix="/v1/knowledge", tags=["knowledge"])
 
@@ -39,6 +44,20 @@ class DeleteIndexedDocumentBody(BaseModel):
     documentId: str = Field(min_length=1, max_length=80)
 
 
+class RetrievalFilterBody(BaseModel):
+    documentIds: list[str] = Field(default_factory=list)
+    kinds: list[DocumentKind] = Field(default_factory=list)
+    sourceUri: str | None = Field(default=None, max_length=2000)
+    titleContains: str | None = Field(default=None, max_length=200)
+
+
+class RetrieveKnowledgeBody(BaseModel):
+    query: str = Field(min_length=1, max_length=10_000)
+    topK: int | None = Field(default=None, ge=MIN_TOP_K, le=MAX_TOP_K)
+    documentId: str | None = Field(default=None, min_length=1, max_length=80)
+    filters: RetrievalFilterBody | None = None
+
+
 def _tenant_id() -> str:
     context = get_request_context()
     if context is None or not context.tenant_id:
@@ -59,6 +78,10 @@ def ingest_use_case(request: Request) -> IngestDocumentUseCase:
 
 def delete_index_use_case(request: Request) -> DeleteIndexedDocumentUseCase:
     return request.app.state.delete_indexed_document
+
+
+def retrieve_knowledge_use_case(request: Request) -> RetrieveKnowledgeUseCase:
+    return request.app.state.retrieve_knowledge
 
 
 @router.post("/ingest")
@@ -101,6 +124,33 @@ async def delete_indexed_document(
         )
     )
     return {"documentId": body.documentId, "deletedCount": deleted}
+
+
+@router.post("/retrieve")
+async def retrieve_knowledge(
+    body: RetrieveKnowledgeBody,
+    use_case: Annotated[RetrieveKnowledgeUseCase, Depends(retrieve_knowledge_use_case)],
+) -> dict[str, Any]:
+    filters = None
+    if body.filters is not None:
+        filters = normalize_retrieval_filter(
+            document_ids=tuple(body.filters.documentIds),
+            kinds=tuple(body.filters.kinds),
+            source_uri=body.filters.sourceUri,
+            title_contains=body.filters.titleContains,
+            document_id=body.documentId,
+        )
+    result = await use_case.execute(
+        RetrieveKnowledgeCommand(
+            tenant_id=_tenant_id(),
+            correlation_id=_correlation_id(),
+            query=body.query,
+            top_k=body.topK,
+            filters=filters,
+            document_id=body.documentId,
+        )
+    )
+    return result.to_dict()
 
 
 def _decode_content(body: IngestDocumentBody) -> tuple[bytes | None, str | None]:

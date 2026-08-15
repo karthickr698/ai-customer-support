@@ -10,6 +10,14 @@ import type {
   IngestKnowledgeDocumentRequest,
   IngestKnowledgeDocumentResponse,
   OnboardingSetupDraftDto,
+  OrchestrateSupportTurnRequest,
+  OrchestrateSupportTurnResponse,
+  DetectIntentRequest,
+  DetectIntentResponse,
+  ApplyToolResultsRequest,
+  ApplyToolResultsResponse,
+  ProposeToolCallsRequest,
+  ProposeToolCallsResponse,
   RunOnboardingSetupRequest,
   SupportReplyStreamEvent,
   SupportToneId,
@@ -61,4 +69,11 @@ export interface AIServicePort {
     context: AICallContext,
     input: DeleteIndexedKnowledgeDocumentRequest,
   ): Promise<DeleteIndexedKnowledgeDocumentResponse>;
+  detectIntent(context: AICallContext, input: DetectIntentRequest): Promise<DetectIntentResponse>;
+  orchestrateSupportTurn(
+    context: AICallContext,
+    input: OrchestrateSupportTurnRequest,
+  ): Promise<OrchestrateSupportTurnResponse>;
+  proposeToolCalls(context: AICallContext, input: ProposeToolCallsRequest): Promise<ProposeToolCallsResponse>;
+  applyToolResults(context: AICallContext, input: ApplyToolResultsRequest): Promise<ApplyToolResultsResponse>;
 }

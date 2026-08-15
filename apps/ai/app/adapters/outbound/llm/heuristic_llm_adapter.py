@@ -64,7 +64,18 @@ class HeuristicLLMAdapter(LLMPort):
         task = task_match.group(1) if task_match else TASK_BUSINESS_PROFILE
         payload = _parse_user(user)
 
-        if task == TASK_TONE_PRESETS:
+        if "TASK=orchestrate_turn" in system:
+            visitor = str(payload.get("visitorMessage") or user).strip() or "Hello"
+            content = json.dumps(_orchestrated_turn(visitor, system))
+        elif "TASK=propose_tools" in system:
+            visitor = str(payload.get("visitorMessage") or user).strip()
+            content = json.dumps(_proposed_tools(visitor, payload))
+        elif "TASK=apply_tool_results" in system:
+            content = json.dumps(_applied_tool_reply(payload, user))
+        elif "TASK=detect_intent" in system:
+            visitor = str(payload.get("visitorMessage") or user).strip()
+            content = json.dumps(_detected_intent(visitor))
+        elif task == TASK_TONE_PRESETS:
             profile = _profile_from_payload(payload)
             content = json.dumps({"items": [preset.to_dict() for preset in _tones_for(profile)]})
         elif task == TASK_AGENT_SETTINGS:
@@ -78,7 +89,7 @@ class HeuristicLLMAdapter(LLMPort):
 
         return LLMCompletionResult(
             content=content,
-            model="heuristic",
+            model=request.model or "heuristic",
             prompt_tokens=0,
             completion_tokens=0,
         )
@@ -90,7 +101,7 @@ class HeuristicLLMAdapter(LLMPort):
                 (message.content for message in reversed(request.messages) if message.role == "user"),
                 "Hello",
             )
-            content = _support_reply(user)
+            content = _support_reply(user, system)
             words = content.split(" ")
             assembled: list[str] = []
             for index, word in enumerate(words):
@@ -99,7 +110,7 @@ class HeuristicLLMAdapter(LLMPort):
                 yield LLMStreamChunk(delta=piece)
             result = LLMCompletionResult(
                 content="".join(assembled),
-                model="heuristic",
+                model=request.model or "heuristic",
                 prompt_tokens=0,
                 completion_tokens=0,
             )
@@ -110,13 +121,118 @@ class HeuristicLLMAdapter(LLMPort):
         yield LLMStreamChunk(delta=result.content, done=True, result=result)
 
 
-def _support_reply(user: str) -> str:
+def _support_reply(user: str, system: str = "") -> str:
+    knowledge = _first_knowledge_excerpt(system)
     snippet = user.strip().split("\n")[-1][:120]
+    if knowledge:
+        return (
+            "Thanks for reaching out. Based on our help articles: "
+            f"{knowledge} "
+            "If this needs a human teammate, say the word and I'll hand it off."
+        )
     return (
         "Thanks for reaching out. I can help with that. "
         f"I received: {snippet or 'your message'}. "
         "If this needs a human teammate, say the word and I'll hand it off."
     )
+
+
+def _orchestrated_turn(user: str, system: str) -> dict[str, object]:
+    from app.orchestration.intents import detect_intent
+
+    detection = detect_intent(user)
+    return {
+        "reply": _support_reply(user, system),
+        "shouldEscalate": detection.should_escalate,
+        "escalationReason": "intent" if detection.should_escalate else None,
+        "confidence": detection.confidence,
+    }
+
+
+def _detected_intent(user: str) -> dict[str, object]:
+    from app.orchestration.intents import detect_intent
+
+    detection = detect_intent(user)
+    return {
+        "intent": detection.intent,
+        "confidence": detection.confidence,
+        "shouldEscalate": detection.should_escalate,
+    }
+
+
+def _conversation_id(payload: dict[str, object]) -> str:
+    from uuid import UUID
+
+    raw = str(payload.get("conversationId") or "")
+    try:
+        UUID(raw)
+        return raw
+    except ValueError:
+        return "11111111-1111-1111-1111-111111111111"
+
+
+def _proposed_tools(user: str, payload: dict[str, object]) -> dict[str, object]:
+    from app.domain.tools import TOOL_NAMES
+
+    allowed = payload.get("allowedTools")
+    names = (
+        [str(item) for item in allowed if str(item) in TOOL_NAMES]
+        if isinstance(allowed, list)
+        else list(TOOL_NAMES)
+    )
+    lowered = user.lower()
+    calls: list[dict[str, object]] = []
+    if "order" in lowered and "getOrderDetails" in names:
+        calls.append({"name": "getOrderDetails", "arguments": {"orderId": "ORD-1001"}})
+    elif "refund" in lowered and "checkRefundStatus" in names:
+        calls.append({"name": "checkRefundStatus", "arguments": {"orderId": "ORD-1001"}})
+    elif ("ticket" in lowered or "case" in lowered) and "createTicket" in names:
+        conversation_id = _conversation_id(payload)
+        calls.append(
+            {
+                "name": "createTicket",
+                "arguments": {
+                    "conversationId": conversation_id,
+                    "subject": "Support request",
+                    "description": user[:500],
+                    "priority": "normal",
+                },
+            }
+        )
+    elif ("human" in lowered or "agent" in lowered or "handoff" in lowered) and "handoffToAgent" in names:
+        conversation_id = _conversation_id(payload)
+        calls.append(
+            {
+                "name": "handoffToAgent",
+                "arguments": {"conversationId": conversation_id, "reason": user[:200]},
+            }
+        )
+    return {"calls": calls, "reason": None if calls else "no_tool_needed"}
+
+
+def _applied_tool_reply(payload: dict[str, object], user: str) -> dict[str, object]:
+    results = payload.get("results")
+    if isinstance(results, list) and results:
+        first = results[0]
+        name = first.get("name") if isinstance(first, dict) else "tool"
+        return {"reply": f"I checked {name} and can help with the next step from that result."}
+    snippet = str(payload.get("visitorMessage") or user)[:120]
+    return {"reply": f"Thanks for waiting. I can continue helping with: {snippet}"}
+
+
+def _first_knowledge_excerpt(system: str) -> str:
+    marker = "KNOWLEDGE EXCERPTS:"
+    if marker not in system:
+        return ""
+    rest = system.split(marker, 1)[1].strip()
+    if not rest or rest.startswith("No knowledge"):
+        return ""
+    first_line = rest.split("\n", 1)[0].strip()
+    if first_line.startswith("[") and "] " in first_line:
+        first_line = first_line.split("] ", 1)[1]
+    if ": " in first_line:
+        first_line = first_line.split(": ", 1)[1]
+    return first_line[:240]
 
 
 def _parse_user(raw: str) -> dict[str, object]:

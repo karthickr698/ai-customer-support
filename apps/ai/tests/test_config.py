@@ -16,6 +16,11 @@ def test_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.port == 8000
     assert settings.service_name == "ai"
     assert settings.log_level == "info"
+    assert settings.rag_top_k == 5
+    assert settings.vector_store_provider == ""
+    assert settings.embedding_dimensions == 64
+    assert settings.llm_quality_model == "gpt-4o"
+    assert settings.llm_max_attempts == 3
 
 
 def test_settings_read_prefixed_environment(monkeypatch: pytest.MonkeyPatch) -> None:

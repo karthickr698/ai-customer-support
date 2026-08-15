@@ -12,10 +12,22 @@ def support_reply_system_prompt(
     allowed_topics: tuple[str, ...],
     forbidden_topics: tuple[str, ...],
     escalate_when: tuple[str, ...],
+    knowledge_context: str = "",
 ) -> str:
     allowed = ", ".join(allowed_topics) if allowed_topics else "general product support"
     forbidden = ", ".join(forbidden_topics) if forbidden_topics else "illegal activity, secrets, other tenants"
     escalate = ", ".join(escalate_when) if escalate_when else "refunds, legal, safety"
+    knowledge = (
+        "Use the knowledge excerpts below when they are relevant. "
+        "If they do not contain the answer, say you are unsure and offer a human handoff. "
+        "Do not invent policies, order numbers, account balances, or private data. "
+        "Reply in plain text for the customer. Do not include JSON, markdown fences, or raw citation IDs."
+    )
+    excerpts = (
+        f" KNOWLEDGE EXCERPTS:\n{knowledge_context}"
+        if knowledge_context.strip()
+        else " No knowledge excerpts were retrieved for this question."
+    )
     return (
         f"You are {assistant_name}, a customer-support assistant. "
         f"TASK={TASK_SUPPORT_REPLY}. "
@@ -25,8 +37,6 @@ def support_reply_system_prompt(
         f"Stay on these topics: {allowed}. "
         f"Never discuss: {forbidden}. "
         f"Offer a human handoff when the request involves: {escalate}. "
-        "Use only the conversation history and visitor message. "
-        "Do not invent order numbers, account balances, or private data. "
-        "If you are unsure, say so and offer to connect a human agent. "
-        "Reply in plain text for the customer. Do not include JSON or markdown fences."
+        f"{knowledge}"
+        f"{excerpts}"
     )

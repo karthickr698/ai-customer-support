@@ -1,7 +1,7 @@
 import hashlib
 import math
 
-from app.application.ports.embedding_port import EmbeddingPort, EmbeddingRequest, EmbeddingResult, EmbeddingResult
+from app.application.ports.embedding_port import EmbeddingPort, EmbeddingRequest, EmbeddingResult
 
 HASH_EMBEDDING_MODEL = "hash-v1"
 HASH_EMBEDDING_DIMENSIONS = 64

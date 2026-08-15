@@ -15,6 +15,7 @@ export const ORGANIZATION_PERMISSIONS = [
   'ticket.manage',
   'knowledge.manage',
   'analytics.view',
+  'integration.manage',
 ] as const;
 export type OrganizationPermission = (typeof ORGANIZATION_PERMISSIONS)[number];
 

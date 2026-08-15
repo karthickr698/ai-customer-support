@@ -1,3 +1,6 @@
+import type { KnowledgeCitationDto, KnowledgeRetrievalFilterDto } from './knowledge.js';
+import { isKnowledgeCitationDto } from './knowledge.js';
+
 export type SupportChatMessageDto = {
   readonly role: 'customer' | 'agent' | 'ai' | 'system';
   readonly content: string;
@@ -19,6 +22,8 @@ export type GenerateSupportReplyRequest = {
   readonly history: readonly SupportChatMessageDto[];
   readonly widgetGreeting?: string;
   readonly agentSettings?: SupportReplyAgentSettingsDto;
+  readonly topK?: number;
+  readonly retrieval?: KnowledgeRetrievalFilterDto;
 };
 
 export type GenerateSupportReplyResponse = {
@@ -26,6 +31,7 @@ export type GenerateSupportReplyResponse = {
   readonly model: string;
   readonly promptTokens: number;
   readonly completionTokens: number;
+  readonly citations: readonly KnowledgeCitationDto[];
 };
 
 export type SupportReplyStreamDelta = {
@@ -57,12 +63,15 @@ export function isGenerateSupportReplyResponse(
   }
 
   const record = value as Record<string, unknown>;
+  const citations = record.citations;
   return (
     typeof record.content === 'string' &&
     record.content.trim().length > 0 &&
     typeof record.model === 'string' &&
     typeof record.promptTokens === 'number' &&
-    typeof record.completionTokens === 'number'
+    typeof record.completionTokens === 'number' &&
+    Array.isArray(citations) &&
+    citations.every(isKnowledgeCitationDto)
   );
 }
 

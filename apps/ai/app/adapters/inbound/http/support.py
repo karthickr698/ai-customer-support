@@ -13,6 +13,7 @@ from app.application.use_cases.generate_support_reply_use_case import (
 from app.context import get_request_context
 from app.domain.errors import TenantContextRequiredError
 from app.domain.onboarding import require_tenant_id
+from app.domain.retrieval import MAX_TOP_K, MIN_TOP_K, normalize_retrieval_filter
 
 router = APIRouter(prefix="/v1/support", tags=["support"])
 
@@ -34,12 +35,20 @@ class SupportReplyAgentSettingsBody(BaseModel):
     escalateWhen: list[str] = Field(default_factory=list)
 
 
+class SupportRetrievalFilterBody(BaseModel):
+    documentIds: list[str] = Field(default_factory=list)
+    kinds: list[Literal["pdf", "docx", "url", "article"]] = Field(default_factory=list)
+    sourceUri: str | None = Field(default=None, max_length=2000)
+
+
 class GenerateSupportReplyBody(BaseModel):
     conversationId: str = Field(min_length=1, max_length=80)
     visitorMessage: str = Field(min_length=1, max_length=10_000)
     history: list[SupportChatMessageBody] = Field(default_factory=list)
     widgetGreeting: str | None = Field(default=None, max_length=280)
     agentSettings: SupportReplyAgentSettingsBody | None = None
+    topK: int | None = Field(default=None, ge=MIN_TOP_K, le=MAX_TOP_K)
+    retrieval: SupportRetrievalFilterBody | None = None
 
 
 def _tenant_id() -> str:
@@ -60,8 +69,15 @@ def generate_support_reply_use_case(request: Request) -> GenerateSupportReplyUse
     return request.app.state.generate_support_reply
 
 
-def _command(body: GenerateSupportReplyBody) -> GenerateSupportReplyCommand:
+def build_support_reply_command(body: GenerateSupportReplyBody) -> GenerateSupportReplyCommand:
     settings = body.agentSettings
+    filters = None
+    if body.retrieval is not None:
+        filters = normalize_retrieval_filter(
+            document_ids=tuple(body.retrieval.documentIds),
+            kinds=tuple(body.retrieval.kinds),
+            source_uri=body.retrieval.sourceUri,
+        )
     return GenerateSupportReplyCommand(
         tenant_id=_tenant_id(),
         correlation_id=_correlation_id(),
@@ -76,6 +92,8 @@ def _command(body: GenerateSupportReplyBody) -> GenerateSupportReplyCommand:
         allowed_topics=tuple(settings.allowedTopics) if settings else (),
         forbidden_topics=tuple(settings.forbiddenTopics) if settings else (),
         escalate_when=tuple(settings.escalateWhen) if settings else (),
+        top_k=body.topK,
+        retrieval_filters=filters,
     )
 
 
@@ -84,7 +102,7 @@ async def stream_support_reply(
     body: GenerateSupportReplyBody,
     use_case: Annotated[GenerateSupportReplyUseCase, Depends(generate_support_reply_use_case)],
 ) -> StreamingResponse:
-    command = _command(body)
+    command = build_support_reply_command(body)
 
     async def events() -> AsyncIterator[str]:
         async for chunk in use_case.stream(command):
@@ -99,6 +117,7 @@ async def stream_support_reply(
                             "model": chunk.result.model,
                             "promptTokens": chunk.result.prompt_tokens,
                             "completionTokens": chunk.result.completion_tokens,
+                            "citations": [citation.to_dict() for citation in chunk.citations],
                         },
                     }
                 )

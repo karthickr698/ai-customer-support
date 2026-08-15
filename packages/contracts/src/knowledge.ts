@@ -97,6 +97,82 @@ export type DeleteIndexedKnowledgeDocumentResponse = {
   readonly deletedCount: number;
 };
 
+export type KnowledgeCitationDto = {
+  readonly documentId: string;
+  readonly chunkId: string;
+  readonly title: string;
+  readonly sourceUri: string | null;
+  readonly chunkIndex: number | null;
+  readonly snippet: string;
+  readonly score: number;
+};
+
+export type KnowledgeRetrievalFilterDto = {
+  readonly documentIds?: readonly string[];
+  readonly kinds?: readonly KnowledgeDocumentKind[];
+  readonly sourceUri?: string;
+  readonly titleContains?: string;
+};
+
+export type RetrieveKnowledgeRequest = {
+  readonly query: string;
+  readonly topK?: number;
+  readonly documentId?: string;
+  readonly filters?: KnowledgeRetrievalFilterDto;
+};
+
+export type RetrievedKnowledgeChunkDto = {
+  readonly id: string;
+  readonly documentId: string;
+  readonly version: number | null;
+  readonly chunkIndex: number | null;
+  readonly content: string;
+  readonly score: number;
+  readonly title: string;
+  readonly sourceUri: string | null;
+  readonly kind: string | null;
+};
+
+export type RetrieveKnowledgeResponse = {
+  readonly query: string;
+  readonly topK: number;
+  readonly citations: readonly KnowledgeCitationDto[];
+  readonly chunks: readonly RetrievedKnowledgeChunkDto[];
+};
+
+export function isKnowledgeCitationDto(value: unknown): value is KnowledgeCitationDto {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isNonEmptyString(value.documentId) &&
+    isNonEmptyString(value.chunkId) &&
+    typeof value.title === 'string' &&
+    isNullableString(value.sourceUri) &&
+    (value.chunkIndex === null || (typeof value.chunkIndex === 'number' && Number.isInteger(value.chunkIndex))) &&
+    typeof value.snippet === 'string' &&
+    typeof value.score === 'number' &&
+    Number.isFinite(value.score)
+  );
+}
+
+export function isRetrieveKnowledgeResponse(value: unknown): value is RetrieveKnowledgeResponse {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.query === 'string' &&
+    typeof value.topK === 'number' &&
+    Number.isInteger(value.topK) &&
+    value.topK >= 0 &&
+    Array.isArray(value.citations) &&
+    value.citations.every(isKnowledgeCitationDto) &&
+    Array.isArray(value.chunks)
+  );
+}
+
 export function isKnowledgeDocumentKind(value: unknown): value is KnowledgeDocumentKind {
   return typeof value === 'string' && (KNOWLEDGE_DOCUMENT_KINDS as readonly string[]).includes(value);
 }

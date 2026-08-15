@@ -1,1 +1,1 @@
-"""AI tool definitions. Implementations are added by feature commands."""
+"""AI tool definitions. Python proposes and schema-validates; TypeScript executes."""

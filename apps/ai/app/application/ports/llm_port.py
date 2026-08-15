@@ -16,6 +16,7 @@ class LLMCompletionRequest:
     tenant_id: str
     json_mode: bool = False
     temperature: float = 0.2
+    model: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

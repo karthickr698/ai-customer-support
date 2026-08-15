@@ -43,6 +43,14 @@ model Organization {
   widgetConfiguration WidgetConfiguration?
   widgetSessions  WidgetSession[]
   messageAttachments MessageAttachment[]
+  integrationCredentials IntegrationCredential[]
+  oauthConnectors OAuthConnector[]
+  toolInvocations ToolInvocation[]
+  apiKeys OrganizationApiKey[]
+  webhookSubscriptions WebhookSubscription[]
+  webhookDeliveries WebhookDelivery[]
+  oauthApplications OrganizationOAuthApplication[]
+  oauthGrants OrganizationOAuthGrant[]
 
   @@map("organizations")
 }
@@ -398,4 +406,196 @@ model MessageAttachment {
   @@index([organizationId, conversationId])
   @@index([messageId])
   @@map("message_attachments")
+}
+
+model IntegrationCredential {
+  id               String    @id @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  toolName         String    @map("tool_name")
+  provider         String?
+  name             String
+  kind             String
+  headerName       String    @map("header_name")
+  baseUrl          String    @map("base_url")
+  secretCiphertext String    @map("secret_ciphertext")
+  secretNonce      String    @map("secret_nonce")
+  secretLastFour   String    @map("secret_last_four")
+  createdByUserId  String    @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime  @map("created_at")
+  updatedAt        DateTime  @map("updated_at")
+  revokedAt        DateTime? @map("revoked_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, toolName])
+  @@index([organizationId, revokedAt])
+  @@map("integration_credentials")
+}
+
+model OAuthConnector {
+  id                     String    @id @db.Uuid
+  organizationId         String    @map("organization_id") @db.Uuid
+  provider               String
+  name                   String
+  status                 String
+  authorizationUrl       String    @map("authorization_url")
+  tokenUrl               String    @map("token_url")
+  clientId               String    @map("client_id")
+  clientSecretCiphertext String    @map("client_secret_ciphertext")
+  clientSecretNonce      String    @map("client_secret_nonce")
+  scopes                 String[]  @default([])
+  accessTokenCiphertext  String?   @map("access_token_ciphertext")
+  accessTokenNonce       String?   @map("access_token_nonce")
+  refreshTokenCiphertext String?   @map("refresh_token_ciphertext")
+  refreshTokenNonce      String?   @map("refresh_token_nonce")
+  tokenExpiresAt         DateTime? @map("token_expires_at")
+  externalAccountId      String?   @map("external_account_id")
+  createdByUserId        String    @map("created_by_user_id") @db.Uuid
+  createdAt              DateTime  @map("created_at")
+  updatedAt              DateTime  @map("updated_at")
+  disconnectedAt         DateTime? @map("disconnected_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider])
+  @@index([organizationId, status])
+  @@map("oauth_connectors")
+}
+
+model ToolInvocation {
+  id             String    @id @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  toolName       String    @map("tool_name")
+  conversationId String?   @map("conversation_id") @db.Uuid
+  actorId        String?   @map("actor_id") @db.Uuid
+  actorType      String    @map("actor_type")
+  status         String
+  arguments      Json
+  result         Json?
+  errorCode      String?   @map("error_code")
+  errorMessage   String?   @map("error_message")
+  attemptCount   Int       @map("attempt_count")
+  durationMs     Int       @map("duration_ms")
+  credentialId   String?   @map("credential_id") @db.Uuid
+  connectorId    String?   @map("connector_id") @db.Uuid
+  ipAddress      String?   @map("ip_address")
+  userAgent      String?   @map("user_agent")
+  requestId      String?   @map("request_id")
+  correlationId  String?   @map("correlation_id")
+  createdAt      DateTime  @map("created_at")
+  completedAt    DateTime? @map("completed_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, toolName, createdAt])
+  @@map("tool_invocations")
+}
+
+model OrganizationApiKey {
+  id              String    @id @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  name            String
+  prefix          String
+  tokenHash       String    @unique @map("token_hash")
+  scopes          String[]
+  lastUsedAt      DateTime? @map("last_used_at")
+  expiresAt       DateTime? @map("expires_at")
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @map("created_at")
+  revokedAt       DateTime? @map("revoked_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, revokedAt])
+  @@map("organization_api_keys")
+}
+
+model WebhookSubscription {
+  id               String    @id @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  url              String
+  description      String?
+  events           String[]
+  secretCiphertext String    @map("secret_ciphertext")
+  secretNonce      String    @map("secret_nonce")
+  secretLastFour   String    @map("secret_last_four")
+  status           String
+  createdByUserId  String    @map("created_by_user_id") @db.Uuid
+  createdAt        DateTime  @map("created_at")
+  updatedAt        DateTime  @map("updated_at")
+  disabledAt       DateTime? @map("disabled_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@index([organizationId, status])
+  @@map("webhook_subscriptions")
+}
+
+model WebhookDelivery {
+  id             String    @id @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  subscriptionId String    @map("subscription_id") @db.Uuid
+  eventName      String    @map("event_name")
+  payload        Json
+  status         String
+  attemptCount   Int       @map("attempt_count")
+  responseStatus Int?      @map("response_status")
+  errorMessage   String?   @map("error_message")
+  nextAttemptAt  DateTime? @map("next_attempt_at")
+  createdAt      DateTime  @map("created_at")
+  completedAt    DateTime? @map("completed_at")
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([subscriptionId, createdAt])
+  @@map("webhook_deliveries")
+}
+
+model OrganizationOAuthApplication {
+  id                   String    @id @db.Uuid
+  organizationId       String    @map("organization_id") @db.Uuid
+  name                 String
+  clientId             String    @unique @map("client_id")
+  clientSecretHash     String    @map("client_secret_hash")
+  clientSecretLastFour String    @map("client_secret_last_four")
+  redirectUris         String[]  @map("redirect_uris")
+  scopes               String[]
+  createdByUserId      String    @map("created_by_user_id") @db.Uuid
+  createdAt            DateTime  @map("created_at")
+  updatedAt            DateTime  @map("updated_at")
+  revokedAt            DateTime? @map("revoked_at")
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  grants       OrganizationOAuthGrant[]
+
+  @@index([organizationId, revokedAt])
+  @@map("organization_oauth_applications")
+}
+
+model OrganizationOAuthGrant {
+  id               String    @id @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  applicationId    String    @map("application_id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  codeHash         String?   @unique @map("code_hash")
+  codeChallenge    String    @map("code_challenge")
+  redirectUri      String    @map("redirect_uri")
+  scopes           String[]
+  accessTokenHash  String?   @unique @map("access_token_hash")
+  refreshTokenHash String?   @unique @map("refresh_token_hash")
+  accessExpiresAt  DateTime? @map("access_expires_at")
+  refreshExpiresAt DateTime? @map("refresh_expires_at")
+  createdAt        DateTime  @map("created_at")
+  consumedAt       DateTime? @map("consumed_at")
+  revokedAt        DateTime? @map("revoked_at")
+
+  organization Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  application  OrganizationOAuthApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, applicationId])
+  @@map("organization_oauth_grants")
 }

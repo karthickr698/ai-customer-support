@@ -67,6 +67,22 @@ class FakeAIService implements AIServicePort {
   async deleteIndexedKnowledgeDocument(): Promise<never> {
     throw new Error('not implemented');
   }
+
+  async detectIntent(): Promise<never> {
+    throw new Error('not implemented');
+  }
+
+  async orchestrateSupportTurn(): Promise<never> {
+    throw new Error('not implemented');
+  }
+
+  async proposeToolCalls(): Promise<never> {
+    throw new Error('not implemented');
+  }
+
+  async applyToolResults(): Promise<never> {
+    throw new Error('not implemented');
+  }
 }
 
 class FakeEventBus implements EventBus {

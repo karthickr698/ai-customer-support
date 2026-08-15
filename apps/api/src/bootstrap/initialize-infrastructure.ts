@@ -8,6 +8,7 @@ import { composeKnowledge } from '../modules/knowledge/compose-knowledge.js';
 import { composeOnboarding } from '../modules/onboarding/compose-onboarding.js';
 import { composeIdentity } from '../modules/identity/compose-identity.js';
 import { composeOrganizations } from '../modules/organizations/compose-organizations.js';
+import { composeIntegrations } from '../modules/integrations/compose-integrations.js';
 import { composeWidget } from '../modules/widget/compose-widget.js';
 import { IdentifyWidgetVisitorUseCase } from '../modules/conversations/application/use-cases/identify-widget-visitor-use-case.js';
 import { PostgresConversationRepository } from '../modules/conversations/adapters/outbound/persistence/postgres-conversation-repository.js';
@@ -97,6 +98,16 @@ export async function initializeInfrastructure(
     sessionTtlSeconds: config.WIDGET_SESSION_TTL_SECONDS,
   });
 
+  const integrations = composeIntegrations({
+    prisma: database.forRepositoryAdapter(),
+    redis: redis.forAdapter(),
+    config,
+    eventBus,
+    aiService,
+    authenticate: identity.authenticate,
+    resolveTenantAccess: organizations.resolveTenantAccess,
+  });
+
   const conversations = composeConversations({
     prisma: database.forRepositoryAdapter(),
     redis: redis.forAdapter(),
@@ -135,5 +146,6 @@ export async function initializeInfrastructure(
     knowledge,
     onboarding,
     widget,
+    integrations,
   };
 }

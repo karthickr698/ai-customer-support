@@ -40,6 +40,8 @@ Required variables are documented in `.env.example`:
 | `PORT` / `HOST`                | API listen address                         |
 | `NODE_ENV`                     | `development` \| `test` \| `production`    |
 | `JWT_SECRET`                   | Auth secret (required; min 32 characters)  |
+| `INTEGRATION_CREDENTIALS_KEY`  | AES key for tenant integration secrets (optional locally; derived from `JWT_SECRET`) |
+| `PUBLIC_API_RATE_LIMIT_PER_MINUTE` | Public API v1 rate limit per API key / OAuth token |
 | `AI_SERVICE_URL`               | TypeScript API URL for the Python AI service |
 | `LLM_PROVIDER` / `LLM_API_KEY` | Reserved for the Python AI service (not used yet) |
 | `WEB_ORIGIN`                   | CORS origin for the web app                |
@@ -53,6 +55,8 @@ Never commit `.env`.
 ```bash
 docker compose up -d
 ```
+
+Postgres uses the `pgvector/pgvector:pg16` image so the Python AI service can store embeddings in schema `ai`. If you already had a volume from `postgres:16-alpine`, recreate it (`docker compose down -v`) before enabling `VECTOR_STORE_PROVIDER=pgvector`.
 
 ### Install dependencies
 
@@ -99,7 +103,7 @@ Production-style API start after `npm run build`:
 npm run start
 ```
 
-The API exposes `GET /health` (liveness) and `GET /ready` (PostgreSQL and Redis). The Python AI service exposes `GET /health`. There are no business APIs yet.
+The API exposes `GET /health` (liveness), `GET /ready` (PostgreSQL and Redis), and versioned public APIs under `/api/v1` (OpenAPI at `/api/v1/openapi.json`, docs at `/api/v1/docs`). The Python AI service exposes `GET /health`.
 
 ## Tests and quality
 

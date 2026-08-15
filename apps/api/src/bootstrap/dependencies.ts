@@ -7,6 +7,7 @@ import type { IdentityHttpRegistrar } from '../modules/identity/compose-identity
 import type { KnowledgeModule } from '../modules/knowledge/compose-knowledge.js';
 import type { OnboardingModule } from '../modules/onboarding/compose-onboarding.js';
 import type { OrganizationsHttpRegistrar } from '../modules/organizations/compose-organizations.js';
+import type { IntegrationsModule } from '../modules/integrations/compose-integrations.js';
 import type { WidgetModule } from '../modules/widget/compose-widget.js';
 import type { DatabasePort } from '../shared/application/ports/database-port.js';
 import type { QueuePort } from '../shared/application/ports/queue-port.js';
@@ -29,4 +30,5 @@ export interface AppDependencies {
   readonly knowledge?: KnowledgeModule;
   readonly onboarding?: OnboardingModule;
   readonly widget?: WidgetModule;
+  readonly integrations?: IntegrationsModule;
 }

@@ -29,3 +29,14 @@ def create_llm_port(settings: Settings) -> LLMPort:
         return HeuristicLLMAdapter()
 
     raise ConfigurationError(f"Unsupported LLM_PROVIDER: {settings.llm_provider}")
+
+
+def create_fallback_llm_port(settings: Settings) -> LLMPort | None:
+    """Heuristic fallback when the primary provider is a live model."""
+    provider = (settings.llm_provider or "").strip().lower()
+    has_key = bool(settings.llm_api_key.strip())
+    if provider in ("heuristic", "none"):
+        return None
+    if provider == "" and not has_key:
+        return None
+    return HeuristicLLMAdapter()

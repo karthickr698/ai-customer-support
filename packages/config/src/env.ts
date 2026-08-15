@@ -47,6 +47,11 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: optionalSecret,
   GOOGLE_CLIENT_SECRET: optionalSecret,
   GOOGLE_REDIRECT_URI: optionalUrl,
+  INTEGRATION_CREDENTIALS_KEY: optionalSecret,
+  INTEGRATION_OAUTH_REDIRECT_URI: optionalUrl,
+  PUBLIC_API_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
+  WEBHOOK_DELIVERY_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+  API_OAUTH_ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(3_600),
 });
 
 export type AppConfig = Omit<z.infer<typeof envSchema>, 'LOG_LEVEL'> & {
@@ -78,6 +83,16 @@ function assertProductionSecrets(config: AppConfig): void {
   if (config.JWT_SECRET === EXAMPLE_JWT_SECRET) {
     throw new ConfigurationError('JWT_SECRET must not use the example value in production');
   }
+
+  if (config.INTEGRATION_CREDENTIALS_KEY === EXAMPLE_JWT_SECRET) {
+    throw new ConfigurationError(
+      'INTEGRATION_CREDENTIALS_KEY must not use the example value in production',
+    );
+  }
+}
+
+export function integrationCredentialsKey(config: AppConfig): string {
+  return config.INTEGRATION_CREDENTIALS_KEY ?? config.JWT_SECRET;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {

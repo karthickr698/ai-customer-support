@@ -1,5 +1,9 @@
-from dataclasses import dataclass
-from typing import Mapping, Protocol
+from dataclasses import dataclass, field
+from typing import Literal, Mapping, Protocol
+
+from app.domain.retrieval import RetrievalFilter
+
+SearchMode = Literal["vector", "keyword", "hybrid"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -8,6 +12,13 @@ class VectorSearchRequest:
     query: str
     limit: int
     document_id: str | None = None
+    query_embedding: tuple[float, ...] | None = None
+    mode: SearchMode = "hybrid"
+    filters: RetrievalFilter | None = None
+    candidate_limit: int | None = None
+    vector_weight: float = 0.6
+    keyword_weight: float = 0.4
+    rrf_k: int = 60
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,6 +28,10 @@ class VectorSearchHit:
     content: str
     document_id: str | None = None
     version: int | None = None
+    chunk_index: int | None = None
+    metadata: Mapping[str, str | int | None] = field(default_factory=dict)
+    vector_score: float | None = None
+    keyword_score: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

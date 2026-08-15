@@ -7,6 +7,7 @@ from app.application.ports.llm_port import (
     LLMPort,
     LLMStreamChunk,
 )
+from app.application.ports.rerank_port import RerankPort, RerankRequest
 from app.application.ports.url_fetch_port import FetchedWebDocument, UrlFetchPort
 from app.application.ports.vector_search_port import (
     VectorIndexPort,
@@ -28,6 +29,8 @@ __all__ = [
     "LLMPort",
     "LLMStreamChunk",
     "ParseSource",
+    "RerankPort",
+    "RerankRequest",
     "UrlFetchPort",
     "VectorIndexPort",
     "VectorRecord",

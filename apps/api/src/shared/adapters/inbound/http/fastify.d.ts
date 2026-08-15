@@ -22,6 +22,13 @@ declare module 'fastify' {
       name?: string;
       customerId?: string;
     };
+    apiCredential?: {
+      kind: 'api_key' | 'oauth_token';
+      tenantId: string;
+      actorId: string;
+      credentialId: string;
+      scopes: readonly string[];
+    };
   }
 }
 

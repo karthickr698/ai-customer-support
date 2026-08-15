@@ -36,9 +36,13 @@ class OpenAILLMAdapter(LLMPort):
         self._logger = logger
         self._client = client
 
+    def _model_id(self, request: LLMCompletionRequest) -> str:
+        return (request.model or self._model).strip() or self._model
+
     async def complete(self, request: LLMCompletionRequest) -> LLMCompletionResult:
+        model = self._model_id(request)
         payload: dict[str, Any] = {
-            "model": self._model,
+            "model": model,
             "messages": [{"role": message.role, "content": message.content} for message in request.messages],
             "temperature": request.temperature,
         }
@@ -75,7 +79,7 @@ class OpenAILLMAdapter(LLMPort):
                 extra={
                     "tenantId": request.tenant_id,
                     "statusCode": response.status_code,
-                    "model": self._model,
+                    "model": model,
                 },
             )
             raise AIProviderError("The language model failed to complete the request")
@@ -88,7 +92,7 @@ class OpenAILLMAdapter(LLMPort):
         try:
             choice = body["choices"][0]["message"]["content"]
             usage = body.get("usage") or {}
-            model = body.get("model") or self._model
+            model = body.get("model") or model
         except (KeyError, IndexError, TypeError) as exc:
             raise AIProviderError("The language model returned an unexpected payload") from exc
 
@@ -103,8 +107,9 @@ class OpenAILLMAdapter(LLMPort):
         )
 
     async def stream(self, request: LLMCompletionRequest) -> AsyncIterator[LLMStreamChunk]:
+        model = self._model_id(request)
         payload: dict[str, Any] = {
-            "model": self._model,
+            "model": model,
             "messages": [{"role": message.role, "content": message.content} for message in request.messages],
             "temperature": request.temperature,
             "stream": True,
@@ -120,7 +125,6 @@ class OpenAILLMAdapter(LLMPort):
         assembled: list[str] = []
         prompt_tokens = 0
         completion_tokens = 0
-        model = self._model
         try:
             async with client.stream(
                 "POST",

@@ -12,6 +12,7 @@ export const Permissions = {
   TICKET_MANAGE: 'ticket.manage',
   KNOWLEDGE_MANAGE: 'knowledge.manage',
   ANALYTICS_VIEW: 'analytics.view',
+  INTEGRATION_MANAGE: 'integration.manage',
 } as const;
 
 export type Permission = (typeof Permissions)[keyof typeof Permissions];

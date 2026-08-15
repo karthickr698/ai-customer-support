@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "c4e8d2b1-7a91-4f3e-8c5a-ai-customer-support",
     "name": "AI Customer Support API",
-    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support — Local** environment.\n3. Keep cookies enabled (Postman → Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in → open `googleAuthorizationUrl` in a browser → after redirect, put the `code` query value into `googleLoginCode` → Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate — copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign / assign available, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\n**Realtime, presence, and escalation rules**\nWebSocket: `GET {{wsUrl}}/api/organizations/:organizationId/realtime?lastEventId=&access_token=` (session cookie or `access_token` query). On connect the server sends `connected`, missed `event`s, and `presence.snapshot`. Client messages: `heartbeat`, `resume`, `presence.set`, `subscribe` / `unsubscribe`.\nHTTP catch-up: `GET .../realtime/events?after=`.\nPresence: list/set/heartbeat under `/agents/presence`.\nEscalation rules: CRUD + `POST .../evaluate`. Assign available picks an online owner/admin/agent (round-robin).\n\n**Onboarding / knowledge**\nTenant routes under `/api/organizations/:organizationId/onboarding` and `/knowledge/sources`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Run onboarding setup (saves profile, tones, agent settings; optional knowledge sources)\n2. Or step through Generate business profile → Generate tone presets → Select tone → Generate agent settings\n3. Register extra knowledge sources (URL, help center, sitemap, text, file)\nPermissions: `organization.update` for LLM setup (admin+), `knowledge.manage` to register sources (agent+), `organization.read` to view.\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` → `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.\n\n**Widget**\nStaff: `GET/PATCH /api/organizations/:organizationId/widget` and `POST .../rotate-key` (session cookies + `x-tenant-id`). Public embed: `GET /api/widget/:publicKey/config`, then `POST /api/widget/:publicKey/sessions` (anonymous or email/name). Send `sessionToken` as `Authorization: Bearer` on `/api/widget/sessions/*` and `/api/widget/conversations*`.\n1. Get widget configuration (saves `widgetPublicKey`)\n2. Create anonymous session (saves `widgetSessionToken`) or Create customer session\n3. Start widget conversation (saves `widgetConversationId`)\n4. Send message, or stream AI reply (`text/event-stream`)\n5. Upload attachment (form-data `file`) then send `attachmentIds`\nTenant isolation: sessions, conversations, attachments, and AI calls are scoped to the organization behind the public key. Allowed origins are enforced when configured.",
+    "description": "HTTP APIs for the TypeScript backend (`apps/api`).\n\n**Setup**\n1. Import this collection and `local.postman_environment.json`.\n2. Select the **AI Customer Support \u2014 Local** environment.\n3. Keep cookies enabled (Postman \u2192 Cookies). Login, email verify, and Google complete set `access_token` and `refresh_token` httpOnly cookies.\n\n**Auth flow**\n1. Register\n2. Copy the verification token from the API logs (development console email) into `verificationToken`\n3. Verify email (sets session cookies)\n4. Call Get current user, Refresh, or Logout\n\nPasswords must be at least 12 characters and include a letter and a number.\n\nGoogle OAuth: Start Google sign-in \u2192 open `googleAuthorizationUrl` in a browser \u2192 after redirect, put the `code` query value into `googleLoginCode` \u2192 Complete Google sign-in.\n\n**Organizations / RBAC**\nTenant routes require a session cookie and membership in that organization. Send `x-tenant-id` as the organization id (must match the path when both are present).\n1. Create organization (saves `organizationId`)\n2. Invite a teammate \u2014 copy `?token=` from the API logs into `invitationToken`\n3. Preview invitation (public) then Accept invitation while signed in as `inviteEmail`\n4. List members, change roles, audit logs\n\nRoles: `owner`, `admin`, `agent`, `viewer`. Invite roles cannot be `owner`.\n\n**Conversations**\nTenant routes under `/api/organizations/:organizationId/conversations`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Create conversation (saves `conversationId`)\n2. Send message, add tag, add internal note\n3. Assign / unassign / assign available, change status, escalate\n4. List/search with `q`, `status`, `assignedAgentId`, `tag`, pagination\n\n**Realtime, presence, and escalation rules**\nWebSocket: `GET {{wsUrl}}/api/organizations/:organizationId/realtime?lastEventId=&access_token=` (session cookie or `access_token` query). On connect the server sends `connected`, missed `event`s, and `presence.snapshot`. Client messages: `heartbeat`, `resume`, `presence.set`, `subscribe` / `unsubscribe`.\nHTTP catch-up: `GET .../realtime/events?after=`.\nPresence: list/set/heartbeat under `/agents/presence`.\nEscalation rules: CRUD + `POST .../evaluate`. Assign available picks an online owner/admin/agent (round-robin).\n\n**Onboarding / knowledge**\nTenant routes under `/api/organizations/:organizationId/onboarding`, `/knowledge/sources`, and `/knowledge/documents`. Requires session cookies and `x-tenant-id`.\n1. Create organization, then Run onboarding setup (saves profile, tones, agent settings; optional knowledge sources)\n2. Or step through Generate business profile \u2192 Generate tone presets \u2192 Select tone \u2192 Generate agent settings\n3. Register extra knowledge sources (URL, help center, sitemap, text, file)\n4. Add documents: article/URL JSON, or upload PDF/DOCX \u2014 TypeScript owns lifecycle; Python indexes for RAG\n5. List documents, reindex, or delete (delete also drops vector index entries)\nPermissions: `organization.update` for LLM setup (admin+), `knowledge.manage` to register sources and documents (agent+), `organization.read` to view.\n\n**Python AI service**\nFolder `Python AI service` calls `apps/ai` directly (`{{aiServiceUrl}}`, default http://localhost:8000) for local RAG/onboarding debugging. Production clients use the TypeScript API only.\n\nPermissions: `conversation.read` (viewer+), `conversation.write` (agent+), `conversation.assign`, `conversation.escalate`.\nStatus: `open` \u2192 `pending` | `resolved` | `closed` | `escalated`. Closed conversations reject new messages until reopened.\n\n**Widget**\nStaff: `GET/PATCH /api/organizations/:organizationId/widget` and `POST .../rotate-key` (session cookies + `x-tenant-id`). Public embed: `GET /api/widget/:publicKey/config`, then `POST /api/widget/:publicKey/sessions` (anonymous or email/name). Send `sessionToken` as `Authorization: Bearer` on `/api/widget/sessions/*` and `/api/widget/conversations*`.\n1. Get widget configuration (saves `widgetPublicKey`)\n2. Create anonymous session (saves `widgetSessionToken`) or Create customer session\n3. Start widget conversation (saves `widgetConversationId`)\n4. Send message, or stream AI reply (`text/event-stream`)\n5. Upload attachment (form-data `file`) then send `attachmentIds`\nTenant isolation: sessions, conversations, attachments, and AI calls are scoped to the organization behind the public key. Allowed origins are enforced when configured.\n\n**Tools and integrations**\nPython proposes allowlisted tool calls (`POST .../tools/propose`); TypeScript schema-validates, authorizes, executes, and audits (`POST .../tools/calls`). Tenant credentials and OAuth connectors are encrypted per organization. Mutating tools never run in Python. Permission: `integration.manage` (admin+) for secrets.\n\n**Public API v1**\nVersioned REST at `/api/v1` (OpenAPI `/api/v1/openapi.json`, docs `/api/v1/docs`). Create API keys, HMAC-signed webhooks, inbound OAuth apps, and inspect the connector catalog. Programmatic auth: `Authorization: Bearer acs_live_\u2026` or `X-API-Key`. Existing dashboard routes remain under `/api`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -13,6 +13,10 @@
     {
       "key": "wsUrl",
       "value": "ws://localhost:3000"
+    },
+    {
+      "key": "aiServiceUrl",
+      "value": "http://localhost:8000"
     }
   ],
   "auth": {
@@ -348,7 +352,7 @@
                   "raw": "{\n  \"email\": \"{{email}}\"\n}"
                 },
                 "url": "{{baseUrl}}/api/auth/password/forgot",
-                "description": "Requests a password reset email. Always returns a generic success message. In development the reset URL is logged by the console email adapter — copy `?token=` into `resetToken`."
+                "description": "Requests a password reset email. Always returns a generic success message. In development the reset URL is logged by the console email adapter \u2014 copy `?token=` into `resetToken`."
               },
               "event": [
                 {
@@ -629,7 +633,7 @@
                   "raw": "{\n  \"name\": \"{{organizationName}}\",\n  \"slug\": \"{{organizationSlug}}\"\n}"
                 },
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}",
-                "description": "Updates name and/or slug. Requires `organization.update` (owner or admin). Slug must be 3–48 lowercase letters, numbers, or hyphens."
+                "description": "Updates name and/or slug. Requires `organization.update` (owner or admin). Slug must be 3\u201348 lowercase letters, numbers, or hyphens."
               },
               "event": [
                 {
@@ -796,7 +800,7 @@
                   "raw": "{\n  \"email\": \"{{inviteEmail}}\",\n  \"role\": \"{{inviteRole}}\"\n}"
                 },
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/invitations",
-                "description": "Sends a team invitation. Requires `organization.invitations.manage`. Role must be `admin`, `agent`, or `viewer` (not `owner`). In development the accept URL is logged — copy `?token=` into `invitationToken`."
+                "description": "Sends a team invitation. Requires `organization.invitations.manage`. Role must be `admin`, `agent`, or `viewer` (not `owner`). In development the accept URL is logged \u2014 copy `?token=` into `invitationToken`."
               },
               "event": [
                 {
@@ -900,7 +904,7 @@
                   "raw": "{\n  \"token\": \"{{invitationToken}}\"\n}"
                 },
                 "url": "{{baseUrl}}/api/invitations/accept",
-                "description": "Accepts the invitation for the signed-in user. The session email must match the invited address. Does not use `x-tenant-id` — tenant comes from the invitation."
+                "description": "Accepts the invitation for the signed-in user. The session email must match the invited address. Does not use `x-tenant-id` \u2014 tenant comes from the invitation."
               },
               "event": [
                 {
@@ -958,7 +962,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/audit-logs?page={{auditPage}}&pageSize={{auditPageSize}}",
-                "description": "Tenant-scoped audit log. Requires `organization.audit.view` (owner or admin). Query: `page` (min 1), `pageSize` (1–100). Actions include `organization.created`, `organization.member.invited`, `organization.invitation.accepted`, `organization.member.role_changed`."
+                "description": "Tenant-scoped audit log. Requires `organization.audit.view` (owner or admin). Query: `page` (min 1), `pageSize` (1\u2013100). Actions include `organization.created`, `organization.member.invited`, `organization.invitation.accepted`, `organization.member.role_changed`."
               },
               "event": [
                 {
@@ -1048,7 +1052,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations?page={{conversationPage}}&pageSize={{conversationPageSize}}&q={{conversationSearch}}&status={{conversationStatus}}&assignedAgentId={{assignedAgentId}}&tag={{conversationTag}}",
-                "description": "Paginated inbox search. Requires `conversation.read`. Query: `page`, `pageSize` (1–100), `q` (subject, customer, tags, message body), `status`, `assignedAgentId` (user id or `unassigned`), `tag`."
+                "description": "Paginated inbox search. Requires `conversation.read`. Query: `page`, `pageSize` (1\u2013100), `q` (subject, customer, tags, message body), `status`, `assignedAgentId` (user id or `unassigned`), `tag`."
               },
               "event": [
                 {
@@ -1306,7 +1310,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/tags",
-                "description": "Adds a tag (1–32 lowercase letters, numbers, or hyphens; max 20 tags). Requires `conversation.write`.",
+                "description": "Adds a tag (1\u201332 lowercase letters, numbers, or hyphens; max 20 tags). Requires `conversation.write`.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"{{conversationTag}}\"\n}"
@@ -1632,7 +1636,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/organizations/{{organizationId}}/escalation-rules",
-            "description": "Creates a tenant rule. Requires `conversation.escalate`.\nTriggers: `unanswered_for` / `unassigned_for` (need `triggerMinutes`), `assigned_agent_offline`, `keyword_match` (need `keywords`).\nActions: `escalate`, `escalate_and_unassign`, `assign_available` (falls back to escalate if nobody is online).\nLower `priority` runs first (1–1000, default 100). Time-based rules are evaluated every 30s and via Evaluate now.",
+            "description": "Creates a tenant rule. Requires `conversation.escalate`.\nTriggers: `unanswered_for` / `unassigned_for` (need `triggerMinutes`), `assigned_agent_offline`, `keyword_match` (need `keywords`).\nActions: `escalate`, `escalate_and_unassign`, `assign_available` (falls back to escalate if nobody is online).\nLower `priority` runs first (1\u20131000, default 100). Time-based rules are evaluated every 30s and via Evaluate now.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Unanswered 15 minutes\",\n  \"enabled\": true,\n  \"triggerType\": \"unanswered_for\",\n  \"triggerMinutes\": 15,\n  \"action\": \"escalate\",\n  \"priority\": 100\n}"
@@ -1802,7 +1806,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/organizations/{{organizationId}}/realtime/events?after={{lastRealtimeEventId}}&limit=100",
-            "description": "HTTP catch-up after disconnect. Pass the last `eventId` (Redis stream id) as `after`. Requires `conversation.read`.\nIf `resyncRequired` is true the retained window was trimmed — reload inbox via List conversations.\nThe WebSocket also replays on connect (`?lastEventId=`) and on a `resume` client message."
+            "description": "HTTP catch-up after disconnect. Pass the last `eventId` (Redis stream id) as `after`. Requires `conversation.read`.\nIf `resyncRequired` is true the retained window was trimmed \u2014 reload inbox via List conversations.\nThe WebSocket also replays on connect (`?lastEventId=`) and on a `resume` client message."
           },
           "event": [
             {
@@ -1833,7 +1837,7 @@
               }
             ],
             "url": "{{wsUrl}}/api/organizations/{{organizationId}}/realtime?lastEventId={{lastRealtimeEventId}}",
-            "description": "Upgrade to WebSocket (Postman: New → WebSocket request, then paste this URL). Auth: session cookie, `Authorization: Bearer`, or `access_token` query.\n\nServer messages: `connected`, `event`, `presence.snapshot`, `resync_required`, `pong`, `error`.\nEvents: `conversation.created` | `message_received` | `message_sent` | `status_changed` | `escalated` | `assigned` | `unassigned` | `note_added` | `agent.presence_changed`.\n\nClient JSON:\n`{\"type\":\"heartbeat\"}`\n`{\"type\":\"resume\",\"lastEventId\":\"{{lastRealtimeEventId}}\"}`\n`{\"type\":\"presence.set\",\"status\":\"online\"}`\n`{\"type\":\"subscribe\",\"conversationId\":\"{{conversationId}}\"}`\n`{\"type\":\"unsubscribe\"}`\n\nReconnect: send the last `event.eventId` as `lastEventId` (query or `resume`). If the server replies `resync_required`, call Replay missed events / List conversations."
+            "description": "Upgrade to WebSocket (Postman: New \u2192 WebSocket request, then paste this URL). Auth: session cookie, `Authorization: Bearer`, or `access_token` query.\n\nServer messages: `connected`, `event`, `presence.snapshot`, `resync_required`, `pong`, `error`.\nEvents: `conversation.created` | `message_received` | `message_sent` | `status_changed` | `escalated` | `assigned` | `unassigned` | `note_added` | `agent.presence_changed`.\n\nClient JSON:\n`{\"type\":\"heartbeat\"}`\n`{\"type\":\"resume\",\"lastEventId\":\"{{lastRealtimeEventId}}\"}`\n`{\"type\":\"presence.set\",\"status\":\"online\"}`\n`{\"type\":\"subscribe\",\"conversationId\":\"{{conversationId}}\"}`\n`{\"type\":\"unsubscribe\"}`\n\nReconnect: send the last `event.eventId` as `lastEventId` (query or `resume`). If the server replies `resync_required`, call Replay missed events / List conversations."
           }
         }
       ]
@@ -2140,7 +2144,7 @@
             "description": "Patches persisted agent settings (greeting, instructions, autonomy, and so on). Requires `organization.update`.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"greeting\": \"Hi, thanks for reaching out — how can I help today?\",\n  \"maxAutonomyTurns\": 8,\n  \"collectContactInfo\": true\n}"
+              "raw": "{\n  \"greeting\": \"Hi, thanks for reaching out \u2014 how can I help today?\",\n  \"maxAutonomyTurns\": 8,\n  \"collectContactInfo\": true\n}"
             }
           }
         }
@@ -2150,97 +2154,323 @@
       "name": "Knowledge",
       "item": [
         {
-          "name": "Register knowledge source",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "x-tenant-id",
-                "value": "{{organizationId}}"
-              }
-            ],
-            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/sources",
-            "description": "Registers a knowledge source for later RAG ingestion. Types: `url`, `help_center`, `sitemap`, `text`, `file`. URL types require `url`. Text requires `description`. Requires `knowledge.manage`.",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"type\": \"url\",\n  \"name\": \"Help center\",\n  \"url\": \"{{knowledgeSourceUrl}}\",\n  \"description\": \"Public product help articles\"\n}"
-            }
-          },
-          "event": [
+          "name": "Sources",
+          "item": [
             {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "  const source = pm.response.json().source;",
-                  "  pm.environment.set('knowledgeSourceId', source.id);",
-                  "  pm.test('Source registered', () => pm.expect(source.status).to.eql('registered'));",
-                  "}"
-                ]
+              "name": "Register knowledge source",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/sources",
+                "description": "Registers a knowledge source for later RAG ingestion. Types: `url`, `help_center`, `sitemap`, `text`, `file`. URL types require `url`. Text requires `description`. Requires `knowledge.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"url\",\n  \"name\": \"Help center\",\n  \"url\": \"{{knowledgeSourceUrl}}\",\n  \"description\": \"Public product help articles\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const source = pm.response.json().source;",
+                      "  pm.environment.set('knowledgeSourceId', source.id);",
+                      "  pm.test('Source registered', () => pm.expect(source.status).to.eql('registered'));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List knowledge sources",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/sources",
+                "description": "Lists registered knowledge sources for the tenant. Requires `organization.read`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Returns sources', () => {",
+                      "  pm.response.to.have.status(200);",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.items).to.be.an('array');",
+                      "  if (body.items[0]) pm.environment.set('knowledgeSourceId', body.items[0].id);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete knowledge source",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/sources/{{knowledgeSourceId}}",
+                "description": "Removes a registered knowledge source. Requires `knowledge.manage`. Returns 204."
               }
             }
           ]
         },
         {
-          "name": "List knowledge sources",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "x-tenant-id",
-                "value": "{{organizationId}}"
-              }
-            ],
-            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/sources",
-            "description": "Lists registered knowledge sources for the tenant. Requires `organization.read`."
-          },
-          "event": [
+          "name": "Documents",
+          "item": [
             {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Returns sources', () => {",
-                  "  pm.response.to.have.status(200);",
-                  "  const body = pm.response.json();",
-                  "  pm.expect(body.items).to.be.an('array');",
-                  "  if (body.items[0]) pm.environment.set('knowledgeSourceId', body.items[0].id);",
-                  "});"
-                ]
+              "name": "Register article document",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/documents",
+                "description": "Creates an article knowledge document and queues RAG ingestion in the Python AI service. Kind `article` requires `articleText`. Optional `sourceId`. Requires `knowledge.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"kind\": \"article\",\n  \"title\": \"{{knowledgeDocumentTitle}}\",\n  \"articleText\": \"{{knowledgeArticleText}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const value = pm.response.json().document.id;",
+                      "  pm.environment.set('knowledgeDocumentId', value);",
+                      "  pm.test('Article queued', () => {",
+                      "    const doc = pm.response.json().document;",
+                      "    pm.expect(doc.kind).to.eql('article');",
+                      "    pm.expect(['uploaded', 'processing', 'ready', 'failed']).to.include(doc.status);",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Register URL document",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/documents",
+                "description": "Creates a URL knowledge document. The TypeScript API fetches metadata and the Python AI service ingests the page. Kind `url` requires `url`. Requires `knowledge.manage`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"kind\": \"url\",\n  \"title\": \"Help article\",\n  \"url\": \"{{knowledgeDocumentUrl}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const value = pm.response.json().document.id;",
+                      "  pm.environment.set('knowledgeDocumentId', value);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Upload knowledge file",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/documents/upload",
+                "description": "Multipart upload of a PDF or DOCX (`file`). Optional form fields `title` and `sourceId`. Max 10MB. Queues RAG ingestion. Requires `knowledge.manage`.",
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    },
+                    {
+                      "key": "title",
+                      "type": "text",
+                      "value": "{{knowledgeDocumentTitle}}"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const value = pm.response.json().document.id;",
+                      "  pm.environment.set('knowledgeDocumentId', value);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List knowledge documents",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/documents",
+                "description": "Lists tenant knowledge documents and their ingestion status (`uploaded`, `processing`, `ready`, `failed`). Requires `organization.read`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns documents', () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.items).to.be.an('array');",
+                      "  if (body.items[0]) pm.environment.set('knowledgeDocumentId', body.items[0].id);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reindex knowledge document",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/documents/{{knowledgeDocumentId}}/reindex",
+                "description": "Re-queues RAG ingestion for an existing document (new version). Returns 202. Requires `knowledge.manage`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.response.to.have.status(202));",
+                      "if (pm.response.code === 202) {",
+                      "  pm.test('Reindex accepted', () => pm.expect(pm.response.json().document.id).to.be.a('string'));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete knowledge document",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/documents/{{knowledgeDocumentId}}",
+                "description": "Deletes the document, stored file, and vector index entries. Requires `knowledge.manage`. Returns 204."
               }
             }
           ]
-        },
-        {
-          "name": "Delete knowledge source",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "x-tenant-id",
-                "value": "{{organizationId}}"
-              }
-            ],
-            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/knowledge/sources/{{knowledgeSourceId}}",
-            "description": "Removes a registered knowledge source. Requires `knowledge.manage`. Returns 204."
-          }
         }
       ]
     },
@@ -2305,7 +2535,7 @@
                 "description": "Updates embed appearance, anonymous/identified sessions, attachments, AI replies, and allowed origins. Requires `organization.update`.",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"enabled\": true,\n  \"title\": \"{{widgetTitle}}\",\n  \"greeting\": \"Hi — how can we help today?\",\n  \"primaryColor\": \"{{widgetPrimaryColor}}\",\n  \"position\": \"right\",\n  \"launcherText\": \"Help\",\n  \"collectEmail\": true,\n  \"allowAnonymous\": true,\n  \"allowAttachments\": true,\n  \"aiEnabled\": true,\n  \"offlineMessage\": \"We are away right now. Leave a message and we will get back to you.\",\n  \"allowedOrigins\": []\n}"
+                  "raw": "{\n  \"enabled\": true,\n  \"title\": \"{{widgetTitle}}\",\n  \"greeting\": \"Hi \u2014 how can we help today?\",\n  \"primaryColor\": \"{{widgetPrimaryColor}}\",\n  \"position\": \"right\",\n  \"launcherText\": \"Help\",\n  \"collectEmail\": true,\n  \"allowAnonymous\": true,\n  \"allowAttachments\": true,\n  \"aiEnabled\": true,\n  \"offlineMessage\": \"We are away right now. Leave a message and we will get back to you.\",\n  \"allowedOrigins\": []\n}"
                 }
               },
               "event": [
@@ -2388,7 +2618,7 @@
                   }
                 ],
                 "url": "{{baseUrl}}/api/widget/{{widgetPublicKey}}/sessions",
-                "description": "Starts an anonymous visitor session. Returns `sessionToken` once — send it as `Authorization: Bearer` or `x-widget-session` on later widget calls.",
+                "description": "Starts an anonymous visitor session. Returns `sessionToken` once \u2014 send it as `Authorization: Bearer` or `x-widget-session` on later widget calls.",
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"visitorId\": \"{{widgetVisitorId}}\"\n}"
@@ -2770,6 +3000,1516 @@
                 ],
                 "url": "{{baseUrl}}/api/organizations/{{organizationId}}/conversations/{{conversationId}}/attachments/{{widgetAttachmentId}}",
                 "description": "Staff download. Requires `conversation.read`. Tenant isolation is enforced on every lookup."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tools and integrations",
+      "item": [
+        {
+          "name": "List tools",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tools",
+            "description": "Allowlisted tool catalog with JSON schemas, permissions, and retry policy. Requires `organization.read`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns allowlisted tools', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.items).to.be.an('array').that.is.not.empty;",
+                  "  pm.expect(body.items.map((item) => item.name)).to.include('handoffToAgent');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Propose tool calls",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tools/propose",
+            "description": "Python proposes allowlisted tool calls. TypeScript re-validates the payload. Does not execute tools.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"conversationId\": \"{{conversationId}}\",\n  \"visitorMessage\": \"Where is my order ORD-1001?\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Execute tool call",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tools/calls",
+            "description": "Schema-validate, authorize, execute (platform or tenant HTTP/OAuth), timeout/retry, and audit. Mutating tools run only here.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"handoffToAgent\",\n  \"arguments\": {\n    \"conversationId\": \"{{conversationId}}\",\n    \"reason\": \"Customer asked for a human\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "List tool invocations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tools/invocations?page=1&pageSize=20",
+            "description": "Tenant-scoped tool audit trail. Requires `organization.audit.view` or `integration.manage`."
+          }
+        },
+        {
+          "name": "Apply tool results",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/tools/apply-results",
+            "description": "Send authorized tool results back to Python for a follow-up reply. Python does not mutate tickets or conversations.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"conversationId\": \"{{conversationId}}\",\n  \"visitorMessage\": \"Where is my order?\",\n  \"results\": [\n    {\n      \"name\": \"getOrderDetails\",\n      \"ok\": true,\n      \"data\": { \"status\": \"shipped\" },\n      \"errorCode\": null,\n      \"errorMessage\": null\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Upsert integration credential",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/integrations/credentials",
+            "description": "Store a tenant-scoped API key or bearer secret (AES-256-GCM). Secret is never returned. Requires `integration.manage`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"toolName\": \"getOrderDetails\",\n  \"name\": \"Commerce API\",\n  \"kind\": \"bearer\",\n  \"secret\": \"replace-with-tenant-secret\",\n  \"baseUrl\": \"https://api.example.com\",\n  \"provider\": \"custom\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const id = pm.response.json().credential && pm.response.json().credential.id;",
+                  "  if (id) pm.environment.set('credentialId', id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List integration credentials",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/integrations/credentials",
+            "description": "Lists credentials with last-four only. Requires `integration.manage`."
+          }
+        },
+        {
+          "name": "Revoke integration credential",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/integrations/credentials/{{credentialId}}",
+            "description": "Revokes a tenant credential. Requires `integration.manage`."
+          }
+        },
+        {
+          "name": "Upsert OAuth connector",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/integrations/oauth",
+            "description": "Register tenant OAuth client settings. Client secret is encrypted at rest. Requires `integration.manage`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"custom\",\n  \"name\": \"Commerce OAuth\",\n  \"clientId\": \"example-client-id\",\n  \"clientSecret\": \"example-client-secret\",\n  \"authorizationUrl\": \"https://auth.example.com/authorize\",\n  \"tokenUrl\": \"https://auth.example.com/token\",\n  \"scopes\": [\"orders.read\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const id = pm.response.json().connector && pm.response.json().connector.id;",
+                  "  if (id) pm.environment.set('oauthConnectorId', id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List OAuth connectors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/integrations/oauth",
+            "description": "Lists OAuth connectors without tokens. Requires `integration.manage`."
+          }
+        },
+        {
+          "name": "Start OAuth connector",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/integrations/oauth/{{oauthConnectorId}}/authorize",
+            "description": "Starts PKCE authorization. Open `authorizationUrl`, then complete with code+state."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const url = pm.response.json().authorizationUrl;",
+                  "  if (url) pm.environment.set('oauthAuthorizationUrl', url);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complete OAuth connector",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/integrations/oauth/{{oauthConnectorId}}/complete",
+            "description": "Exchanges the authorization code. Tokens are encrypted at rest.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{oauthCode}}\",\n  \"state\": \"{{oauthState}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "OAuth callback",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/integrations/oauth/callback?code={{oauthCode}}&state={{oauthState}}",
+            "description": "Browser callback. State is one-time and tenant-scoped in Redis."
+          }
+        },
+        {
+          "name": "Disconnect OAuth connector",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "x-tenant-id",
+                "value": "{{organizationId}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/organizations/{{organizationId}}/integrations/oauth/{{oauthConnectorId}}",
+            "description": "Clears stored OAuth tokens. Requires `integration.manage`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public API v1",
+      "description": "Versioned REST API at `/api/v1`. Authenticate with session cookies, `Authorization: Bearer {{apiKey}}`, or `X-API-Key`. Management routes also exist under `/api/organizations/:id/...`.\n\n**Setup**\n1. Create organization and sign in (session cookies).\n2. Create API key (saves `apiKey` once \u2014 copy it).\n3. Create webhook, OAuth application, then inspect connectors and OpenAPI docs.\n\nWebhook signatures: `X-Webhook-Signature: t=<unix>,v1=<hex>` is HMAC-SHA256 of `{timestamp}.{rawBody}` using the subscription secret.\nOAuth: PKCE S256. Approve authorization (session) then Exchange token (client secret).",
+      "item": [
+        {
+          "name": "Documentation",
+          "item": [
+            {
+              "name": "Get API version",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1",
+                "description": "Unversioned discovery for the public API. Returns `v1`, schema version, and documentation URLs."
+              }
+            },
+            {
+              "name": "OpenAPI JSON",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/openapi.json",
+                "description": "Machine-readable OpenAPI 3.1 document for `/api/v1`."
+              }
+            },
+            {
+              "name": "API docs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/html"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/docs",
+                "description": "Swagger UI for the public API."
+              }
+            },
+            {
+              "name": "Inspect API session",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{apiKey}}",
+                    "disabled": true
+                  },
+                  {
+                    "key": "X-API-Key",
+                    "value": "{{apiKey}}",
+                    "disabled": true
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}",
+                "description": "Returns auth kind (`session`, `api_key`, or `oauth_token`) and granted scopes. Send the API key as Bearer or X-API-Key to verify programmatic access."
+              }
+            }
+          ]
+        },
+        {
+          "name": "API keys",
+          "item": [
+            {
+              "name": "Create API key",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/api-keys",
+                "description": "Creates a tenant API key. `token` (`acs_live_\u2026`) is shown once. Requires `integration.manage`. Rate-limited.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"CI pipeline\",\n  \"scopes\": [\"organization.read\", \"conversation.read\", \"integration.manage\"]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  const value = body.apiKey && body.apiKey.id;",
+                      "  if (value) pm.environment.set('apiKeyId', value);",
+                      "}"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const token = pm.response.json().token;",
+                      "  if (token) pm.environment.set('apiKey', token);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List API keys",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/api-keys",
+                "description": "Lists keys with prefix and last-used time. Secrets are never returned."
+              }
+            },
+            {
+              "name": "Revoke API key",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/api-keys/{{apiKeyId}}",
+                "description": "Revokes a key. Requires `integration.manage`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Webhooks",
+          "item": [
+            {
+              "name": "Create webhook subscription",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks",
+                "description": "Subscribe to tenant events. `secret` is shown once. Deliveries POST JSON with `X-Webhook-Signature: t=<unix>,v1=<hmac-sha256>`. HTTPS required (localhost HTTP allowed outside production).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"url\": \"https://example.com/webhooks/support\",\n  \"events\": [\"conversation.created\", \"conversation.message.created\", \"tool.call.executed\"],\n  \"description\": \"Ops notifications\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  const value = body.webhook && body.webhook.id;",
+                      "  if (value) pm.environment.set('webhookId', value);",
+                      "}"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const secret = pm.response.json().secret;",
+                      "  if (secret) pm.environment.set('webhookSecret', secret);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List webhook subscriptions",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks",
+                "description": "Lists subscriptions with secret last-four only."
+              }
+            },
+            {
+              "name": "Get webhook subscription",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks/{{webhookId}}",
+                "description": "Fetch one subscription."
+              }
+            },
+            {
+              "name": "Update webhook subscription",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks/{{webhookId}}",
+                "description": "Update URL, events, description, or pause (`status`: `active` | `paused`).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"active\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Rotate webhook secret",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks/{{webhookId}}/rotate-secret",
+                "description": "Issues a new signing secret. Shown once."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const secret = pm.response.json().secret;",
+                      "  if (secret) pm.environment.set('webhookSecret', secret);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List webhook deliveries",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks/{{webhookId}}/deliveries?page=1&pageSize=20",
+                "description": "Delivery audit trail for this subscription."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const items = pm.response.json().items || [];",
+                      "  if (items[0] && items[0].id) pm.environment.set('webhookDeliveryId', items[0].id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Retry webhook delivery",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks/{{webhookId}}/deliveries/{{webhookDeliveryId}}/retry",
+                "description": "Re-sign and re-POST a stored payload."
+              }
+            },
+            {
+              "name": "Disable webhook subscription",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/webhooks/{{webhookId}}",
+                "description": "Disables the subscription."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Connectors",
+          "item": [
+            {
+              "name": "List connector catalog",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/connectors/catalog",
+                "description": "Available HTTP API-key and OAuth connector types (Shopify, Stripe, Zendesk, custom)."
+              }
+            },
+            {
+              "name": "List connector connections",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/connectors",
+                "description": "Unified view of HTTP credentials and outbound OAuth connectors."
+              }
+            },
+            {
+              "name": "List tools (v1)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/tools",
+                "description": "Versioned alias of the allowlisted tool catalog."
+              }
+            }
+          ]
+        },
+        {
+          "name": "OAuth applications",
+          "item": [
+            {
+              "name": "Create OAuth application",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/oauth/applications",
+                "description": "Registers an inbound OAuth 2.1 app. `clientSecret` (`acs_oas_\u2026`) is shown once. Redirect URIs must be https (localhost HTTP allowed outside production).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Partner app\",\n  \"redirectUris\": [\"{{oauthAppRedirectUri}}\"],\n  \"scopes\": [\"organization.read\", \"conversation.read\"]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const body = pm.response.json();",
+                      "  const value = body.application && body.application.id;",
+                      "  if (value) pm.environment.set('oauthApplicationId', value);",
+                      "}"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "  const app = pm.response.json();",
+                      "  if (app.application && app.application.clientId) pm.environment.set('oauthClientId', app.application.clientId);",
+                      "  if (app.clientSecret) pm.environment.set('oauthClientSecret', app.clientSecret);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List OAuth applications",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/oauth/applications",
+                "description": "Lists apps without client secrets."
+              }
+            },
+            {
+              "name": "Revoke OAuth application",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/organizations/{{organizationId}}/oauth/applications/{{oauthApplicationId}}",
+                "description": "Revokes the client. Requires `integration.manage`."
+              }
+            }
+          ]
+        },
+        {
+          "name": "OAuth",
+          "item": [
+            {
+              "name": "Describe authorization consent",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/oauth/authorize?response_type=code&client_id={{oauthClientId}}&redirect_uri={{oauthAppRedirectUri}}&state={{oauthAppState}}&code_challenge={{oauthCodeChallenge}}&scope=organization.read",
+                "description": "Session-authenticated consent details for an OAuth app. PKCE S256 required."
+              }
+            },
+            {
+              "name": "Approve authorization",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/oauth/authorize",
+                "description": "Issues a one-time authorization code and returns `redirectUrl`. Session required. Copy `code` from the redirect into `oauthAuthCode`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clientId\": \"{{oauthClientId}}\",\n  \"redirectUri\": \"{{oauthAppRedirectUri}}\",\n  \"state\": \"{{oauthAppState}}\",\n  \"codeChallenge\": \"{{oauthCodeChallenge}}\",\n  \"scope\": \"organization.read\",\n  \"approve\": true\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const url = pm.response.json().redirectUrl;",
+                      "  if (!url) return;",
+                      "  try {",
+                      "    const parsed = new URL(url);",
+                      "    const code = parsed.searchParams.get('code');",
+                      "    if (code) pm.environment.set('oauthAuthCode', code);",
+                      "  } catch (e) {}",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Exchange token",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/oauth/token",
+                "description": "Public token endpoint. `grantType`: `authorization_code` or `refresh_token`. Rate-limited by IP.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"grantType\": \"authorization_code\",\n  \"clientId\": \"{{oauthClientId}}\",\n  \"clientSecret\": \"{{oauthClientSecret}}\",\n  \"code\": \"{{oauthAuthCode}}\",\n  \"codeVerifier\": \"{{oauthCodeVerifier}}\",\n  \"redirectUri\": \"{{oauthAppRedirectUri}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "  const body = pm.response.json();",
+                      "  if (body.accessToken) pm.environment.set('oauthAccessToken', body.accessToken);",
+                      "  if (body.refreshToken) pm.environment.set('oauthRefreshToken', body.refreshToken);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Refresh token",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/oauth/token",
+                "description": "Rotate access and refresh tokens.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"grantType\": \"refresh_token\",\n  \"clientId\": \"{{oauthClientId}}\",\n  \"clientSecret\": \"{{oauthClientSecret}}\",\n  \"refreshToken\": \"{{oauthRefreshToken}}\"\n}"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Python AI service",
+      "description": "Direct calls to `apps/ai` (FastAPI) for local debugging. The web app never calls this service \u2014 production traffic goes TypeScript API \u2192 Python. Send `x-tenant-id` (use the organization id). Ingestion and retrieve are tenant-scoped.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{aiServiceUrl}}/health",
+            "description": "Python AI process liveness. Returns `{ status: 'ok', service: 'ai' }`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('AI service is ok', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql('ok');",
+                  "  pm.expect(body.service).to.eql('ai');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Onboarding",
+          "item": [
+            {
+              "name": "Generate business profile",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "x-correlation-id",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/onboarding/business-profile",
+                "description": "LLM business-profile generation. Requires tenant header. Prefer the TypeScript onboarding routes in production.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"description\": \"{{companyDescription}}\",\n  \"companyName\": \"{{organizationName}}\",\n  \"websiteUrl\": \"{{knowledgeSourceUrl}}\",\n  \"industry\": \"SaaS\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Generate support-tone presets",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "x-correlation-id",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/onboarding/tone-presets",
+                "description": "Generates tone presets from a business profile payload.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"businessProfile\": {\n    \"schemaVersion\": 1,\n    \"companyName\": \"{{organizationName}}\",\n    \"industry\": \"SaaS\",\n    \"description\": \"{{companyDescription}}\",\n    \"productsAndServices\": [\"Helpdesk\"],\n    \"targetAudience\": \"SaaS teams\",\n    \"supportChannels\": [\"chat\", \"email\"],\n    \"commonIntents\": [\"billing\", \"SSO\"],\n    \"escalationTopics\": [\"refunds\"],\n    \"brandValues\": [\"clarity\"],\n    \"languages\": [\"English\"]\n  }\n}"
+                }
+              }
+            },
+            {
+              "name": "Generate initial agent settings",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "x-correlation-id",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/onboarding/agent-settings",
+                "description": "Generates agent settings from a business profile and selected tone.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"selectedToneId\": \"{{selectedToneId}}\",\n  \"businessProfile\": {\n    \"schemaVersion\": 1,\n    \"companyName\": \"{{organizationName}}\",\n    \"industry\": \"SaaS\",\n    \"description\": \"{{companyDescription}}\",\n    \"productsAndServices\": [\"Helpdesk\"],\n    \"targetAudience\": \"SaaS teams\",\n    \"supportChannels\": [\"chat\"],\n    \"commonIntents\": [\"billing\"],\n    \"escalationTopics\": [\"refunds\"],\n    \"brandValues\": [\"clarity\"],\n    \"languages\": [\"English\"]\n  },\n  \"knowledgeSources\": []\n}"
+                }
+              }
+            },
+            {
+              "name": "Run onboarding setup",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "x-correlation-id",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/onboarding/setup",
+                "description": "Runs profile + tones + agent settings in one call.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"description\": \"{{companyDescription}}\",\n  \"companyName\": \"{{organizationName}}\",\n  \"websiteUrl\": \"{{knowledgeSourceUrl}}\",\n  \"industry\": \"SaaS\",\n  \"selectedToneId\": \"{{selectedToneId}}\",\n  \"knowledgeSources\": [\n    {\n      \"type\": \"url\",\n      \"name\": \"Help center\",\n      \"url\": \"{{knowledgeSourceUrl}}\"\n    }\n  ]\n}"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Knowledge / RAG",
+          "item": [
+            {
+              "name": "Ingest article",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "x-correlation-id",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/knowledge/ingest",
+                "description": "Indexes an article into the vector store (in-memory or pgvector). Tenant-scoped. Prefer TypeScript `POST .../knowledge/documents` which owns lifecycle.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"schemaVersion\": 1,\n  \"documentId\": \"{{knowledgeDocumentId}}\",\n  \"kind\": \"article\",\n  \"version\": 1,\n  \"title\": \"{{knowledgeDocumentTitle}}\",\n  \"replacePreviousVersion\": true,\n  \"content\": \"{{knowledgeArticleText}}\",\n  \"contentEncoding\": \"utf8\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Ingested or failed structurally', () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(['processed', 'failed']).to.include(body.status);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Retrieve knowledge",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "x-correlation-id",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/knowledge/retrieve",
+                "description": "Hybrid keyword + vector retrieval with optional metadata filters, rerank, citations, and configurable `topK` (1\u201320).",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": \"{{knowledgeRetrieveQuery}}\",\n  \"topK\": {{ragTopK}},\n  \"filters\": {\n    \"documentIds\": [],\n    \"kinds\": [\"article\"]\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns citations', () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.citations).to.be.an('array');",
+                      "  pm.expect(body.topK).to.eql(Number(pm.environment.get('ragTopK')));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete indexed document",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "x-correlation-id",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/knowledge/index/delete",
+                "description": "Removes tenant-scoped vectors for a document id. Prefer TypeScript delete-document which also updates lifecycle.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documentId\": \"{{knowledgeDocumentId}}\"\n}"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Orchestration",
+          "item": [
+            {
+              "name": "Detect intent",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "x-correlation-id",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/orchestration/intent",
+                "description": "Classifies a visitor message (greeting, question, complaint, escalation, \u2026) with input guardrails. Tenant header required. Prefer TypeScript `AIServicePort.detectIntent` in production.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"visitorMessage\": \"{{knowledgeRetrieveQuery}}\",\n  \"history\": []\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns an intent', () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.schemaVersion).to.eql(1);",
+                      "  pm.expect(body.intent).to.be.a('string');",
+                      "  pm.expect(body.guardrails.input).to.be.a('string');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Orchestrate support turn",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "x-correlation-id",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/orchestration/run",
+                "description": "Full orchestration: intent, model route, RAG context, guardrails, retries/fallbacks, and a structured reply. Tenant header required. Prefer TypeScript `AIServicePort.orchestrateSupportTurn` in production.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"conversationId\": \"{{conversationId}}\",\n  \"visitorMessage\": \"{{knowledgeRetrieveQuery}}\",\n  \"history\": [],\n  \"topK\": {{ragTopK}},\n  \"retrieval\": {\n    \"kinds\": [\"article\"]\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Returns a structured turn', () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.schemaVersion).to.eql(1);",
+                      "  pm.expect(body.reply).to.be.a('string').and.not.empty;",
+                      "  pm.expect(body.route).to.be.a('string');",
+                      "  pm.expect(body.citations).to.be.an('array');",
+                      "  pm.expect(body.guardrails.input).to.be.a('string');",
+                      "  pm.expect(body.guardrails.output).to.be.a('string');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Tools",
+          "item": [
+            {
+              "name": "List tool catalog",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/tools",
+                "description": "Allowlisted tool schemas. Prefer TypeScript `GET /api/organizations/:id/tools` in production."
+              }
+            },
+            {
+              "name": "Propose tool calls",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "x-correlation-id",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/tools/propose",
+                "description": "Python proposes schema-validated tool calls. It never executes them. Tenant header required.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"conversationId\": \"{{conversationId}}\",\n  \"visitorMessage\": \"Where is my order?\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Apply tool results",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "x-correlation-id",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/tools/apply-results",
+                "description": "Continue generation after TypeScript executed tools. Tenant header required.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"conversationId\": \"{{conversationId}}\",\n  \"visitorMessage\": \"Where is my order?\",\n  \"results\": [\n    {\n      \"name\": \"getOrderDetails\",\n      \"ok\": true,\n      \"data\": { \"status\": \"shipped\" },\n      \"errorCode\": null,\n      \"errorMessage\": null\n    }\n  ]\n}"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Support",
+          "item": [
+            {
+              "name": "Stream support reply",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "text/event-stream"
+                  },
+                  {
+                    "key": "x-tenant-id",
+                    "value": "{{organizationId}}"
+                  },
+                  {
+                    "key": "x-correlation-id",
+                    "value": "{{$guid}}"
+                  }
+                ],
+                "url": "{{aiServiceUrl}}/v1/support/reply/stream",
+                "description": "SSE support reply with RAG context and citations on the `done` event. Optional `topK` and `retrieval` filters. Prefer the widget stream on the TypeScript API.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"conversationId\": \"{{conversationId}}\",\n  \"visitorMessage\": \"{{knowledgeRetrieveQuery}}\",\n  \"history\": [],\n  \"topK\": {{ragTopK}},\n  \"retrieval\": {\n    \"kinds\": [\"article\"]\n  }\n}"
+                }
               }
             }
           ]

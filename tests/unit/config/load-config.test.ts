@@ -1,4 +1,4 @@
-import { ConfigurationError, loadConfig } from '@ai-customer-support/config';
+import { ConfigurationError, integrationCredentialsKey, loadConfig } from '@ai-customer-support/config';
 import { describe, expect, it } from 'vitest';
 
 const validEnv = {
@@ -107,5 +107,17 @@ describe('loadConfig', () => {
     expect(config).not.toHaveProperty('LLM_PROVIDER');
     expect(config).not.toHaveProperty('LLM_API_KEY');
     expect(config.AI_SERVICE_URL).toBe('http://localhost:8000');
+  });
+
+  it('treats empty integration credential keys as unset', () => {
+    const config = loadConfig({
+      ...validEnv,
+      INTEGRATION_CREDENTIALS_KEY: '',
+      INTEGRATION_OAUTH_REDIRECT_URI: '',
+    });
+
+    expect(config.INTEGRATION_CREDENTIALS_KEY).toBeUndefined();
+    expect(config.INTEGRATION_OAUTH_REDIRECT_URI).toBeUndefined();
+    expect(integrationCredentialsKey(config)).toBe(validEnv.JWT_SECRET);
   });
 });

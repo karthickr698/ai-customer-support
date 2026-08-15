@@ -3,9 +3,13 @@ import {
   isAIServiceHealthResponse,
   isBusinessProfileDto,
   isDeleteIndexedKnowledgeDocumentResponse,
+  isDetectIntentResponse,
   isGenerateSupportReplyResponse,
   isIngestKnowledgeDocumentResponse,
   isOnboardingSetupDraftDto,
+  isOrchestrateSupportTurnResponse,
+  isProposeToolCallsResponse,
+  isApplyToolResultsResponse,
   isSupportReplyStreamEvent,
   isSupportToneId,
   isSupportTonePresetList,
@@ -13,6 +17,8 @@ import {
   type BusinessProfileDto,
   type DeleteIndexedKnowledgeDocumentRequest,
   type DeleteIndexedKnowledgeDocumentResponse,
+  type DetectIntentRequest,
+  type DetectIntentResponse,
   type GenerateBusinessProfileRequest,
   type GenerateInitialAgentSettingsRequest,
   type GenerateSupportReplyRequest,
@@ -20,6 +26,12 @@ import {
   type IngestKnowledgeDocumentRequest,
   type IngestKnowledgeDocumentResponse,
   type OnboardingSetupDraftDto,
+  type OrchestrateSupportTurnRequest,
+  type OrchestrateSupportTurnResponse,
+  type ProposeToolCallsRequest,
+  type ProposeToolCallsResponse,
+  type ApplyToolResultsRequest,
+  type ApplyToolResultsResponse,
   type RunOnboardingSetupRequest,
   type SupportReplyStreamEvent,
 } from '@ai-customer-support/contracts';
@@ -214,6 +226,47 @@ export class PythonAIServiceAdapter implements AIServicePort {
     const body = await this.postJson('/v1/knowledge/index/delete', context, input, GENERATE_TIMEOUT_MS);
     if (!isDeleteIndexedKnowledgeDocumentResponse(body)) {
       throw new InvalidAIPayloadError('Knowledge index delete payload failed validation');
+    }
+    return body;
+  }
+
+  async detectIntent(context: AICallContext, input: DetectIntentRequest): Promise<DetectIntentResponse> {
+    const body = await this.postJson('/v1/orchestration/intent', context, input, GENERATE_TIMEOUT_MS);
+    if (!isDetectIntentResponse(body)) {
+      throw new InvalidAIPayloadError('Intent detection payload failed validation');
+    }
+    return body;
+  }
+
+  async orchestrateSupportTurn(
+    context: AICallContext,
+    input: OrchestrateSupportTurnRequest,
+  ): Promise<OrchestrateSupportTurnResponse> {
+    const body = await this.postJson('/v1/orchestration/run', context, input, GENERATE_TIMEOUT_MS);
+    if (!isOrchestrateSupportTurnResponse(body)) {
+      throw new InvalidAIPayloadError('Orchestration payload failed validation');
+    }
+    return body;
+  }
+
+  async proposeToolCalls(
+    context: AICallContext,
+    input: ProposeToolCallsRequest,
+  ): Promise<ProposeToolCallsResponse> {
+    const body = await this.postJson('/v1/tools/propose', context, input, GENERATE_TIMEOUT_MS);
+    if (!isProposeToolCallsResponse(body)) {
+      throw new InvalidAIPayloadError('Tool proposal payload failed validation');
+    }
+    return body;
+  }
+
+  async applyToolResults(
+    context: AICallContext,
+    input: ApplyToolResultsRequest,
+  ): Promise<ApplyToolResultsResponse> {
+    const body = await this.postJson('/v1/tools/apply-results', context, input, GENERATE_TIMEOUT_MS);
+    if (!isApplyToolResultsResponse(body)) {
+      throw new InvalidAIPayloadError('Tool result payload failed validation');
     }
     return body;
   }

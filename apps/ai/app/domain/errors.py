@@ -80,3 +80,34 @@ class UnsafeUrlError(AIError):
 class InvalidIngestionInputError(AIError):
     code = "INVALID_INGESTION_INPUT"
     status_code = 400
+
+
+class InvalidRetrievalInputError(AIError):
+    code = "INVALID_RETRIEVAL_INPUT"
+    status_code = 400
+
+
+class InvalidOrchestrationInputError(AIError):
+    code = "INVALID_ORCHESTRATION_INPUT"
+    status_code = 400
+
+
+class VectorIndexError(AIError):
+    code = "VECTOR_INDEX_ERROR"
+    status_code = 502
+
+    def __init__(self, message: str = "The vector index is unavailable") -> None:
+        super().__init__(message)
+
+
+class InvalidToolCallError(AIError):
+    code = "INVALID_TOOL_CALL"
+    status_code = 400
+
+
+class UnknownToolError(AIError):
+    code = "UNKNOWN_TOOL"
+    status_code = 400
+
+    def __init__(self, message: str = "Unknown tool") -> None:
+        super().__init__(message)

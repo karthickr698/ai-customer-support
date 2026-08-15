@@ -83,5 +83,9 @@ export async function buildServer(
     await deps.widget.register(app);
   }
 
+  if (deps.integrations) {
+    await deps.integrations.register(app);
+  }
+
   return app;
 }
