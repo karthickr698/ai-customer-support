@@ -159,6 +159,7 @@ export class StreamWidgetAiReplyUseCase {
         conversation.id,
         aiMessage.id,
         'ai',
+        'ai',
         input.security.correlationId,
       ),
     );

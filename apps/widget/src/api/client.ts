@@ -68,6 +68,21 @@ export class WidgetApi {
     });
   }
 
+  getConversation(conversationId: string, signal?: AbortSignal): Promise<{ conversation: ConversationDto }> {
+    return this.request(`/api/widget/conversations/${conversationId}`, { signal });
+  }
+
+  openRealtime(conversationId: string): WebSocket {
+    const token = this.getToken();
+    const url = new URL(this.resolve(`/api/widget/conversations/${conversationId}/realtime`), window.location.origin);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    if (token) {
+      url.searchParams.set('session_token', token);
+    }
+
+    return new WebSocket(url);
+  }
+
   uploadAttachment(
     conversationId: string,
     file: File,

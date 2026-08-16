@@ -20,6 +20,7 @@ import type { ListConversationsUseCase } from '../../../application/use-cases/li
 import type { ListMessagesUseCase } from '../../../application/use-cases/list-messages-use-case.js';
 import type { RemoveConversationTagUseCase } from '../../../application/use-cases/remove-conversation-tag-use-case.js';
 import type { SendMessageUseCase } from '../../../application/use-cases/send-message-use-case.js';
+import type { TakeOverConversationUseCase } from '../../../application/use-cases/take-over-conversation-use-case.js';
 import type { UnassignConversationUseCase } from '../../../application/use-cases/unassign-conversation-use-case.js';
 import type { GetConversationAttachmentUseCase, UploadConversationAttachmentUseCase } from '../../../application/use-cases/attachment-use-cases.js';
 import { UnauthorizedError } from '../../../domain/errors.js';
@@ -47,6 +48,7 @@ export type ConversationHttpUseCases = {
   readonly assignConversation: AssignConversationUseCase;
   readonly assignToAvailableAgent: AssignToAvailableAgentUseCase;
   readonly unassignConversation: UnassignConversationUseCase;
+  readonly takeOverConversation: TakeOverConversationUseCase;
   readonly escalateConversation: EscalateConversationUseCase;
   readonly addConversationTag: AddConversationTagUseCase;
   readonly removeConversationTag: RemoveConversationTagUseCase;
@@ -200,6 +202,20 @@ export async function registerConversationRoutes(
     { preHandler: [...tenantAuth, requireAssign] },
     async (request, reply) => {
       const result = await useCases.unassignConversation.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        conversationId: routeParam(request, 'conversationId'),
+        security: securityContext(request),
+      });
+      return reply.status(200).send(result);
+    },
+  );
+
+  app.post(
+    '/api/organizations/:organizationId/conversations/:conversationId/takeover',
+    { preHandler: [...tenantAuth, requireAssign] },
+    async (request, reply) => {
+      const result = await useCases.takeOverConversation.execute({
         tenantId: requireTenantId(request),
         actorId: requireUserId(request),
         conversationId: routeParam(request, 'conversationId'),

@@ -40,6 +40,9 @@ model Organization {
   onboarding      OrganizationOnboarding?
   knowledgeSources KnowledgeSource[]
   knowledgeDocuments KnowledgeDocument[]
+  knowledgeCategories KnowledgeCategory[]
+  knowledgeArticles KnowledgeArticle[]
+  knowledgeArticleVersions KnowledgeArticleVersion[]
   widgetConfiguration WidgetConfiguration?
   widgetSessions  WidgetSession[]
   messageAttachments MessageAttachment[]
@@ -378,6 +381,75 @@ model KnowledgeDocument {
   @@index([organizationId, createdAt])
   @@index([organizationId, sourceId])
   @@map("knowledge_documents")
+}
+
+model KnowledgeCategory {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  slug           String
+  description    String?
+  createdAt      DateTime @map("created_at")
+  updatedAt      DateTime @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  articles     KnowledgeArticle[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, name])
+  @@map("knowledge_categories")
+}
+
+model KnowledgeArticle {
+  id                 String    @id @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  categoryId         String?   @map("category_id") @db.Uuid
+  title              String
+  slug               String
+  summary            String?
+  body               String    @default("")
+  status             String
+  tags               String[]  @default([])
+  currentVersion     Int       @default(1) @map("current_version")
+  publishedVersion   Int?      @map("published_version")
+  publishedAt        DateTime? @map("published_at")
+  indexedDocumentId  String?   @map("indexed_document_id") @db.Uuid
+  createdByUserId    String    @map("created_by_user_id") @db.Uuid
+  updatedByUserId    String    @map("updated_by_user_id") @db.Uuid
+  createdAt          DateTime  @map("created_at")
+  updatedAt          DateTime  @map("updated_at")
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category     KnowledgeCategory?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  versions     KnowledgeArticleVersion[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, categoryId])
+  @@map("knowledge_articles")
+}
+
+model KnowledgeArticleVersion {
+  id              String   @id @db.Uuid
+  articleId       String   @map("article_id") @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  version         Int
+  title           String
+  slug            String
+  summary         String?
+  body            String
+  categoryId      String?  @map("category_id") @db.Uuid
+  tags            String[] @default([])
+  status          String
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @map("created_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  article      KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, version])
+  @@index([organizationId, articleId, createdAt])
+  @@map("knowledge_article_versions")
 }
 
 model WidgetConfiguration {

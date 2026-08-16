@@ -44,12 +44,12 @@ export class KnowledgeDocument {
     readonly organizationId: string,
     readonly sourceId: string | undefined,
     readonly kind: KnowledgeDocumentKind,
-    readonly title: string,
+    private titleValue: string,
     readonly sourceUri: string | undefined,
     readonly mediaType: string | undefined,
     readonly fileName: string | undefined,
     readonly storageKey: string | undefined,
-    readonly articleText: string | undefined,
+    private articleTextValue: string | undefined,
     private checksumValue: string | undefined,
     private statusValue: KnowledgeDocumentStatus,
     private versionValue: number,
@@ -63,6 +63,14 @@ export class KnowledgeDocument {
     readonly createdAt: Date,
     private updatedAtValue: Date,
   ) {}
+
+  get title(): string {
+    return this.titleValue;
+  }
+
+  get articleText(): string | undefined {
+    return this.articleTextValue;
+  }
 
   get checksum(): string | undefined {
     return this.checksumValue;
@@ -233,18 +241,27 @@ export class KnowledgeDocument {
     this.updatedAtValue = now;
   }
 
+  replaceEditorialContent(input: { readonly title: string; readonly articleText: string; readonly now: Date }): void {
+    if (this.kind !== 'article') {
+      throw new InvalidKnowledgeDocumentError('Only article documents can replace editorial content');
+    }
+    this.titleValue = normalizeTitle(input.title);
+    this.articleTextValue = normalizeArticleText(input.articleText, 'article');
+    this.updatedAtValue = input.now;
+  }
+
   toSnapshot(): KnowledgeDocumentSnapshot {
     return {
       id: this.id,
       organizationId: this.organizationId,
       sourceId: this.sourceId,
       kind: this.kind,
-      title: this.title,
+      title: this.titleValue,
       sourceUri: this.sourceUri,
       mediaType: this.mediaType,
       fileName: this.fileName,
       storageKey: this.storageKey,
-      articleText: this.articleText,
+      articleText: this.articleTextValue,
       checksum: this.checksumValue,
       status: this.statusValue,
       version: this.versionValue,

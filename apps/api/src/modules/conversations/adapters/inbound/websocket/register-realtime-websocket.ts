@@ -11,6 +11,7 @@ import {
 } from '../../../../organizations/index.js';
 import { PRESENCE_HEARTBEAT_INTERVAL_MS } from '../../../../agents/domain/presence-constants.js';
 import { REALTIME_REPLAY_LIMIT } from '../../../domain/support-constants.js';
+import { createConversationId } from '../../../domain/conversation-id.js';
 import type { ListAgentPresenceUseCase } from '../../../../agents/application/use-cases/list-and-set-agent-presence-use-cases.js';
 import type {
   ConnectAgentPresenceUseCase,
@@ -19,8 +20,11 @@ import type {
   SetAgentPresenceStatusUseCase,
 } from '../../../../agents/application/use-cases/mutate-agent-presence-use-cases.js';
 import type { ReplayRealtimeEventsUseCase } from '../../../application/use-cases/replay-realtime-events-use-case.js';
+import type { ConversationRepository } from '../../../application/ports/conversation-repository.js';
+import type { UserDirectoryPort } from '../../../application/ports/user-directory-port.js';
 import type { AuthenticatePreHandler } from '../http/conversation-routes.js';
 import type { RealtimeConnectionHub } from './realtime-connection-hub.js';
+import type { TypingFanout } from './typing-fanout.js';
 
 const clientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('heartbeat') }),
@@ -28,6 +32,8 @@ const clientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('presence.set'), status: z.enum(['online', 'away', 'busy']) }),
   z.object({ type: z.literal('subscribe'), conversationId: z.string().uuid().optional() }),
   z.object({ type: z.literal('unsubscribe') }),
+  z.object({ type: z.literal('typing.start'), conversationId: z.string().uuid() }),
+  z.object({ type: z.literal('typing.stop'), conversationId: z.string().uuid() }),
 ]);
 
 export function withQueryAccessToken(authenticate: AuthenticatePreHandler): AuthenticatePreHandler {
@@ -54,6 +60,9 @@ export async function registerRealtimeWebsocket(
     readonly disconnectPresence: DisconnectAgentPresenceUseCase;
     readonly heartbeatPresence: HeartbeatAgentPresenceUseCase;
     readonly setPresence: SetAgentPresenceStatusUseCase;
+    readonly conversations: ConversationRepository;
+    readonly users: UserDirectoryPort;
+    readonly typing: TypingFanout;
     readonly logger: Logger;
   },
 ): Promise<void> {
@@ -82,6 +91,7 @@ export async function registerRealtimeWebsocket(
 
       hub.add({
         id: connectionId,
+        kind: 'agent',
         tenantId: sessionTenantId,
         userId: sessionUserId,
         lastEventId: resumeFrom ?? null,
@@ -95,8 +105,15 @@ export async function registerRealtimeWebsocket(
       });
 
       socket.on('close', () => {
-        hub.remove(connectionId);
+        const connection = hub.remove(connectionId);
         void input.disconnectPresence.execute({ tenantId: sessionTenantId, agentId: sessionUserId });
+        void input.typing.clearActor({
+          tenantId: sessionTenantId,
+          conversationId: connection?.conversationId,
+          actorId: sessionUserId,
+          actorType: 'agent',
+          displayName: 'Agent',
+        });
       });
 
       socket.on('error', (error: Error) => {
@@ -201,6 +218,32 @@ export async function registerRealtimeWebsocket(
             case 'unsubscribe':
               connection.conversationId = undefined;
               break;
+            case 'typing.start':
+            case 'typing.stop': {
+              const conversation = await input.conversations.findById(
+                sessionTenantId,
+                createConversationId(parsed.conversationId),
+              );
+              if (!conversation) {
+                send(socket, { type: 'error', code: 'CONVERSATION_NOT_FOUND', message: 'Conversation not found' });
+                break;
+              }
+
+              const user = await input.users.findById(sessionUserId);
+              const payload = {
+                tenantId: sessionTenantId,
+                conversationId: parsed.conversationId,
+                actorId: sessionUserId,
+                actorType: 'agent' as const,
+                displayName: user?.displayName ?? 'Agent',
+              };
+              if (parsed.type === 'typing.start') {
+                await input.typing.start(payload);
+              } else {
+                await input.typing.stop(payload);
+              }
+              break;
+            }
             case 'resume': {
               const replayed = await input.replayRealtimeEvents.execute({
                 tenantId: sessionTenantId,

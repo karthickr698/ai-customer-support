@@ -2,11 +2,13 @@ import type { ConversationDto, MessageDto } from '@ai-customer-support/contracts
 import type { EventBus } from '@ai-customer-support/shared';
 import { Permissions } from '../../../organizations/domain/permissions.js';
 import { EmptyMessageError } from '../../domain/errors.js';
-import { MessageReceivedEvent, MessageSentEvent } from '../../domain/events.js';
+import { AgentAssignedEvent, MessageReceivedEvent, MessageSentEvent } from '../../domain/events.js';
 import { Message } from '../../domain/message.js';
-import { toConversationDto, toMessageDto, type RequestSecurityContext } from '../dtos.js';
+import { toMessageDto, type RequestSecurityContext } from '../dtos.js';
+import { toConversationDtoWithAssignee } from '../map-conversation-dto.js';
 import type { LoadAuthorizedConversationService } from '../load-authorized-conversation-service.js';
 import { persistMessageAttachments } from '../persist-message-attachments.js';
+import type { AgentAvailabilityPort } from '../ports/agent-availability-port.js';
 import type { ClockPort } from '../ports/clock-port.js';
 import type { ConversationRepository } from '../ports/conversation-repository.js';
 import type { MessageAttachmentRepository } from '../ports/message-attachment-repository.js';
@@ -20,6 +22,7 @@ export class SendMessageUseCase {
     private readonly messages: MessageRepository,
     private readonly attachments: MessageAttachmentRepository,
     private readonly users: UserDirectoryPort,
+    private readonly availability: AgentAvailabilityPort,
     private readonly clock: ClockPort,
     private readonly eventBus: EventBus,
   ) {}
@@ -48,6 +51,11 @@ export class SendMessageUseCase {
 
     const now = this.clock.now();
     const authorType = input.authorType ?? 'agent';
+    const claimedUnassigned = authorType === 'agent' && !conversation.assignedAgentId;
+    if (claimedUnassigned) {
+      conversation.assignTo(actor.actorId, now);
+    }
+
     const message = Message.create({
       conversationId: conversation.id,
       organizationId: actor.tenantId,
@@ -68,6 +76,20 @@ export class SendMessageUseCase {
       attachmentIds,
     });
 
+    if (claimedUnassigned) {
+      await this.eventBus.publish(
+        new AgentAssignedEvent(
+          crypto.randomUUID(),
+          now,
+          actor.tenantId,
+          conversation.id,
+          actor.actorId,
+          actor.actorId,
+          input.security.correlationId,
+        ),
+      );
+    }
+
     if (authorType === 'agent') {
       await this.eventBus.publish(
         new MessageSentEvent(
@@ -77,6 +99,7 @@ export class SendMessageUseCase {
           conversation.id,
           message.id,
           actor.actorId,
+          authorType,
           input.security.correlationId,
         ),
       );
@@ -95,13 +118,10 @@ export class SendMessageUseCase {
     }
 
     const latest = (await this.conversations.findById(actor.tenantId, conversation.id)) ?? conversation;
-    const assignee = latest.assignedAgentId
-      ? await this.users.findById(latest.assignedAgentId)
-      : null;
 
     return {
       message: toMessageDto(message, linked),
-      conversation: toConversationDto(latest, assignee),
+      conversation: await toConversationDtoWithAssignee(latest, this.users, this.availability),
     };
   }
 }

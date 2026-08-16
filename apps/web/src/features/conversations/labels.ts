@@ -1,4 +1,5 @@
 import type {
+  AgentPresenceStatus,
   ConversationChannel,
   ConversationPriority,
   ConversationStatus,
@@ -68,3 +69,10 @@ export const AGENT_STATUS_OPTIONS: ReadonlyArray<{
 ];
 
 export const TAG_PATTERN = /^[a-z0-9][a-z0-9-]{0,31}$/;
+
+export const PRESENCE_LABELS: Record<AgentPresenceStatus, string> = {
+  online: 'Online',
+  away: 'Away',
+  busy: 'Busy',
+  offline: 'Offline',
+};

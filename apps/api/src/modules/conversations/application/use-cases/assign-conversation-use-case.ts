@@ -4,10 +4,14 @@ import { Permissions } from '../../../organizations/domain/permissions.js';
 import { AgentAssignedEvent } from '../../domain/events.js';
 import { AssigneeNotOrganizationMemberError } from '../../domain/errors.js';
 import { ConversationPolicy } from '../../domain/conversation-policy.js';
-import { toConversationDto, type RequestSecurityContext } from '../dtos.js';
+import type { RequestSecurityContext } from '../dtos.js';
+import { toConversationDtoWithAssignee } from '../map-conversation-dto.js';
+import { recordCustomerVisibleSystemMessage } from '../record-system-message.js';
 import type { LoadAuthorizedConversationService } from '../load-authorized-conversation-service.js';
+import type { AgentAvailabilityPort } from '../ports/agent-availability-port.js';
 import type { ClockPort } from '../ports/clock-port.js';
 import type { ConversationRepository } from '../ports/conversation-repository.js';
+import type { MessageRepository } from '../ports/message-repository.js';
 import type { OrganizationMemberDirectoryPort } from '../ports/organization-member-directory-port.js';
 import type { UserDirectoryPort } from '../ports/user-directory-port.js';
 
@@ -15,8 +19,10 @@ export class AssignConversationUseCase {
   constructor(
     private readonly authorized: LoadAuthorizedConversationService,
     private readonly conversations: ConversationRepository,
+    private readonly messages: MessageRepository,
     private readonly members: OrganizationMemberDirectoryPort,
     private readonly users: UserDirectoryPort,
+    private readonly availability: AgentAvailabilityPort,
     private readonly clock: ClockPort,
     private readonly eventBus: EventBus,
   ) {}
@@ -42,23 +48,39 @@ export class AssignConversationUseCase {
 
     ConversationPolicy.assertAssignableRole(member.role);
 
+    const changed = conversation.assignedAgentId !== member.userId;
     const now = this.clock.now();
     conversation.assignTo(member.userId, now);
     await this.conversations.save(conversation);
 
-    await this.eventBus.publish(
-      new AgentAssignedEvent(
-        crypto.randomUUID(),
-        now,
-        actor.tenantId,
-        conversation.id,
-        member.userId,
-        actor.actorId,
-        input.security.correlationId,
-      ),
-    );
+    if (changed) {
+      await this.eventBus.publish(
+        new AgentAssignedEvent(
+          crypto.randomUUID(),
+          now,
+          actor.tenantId,
+          conversation.id,
+          member.userId,
+          actor.actorId,
+          input.security.correlationId,
+        ),
+      );
 
-    const assignee = await this.users.findById(member.userId);
-    return { conversation: toConversationDto(conversation, assignee) };
+      const assignee = await this.users.findById(member.userId);
+      await recordCustomerVisibleSystemMessage({
+        conversations: this.conversations,
+        messages: this.messages,
+        eventBus: this.eventBus,
+        conversation,
+        tenantId: actor.tenantId,
+        body: `${assignee?.displayName ?? 'A teammate'} joined the conversation.`,
+        now,
+        correlationId: input.security.correlationId,
+      });
+    }
+
+    return {
+      conversation: await toConversationDtoWithAssignee(conversation, this.users, this.availability),
+    };
   }
 }

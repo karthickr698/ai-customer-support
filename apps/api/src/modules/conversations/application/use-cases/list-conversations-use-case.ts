@@ -7,7 +7,9 @@ import type { ConversationPriority } from '../../domain/conversation-priority.js
 import type { ConversationStatus } from '../../domain/conversation-status.js';
 import { ConversationTag } from '../../domain/conversation-tag.js';
 import { toConversationDto } from '../dtos.js';
+import { parsePresenceStatus } from '../map-conversation-dto.js';
 import type { ConversationRepository } from '../ports/conversation-repository.js';
+import type { AgentAvailabilityPort } from '../ports/agent-availability-port.js';
 import type { TenantAccessPort } from '../ports/tenant-access-port.js';
 import type { UserDirectoryPort } from '../ports/user-directory-port.js';
 
@@ -28,6 +30,7 @@ export class ListConversationsUseCase {
     private readonly tenantAccess: TenantAccessPort,
     private readonly conversations: ConversationRepository,
     private readonly users: UserDirectoryPort,
+    private readonly availability: AgentAvailabilityPort,
   ) {}
 
   async execute(query: ListConversationsQuery): Promise<ConversationListResponse> {
@@ -48,12 +51,30 @@ export class ListConversationsUseCase {
       query.page,
     );
 
+    const assigneeIds = [
+      ...new Set(
+        result.items
+          .map((conversation) => conversation.assignedAgentId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const presence = assigneeIds.length > 0 ? await this.availability.list(actor.tenantId, assigneeIds) : [];
+    const presenceByAgent = new Map(presence.map((item) => [item.agentId, parsePresenceStatus(item.status)]));
+
     const items = [];
     for (const conversation of result.items) {
       const assignee = conversation.assignedAgentId
         ? await this.users.findById(conversation.assignedAgentId)
         : null;
-      items.push(toConversationDto(conversation, assignee));
+      items.push(
+        toConversationDto(
+          conversation,
+          assignee,
+          conversation.assignedAgentId
+            ? (presenceByAgent.get(conversation.assignedAgentId) ?? null)
+            : null,
+        ),
+      );
     }
 
     return {

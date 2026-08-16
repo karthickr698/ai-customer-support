@@ -7,6 +7,7 @@ import type { Redis } from 'ioredis';
 import type { AIServicePort } from '../ai/application/ports/ai-service-port.js';
 import type { BusinessDataLookupPort } from '../customers/index.js';
 import type { TicketToolPort } from '../tickets/index.js';
+import type { ConversationHandoffPort } from '../conversations/index.js';
 import type { ResolveTenantAccessUseCase } from '../organizations/application/use-cases/resolve-tenant-access-use-case.js';
 import { createAuthenticatePublicApiPreHandler } from './adapters/inbound/http/authenticate-public-api.js';
 import {
@@ -125,6 +126,7 @@ export function composeIntegrations(input: {
   readonly resolveTenantAccess: ResolveTenantAccessUseCase;
   readonly businessDataLookup?: BusinessDataLookupPort;
   readonly ticketTools?: TicketToolPort;
+  readonly conversationHandoff?: ConversationHandoffPort;
 }): IntegrationsModule {
   const tenantAccess = new OrganizationsTenantAccessAdapter(input.resolveTenantAccess);
   const clock = new SystemClock();
@@ -156,7 +158,7 @@ export function composeIntegrations(input: {
     cipher,
     new FetchHttpToolInvoker(),
     oauthExchange,
-    new InProcessPlatformToolHandler(input.businessDataLookup, input.ticketTools),
+    new InProcessPlatformToolHandler(input.businessDataLookup, input.ticketTools, input.conversationHandoff),
     clock,
     input.eventBus,
   );

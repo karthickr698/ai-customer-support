@@ -22,6 +22,10 @@ import {
 } from './knowledge-schemas.js';
 import { parseBody } from './parse-body.js';
 import { readKnowledgeDocumentUpload } from './read-knowledge-document-upload.js';
+import {
+  registerKnowledgeArticleRoutes,
+  type KnowledgeArticleHttpUseCases,
+} from './knowledge-article-routes.js';
 
 export type KnowledgeHttpUseCases = {
   readonly registerKnowledgeSource: RegisterKnowledgeSourceUseCase;
@@ -32,7 +36,7 @@ export type KnowledgeHttpUseCases = {
   readonly listKnowledgeDocuments: ListKnowledgeDocumentsUseCase;
   readonly reindexKnowledgeDocument: ReindexKnowledgeDocumentUseCase;
   readonly deleteKnowledgeDocument: DeleteKnowledgeDocumentUseCase;
-};
+} & KnowledgeArticleHttpUseCases;
 
 export type AuthenticatePreHandler = (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
 
@@ -172,6 +176,8 @@ export async function registerKnowledgeRoutes(
       return reply.status(204).send();
     },
   );
+
+  await registerKnowledgeArticleRoutes(app, useCases, authenticate, resolveTenantAccess);
 }
 
 function requireUserId(request: FastifyRequest): string {

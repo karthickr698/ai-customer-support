@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from 'react';
 import type {
+  AgentPresenceDto,
   ConversationDto,
   ConversationNoteDto,
   ConversationNoteListResponse,
@@ -18,7 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime } from '@/features/organizations/format';
-import { CHANNEL_LABELS, PRIORITY_OPTIONS, AGENT_STATUS_OPTIONS, TAG_PATTERN } from '../labels';
+import { CHANNEL_LABELS, PRIORITY_OPTIONS, AGENT_STATUS_OPTIONS, PRESENCE_LABELS, TAG_PATTERN } from '../labels';
 import { PriorityBadge, StatusBadge } from './conversation-badges';
 
 export function ConversationDetails({
@@ -26,6 +27,7 @@ export function ConversationDetails({
   notes,
   notesPending,
   members,
+  presenceByAgentId,
   canWrite,
   canAssign,
   canEscalate,
@@ -44,6 +46,7 @@ export function ConversationDetails({
   readonly notes: ConversationNoteListResponse | undefined;
   readonly notesPending: boolean;
   readonly members: readonly OrganizationMemberDto[];
+  readonly presenceByAgentId: ReadonlyMap<string, AgentPresenceDto>;
   readonly canWrite: boolean;
   readonly canAssign: boolean;
   readonly canEscalate: boolean;
@@ -141,11 +144,14 @@ export function ConversationDetails({
             }}
             options={[
               { value: 'unassigned', label: 'Unassigned' },
-              ...assignable.map((member) => ({
-                value: member.userId,
-                label: member.displayName,
-                description: member.email,
-              })),
+              ...assignable.map((member) => {
+                const presence = presenceByAgentId.get(member.userId)?.status ?? 'offline';
+                return {
+                  value: member.userId,
+                  label: member.displayName,
+                  description: `${PRESENCE_LABELS[presence]} · ${member.email}`,
+                };
+              }),
             ]}
             placeholder="Assignee"
             searchable
@@ -162,6 +168,13 @@ export function ConversationDetails({
               Assign next available
             </Button>
           ) : null}
+          {conversation.handledBy === 'agent' ? (
+            <p className="text-xs text-muted-foreground">
+              AI replies are paused while a teammate is assigned.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">The AI assistant is handling this conversation.</p>
+          )}
         </section>
 
         <Separator />

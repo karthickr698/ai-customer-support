@@ -4,12 +4,15 @@ import { Permissions } from '../../../organizations/domain/permissions.js';
 import { AssignmentPolicy } from '../../domain/assignment-policy.js';
 import { AgentAssignedEvent } from '../../domain/events.js';
 import { NoAvailableAgentError } from '../../domain/errors.js';
-import { toConversationDto, type RequestSecurityContext } from '../dtos.js';
+import type { RequestSecurityContext } from '../dtos.js';
+import { toConversationDtoWithAssignee } from '../map-conversation-dto.js';
+import { recordCustomerVisibleSystemMessage } from '../record-system-message.js';
 import type { LoadAuthorizedConversationService } from '../load-authorized-conversation-service.js';
 import type { AgentAvailabilityPort } from '../ports/agent-availability-port.js';
 import type { AssignmentCursorPort } from '../ports/assignment-cursor-port.js';
 import type { ClockPort } from '../ports/clock-port.js';
 import type { ConversationRepository } from '../ports/conversation-repository.js';
+import type { MessageRepository } from '../ports/message-repository.js';
 import type { OrganizationMemberDirectoryPort } from '../ports/organization-member-directory-port.js';
 import type { UserDirectoryPort } from '../ports/user-directory-port.js';
 
@@ -17,6 +20,7 @@ export class AssignToAvailableAgentUseCase {
   constructor(
     private readonly authorized: LoadAuthorizedConversationService,
     private readonly conversations: ConversationRepository,
+    private readonly messages: MessageRepository,
     private readonly members: OrganizationMemberDirectoryPort,
     private readonly availability: AgentAvailabilityPort,
     private readonly cursor: AssignmentCursorPort,
@@ -66,7 +70,20 @@ export class AssignToAvailableAgentUseCase {
     );
 
     const assignee = await this.users.findById(agentId);
-    return { conversation: toConversationDto(conversation, assignee) };
+    await recordCustomerVisibleSystemMessage({
+      conversations: this.conversations,
+      messages: this.messages,
+      eventBus: this.eventBus,
+      conversation,
+      tenantId: actor.tenantId,
+      body: `${assignee?.displayName ?? 'A teammate'} joined the conversation.`,
+      now,
+      correlationId: input.security.correlationId,
+    });
+
+    return {
+      conversation: await toConversationDtoWithAssignee(conversation, this.users, this.availability),
+    };
   }
 }
 

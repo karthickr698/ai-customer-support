@@ -1,14 +1,18 @@
 import type { ConversationListResponse, ConversationResponse } from '@ai-customer-support/contracts';
 import type { PageRequest } from '@ai-customer-support/shared';
-import { toConversationDto } from '../dtos.js';
+import { toConversationDtoWithAssignee } from '../map-conversation-dto.js';
 import type { LoadWidgetConversationService } from '../load-widget-conversation-service.js';
+import type { AgentAvailabilityPort } from '../ports/agent-availability-port.js';
 import type { ConversationRepository } from '../ports/conversation-repository.js';
+import type { UserDirectoryPort } from '../ports/user-directory-port.js';
 import type { WidgetSessionContextPort } from '../ports/widget-session-context-port.js';
 
 export class ListWidgetConversationsUseCase {
   constructor(
     private readonly widgetSessions: WidgetSessionContextPort,
     private readonly conversations: ConversationRepository,
+    private readonly users: UserDirectoryPort,
+    private readonly availability: AgentAvailabilityPort,
   ) {}
 
   async execute(input: {
@@ -22,8 +26,13 @@ export class ListWidgetConversationsUseCase {
       input.page,
     );
 
+    const items = [];
+    for (const conversation of result.items) {
+      items.push(await toConversationDtoWithAssignee(conversation, this.users, this.availability));
+    }
+
     return {
-      items: result.items.map((conversation) => toConversationDto(conversation, null)),
+      items,
       total: result.total,
       page: input.page.page,
       pageSize: input.page.pageSize,
@@ -32,7 +41,11 @@ export class ListWidgetConversationsUseCase {
 }
 
 export class GetWidgetConversationUseCase {
-  constructor(private readonly authorized: LoadWidgetConversationService) {}
+  constructor(
+    private readonly authorized: LoadWidgetConversationService,
+    private readonly users: UserDirectoryPort,
+    private readonly availability: AgentAvailabilityPort,
+  ) {}
 
   async execute(input: {
     readonly sessionToken: string;
@@ -40,6 +53,8 @@ export class GetWidgetConversationUseCase {
     readonly conversationId: string;
   }): Promise<ConversationResponse> {
     const { conversation } = await this.authorized.execute(input);
-    return { conversation: toConversationDto(conversation, null) };
+    return {
+      conversation: await toConversationDtoWithAssignee(conversation, this.users, this.availability),
+    };
   }
 }

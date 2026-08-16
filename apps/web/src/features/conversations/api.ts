@@ -52,6 +52,9 @@ export const conversationsApi = {
   unassign: (organizationId: string, conversationId: string) =>
     apiClient.post<ConversationResponse>(conversationPath(organizationId, conversationId, '/unassign')),
 
+  takeOver: (organizationId: string, conversationId: string) =>
+    apiClient.post<ConversationResponse>(conversationPath(organizationId, conversationId, '/takeover')),
+
   escalate: (organizationId: string, conversationId: string, body: EscalateConversationRequest = {}) =>
     apiClient.post<ConversationResponse>(conversationPath(organizationId, conversationId, '/escalate'), body),
 

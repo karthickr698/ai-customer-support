@@ -1,4 +1,4 @@
-import type { ConversationDto, ConversationListResponse } from '@ai-customer-support/contracts';
+import type { AgentPresenceDto, ConversationDto, ConversationListResponse } from '@ai-customer-support/contracts';
 import { Inbox } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pagination } from '@/components/ui/pagination';
@@ -8,18 +8,21 @@ import { cn } from '@/lib/utils';
 import { MemberAvatar } from '@/features/organizations/components/member-avatar';
 import { conversationTitle, formatRelativeTime } from '../format';
 import { CHANNEL_LABELS } from '../labels';
+import { PresenceDot } from './presence-dot';
 import { PriorityBadge, StatusBadge } from './conversation-badges';
 
 export function ConversationList({
   data,
   selectedId,
   isPending,
+  presenceByAgentId,
   onSelect,
   onPageChange,
 }: {
   readonly data: ConversationListResponse | undefined;
   readonly selectedId: string | undefined;
   readonly isPending: boolean;
+  readonly presenceByAgentId: ReadonlyMap<string, AgentPresenceDto>;
   readonly onSelect: (conversationId: string) => void;
   readonly onPageChange: (page: number) => void;
 }) {
@@ -57,6 +60,7 @@ export function ConversationList({
               <ConversationListItem
                 conversation={conversation}
                 onSelect={onSelect}
+                presenceByAgentId={presenceByAgentId}
                 selected={conversation.id === selectedId}
               />
             </li>
@@ -79,10 +83,12 @@ export function ConversationList({
 function ConversationListItem({
   conversation,
   selected,
+  presenceByAgentId,
   onSelect,
 }: {
   readonly conversation: ConversationDto;
   readonly selected: boolean;
+  readonly presenceByAgentId: ReadonlyMap<string, AgentPresenceDto>;
   readonly onSelect: (conversationId: string) => void;
 }) {
   return (
@@ -117,11 +123,20 @@ function ConversationListItem({
           {conversation.priority !== 'normal' ? <PriorityBadge priority={conversation.priority} /> : null}
           <span className="text-[11px] text-muted-foreground">{CHANNEL_LABELS[conversation.channel]}</span>
           {conversation.assignedAgent ? (
-            <span className="truncate text-[11px] text-muted-foreground">
+            <span className="inline-flex min-w-0 items-center gap-1 truncate text-[11px] text-muted-foreground">
+              <PresenceDot
+                status={
+                  presenceByAgentId.get(conversation.assignedAgent.id)?.status ??
+                  conversation.assignedAgent.presence ??
+                  'offline'
+                }
+              />
               {conversation.assignedAgent.displayName}
             </span>
           ) : (
-            <span className="text-[11px] text-muted-foreground">Unassigned</span>
+            <span className="text-[11px] text-muted-foreground">
+              {conversation.handledBy === 'ai' ? 'AI assistant' : 'Unassigned'}
+            </span>
           )}
         </span>
       </span>

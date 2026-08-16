@@ -31,9 +31,7 @@ export function WidgetPanel({
           <h1 className="truncate text-sm font-semibold" id="acs-widget-title">
             {widget.config?.title ?? 'Chat with us'}
           </h1>
-          <p className="truncate text-[11px] opacity-80">
-            {widget.config?.aiEnabled ? 'Typically replies instantly' : 'Leave a message'}
-          </p>
+          <p className="truncate text-[11px] opacity-80">{supportStatusLine(widget)}</p>
         </div>
         {widget.phase === 'ready' ? (
           <button
@@ -112,6 +110,7 @@ export function WidgetPanel({
             }}
             streamingText={widget.streamingText}
             typing={widget.typing}
+            typingLabel={widget.typingLabel}
           />
           {widget.error ? (
             <p className="px-4 pb-1 text-xs text-red-600" role="alert">
@@ -199,4 +198,30 @@ async function openAttachment(
 ): Promise<void> {
   const href = await widget.attachmentHref(attachment);
   window.open(href, '_blank', 'noopener,noreferrer');
+}
+
+function supportStatusLine(widget: WidgetController): string {
+  const conversation = widget.conversation;
+  if (conversation?.handledBy === 'agent' && conversation.assignedAgent) {
+    const presence = conversation.assignedAgent.presence;
+    if (presence === 'online') {
+      return `${conversation.assignedAgent.displayName} · Online`;
+    }
+
+    if (presence === 'away') {
+      return `${conversation.assignedAgent.displayName} · Away`;
+    }
+
+    if (presence === 'busy') {
+      return `${conversation.assignedAgent.displayName} · Busy`;
+    }
+
+    return `${conversation.assignedAgent.displayName} · Offline`;
+  }
+
+  if (widget.config?.aiEnabled) {
+    return 'AI assistant · typically replies instantly';
+  }
+
+  return 'Leave a message';
 }

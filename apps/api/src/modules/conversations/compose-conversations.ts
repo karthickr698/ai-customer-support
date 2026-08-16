@@ -25,6 +25,8 @@ import {
 import { registerEscalationAndRealtimeHttpRoutes } from './adapters/inbound/http/escalation-realtime-routes.js';
 import { RealtimeConnectionHub } from './adapters/inbound/websocket/realtime-connection-hub.js';
 import { registerRealtimeWebsocket } from './adapters/inbound/websocket/register-realtime-websocket.js';
+import { registerWidgetRealtimeWebsocket } from './adapters/inbound/websocket/register-widget-realtime-websocket.js';
+import { TypingFanout } from './adapters/inbound/websocket/typing-fanout.js';
 import { AgentsAvailabilityAdapter } from './adapters/outbound/agents/agents-availability-adapter.js';
 import { SystemClock } from './adapters/outbound/clock/system-clock.js';
 import { OrganizationsMemberDirectoryAdapter } from './adapters/outbound/organizations/organizations-member-directory-adapter.js';
@@ -42,6 +44,10 @@ import {
   FANOUT_CHANNEL,
   RedisRealtimeEventLog,
 } from './adapters/outbound/redis/redis-realtime-event-log.js';
+import {
+  EPHEMERAL_CHANNEL,
+  RedisRealtimeEphemeralFanout,
+} from './adapters/outbound/redis/redis-realtime-ephemeral-fanout.js';
 import { LoadAuthorizedConversationService } from './application/load-authorized-conversation-service.js';
 import { LoadWidgetConversationService } from './application/load-widget-conversation-service.js';
 import {
@@ -79,12 +85,17 @@ import { ListMessagesUseCase } from './application/use-cases/list-messages-use-c
 import { RemoveConversationTagUseCase } from './application/use-cases/remove-conversation-tag-use-case.js';
 import { ReplayRealtimeEventsUseCase } from './application/use-cases/replay-realtime-events-use-case.js';
 import { SendMessageUseCase } from './application/use-cases/send-message-use-case.js';
+import { TakeOverConversationUseCase } from './application/use-cases/take-over-conversation-use-case.js';
+import { HandoffConversationToHumanUseCase } from './application/use-cases/handoff-conversation-to-human-use-case.js';
 import { UnassignConversationUseCase } from './application/use-cases/unassign-conversation-use-case.js';
 import {
   DeleteEscalationRuleUseCase,
   UpdateEscalationRuleUseCase,
 } from './application/use-cases/update-escalation-rule-use-case.js';
-import { ESCALATION_EVALUATION_INTERVAL_MS } from './domain/support-constants.js';
+import { ESCALATION_EVALUATION_INTERVAL_MS, MAX_ESCALATION_CANDIDATES } from './domain/support-constants.js';
+import { parsePresenceStatus } from './application/map-conversation-dto.js';
+import type { ConversationHandoffPort } from './application/ports/conversation-handoff-port.js';
+import type { ConversationRepository } from './application/ports/conversation-repository.js';
 import type { MessageRepository } from './application/ports/message-repository.js';
 
 const REALTIME_DOMAIN_EVENTS = [
@@ -104,6 +115,7 @@ export type ConversationsHttpRegistrar = {
   register(app: FastifyInstance): Promise<void>;
   start(): void;
   stop(): Promise<void>;
+  readonly handoffToHuman: ConversationHandoffPort;
 };
 
 export function composeConversations(input: {
@@ -148,6 +160,8 @@ export function composeConversations(input: {
   );
   const hub = new RealtimeConnectionHub();
   const eventLog = new RedisRealtimeEventLog(input.redis);
+  const ephemeral = new RedisRealtimeEphemeralFanout(input.redis);
+  const typing = new TypingFanout(ephemeral);
   const subscriber = input.redis.duplicate();
   const evaluateEscalationRules = new EvaluateEscalationRulesUseCase(
     tenantAccess,
@@ -177,8 +191,9 @@ export function composeConversations(input: {
       tenantAccess,
       conversations,
       input.userDirectory,
+      availability,
     ),
-    getConversation: new GetConversationUseCase(authorized, input.userDirectory),
+    getConversation: new GetConversationUseCase(authorized, input.userDirectory, availability),
     changeConversationStatus: new ChangeConversationStatusUseCase(
       authorized,
       conversations,
@@ -196,14 +211,17 @@ export function composeConversations(input: {
     assignConversation: new AssignConversationUseCase(
       authorized,
       conversations,
+      messages,
       members,
       input.userDirectory,
+      availability,
       clock,
       input.eventBus,
     ),
     assignToAvailableAgent: new AssignToAvailableAgentUseCase(
       authorized,
       conversations,
+      messages,
       members,
       availability,
       cursor,
@@ -214,6 +232,17 @@ export function composeConversations(input: {
     unassignConversation: new UnassignConversationUseCase(
       authorized,
       conversations,
+      messages,
+      clock,
+      input.eventBus,
+    ),
+    takeOverConversation: new TakeOverConversationUseCase(
+      authorized,
+      conversations,
+      messages,
+      members,
+      input.userDirectory,
+      availability,
       clock,
       input.eventBus,
     ),
@@ -243,6 +272,7 @@ export function composeConversations(input: {
       messages,
       attachments,
       input.userDirectory,
+      availability,
       clock,
       input.eventBus,
     ),
@@ -272,8 +302,14 @@ export function composeConversations(input: {
     listWidgetConversations: new ListWidgetConversationsUseCase(
       input.widgetSessionContext,
       conversations,
+      input.userDirectory,
+      availability,
     ),
-    getWidgetConversation: new GetWidgetConversationUseCase(widgetAuthorized),
+    getWidgetConversation: new GetWidgetConversationUseCase(
+      widgetAuthorized,
+      input.userDirectory,
+      availability,
+    ),
     changeWidgetConversationStatus: new ChangeWidgetConversationStatusUseCase(
       widgetAuthorized,
       conversations,
@@ -327,8 +363,21 @@ export function composeConversations(input: {
     replayRealtimeEvents,
   };
 
+  const handoffToHuman = new HandoffConversationToHumanUseCase(
+    conversations,
+    messages,
+    members,
+    availability,
+    cursor,
+    input.userDirectory,
+    clock,
+    input.eventBus,
+    input.ticketIntake,
+  );
+
   subscribeRealtime(input.eventBus, eventLog);
   subscribeEscalation(input.eventBus, evaluateEscalationRules, messages, input.logger);
+  subscribeAssigneePresence(input.eventBus, conversations, ephemeral, input.logger);
 
   let timer: NodeJS.Timeout | undefined;
 
@@ -361,15 +410,30 @@ export function composeConversations(input: {
         disconnectPresence: input.disconnectPresence,
         heartbeatPresence: input.heartbeatPresence,
         setPresence: input.setPresence,
+        conversations,
+        users: input.userDirectory,
+        typing,
+        logger: input.logger,
+      });
+      await registerWidgetRealtimeWebsocket(app, {
+        hub,
+        authenticateWidgetSession: input.authenticateWidgetSession,
+        conversations,
+        typing,
         logger: input.logger,
       });
     },
     start(): void {
       void subscriber.connect().then(
         async () => {
-          await subscriber.subscribe(FANOUT_CHANNEL);
+          await subscriber.subscribe(FANOUT_CHANNEL, EPHEMERAL_CHANNEL);
           subscriber.on('message', (_channel, payload) => {
             try {
+              if (_channel === EPHEMERAL_CHANNEL) {
+                hub.sendEphemeral(JSON.parse(payload));
+                return;
+              }
+
               hub.sendToTenant(JSON.parse(payload));
             } catch (error: unknown) {
               const message = error instanceof Error ? error.message : 'Invalid realtime fanout payload';
@@ -391,13 +455,14 @@ export function composeConversations(input: {
       }, ESCALATION_EVALUATION_INTERVAL_MS);
       timer.unref();
     },
+    handoffToHuman,
     async stop(): Promise<void> {
       if (timer) {
         clearInterval(timer);
       }
 
       try {
-        await subscriber.unsubscribe(FANOUT_CHANNEL);
+        await subscriber.unsubscribe(FANOUT_CHANNEL, EPHEMERAL_CHANNEL);
         await subscriber.quit();
       } catch {
         subscriber.disconnect();
@@ -462,6 +527,40 @@ function subscribeEscalation(
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Offline escalation failed';
       logger.warn('Offline escalation failed', { message, tenantId: event.tenantId, agentId });
+    }
+  });
+}
+
+function subscribeAssigneePresence(
+  eventBus: EventBus,
+  conversations: ConversationRepository,
+  ephemeral: RedisRealtimeEphemeralFanout,
+  logger: Logger,
+): void {
+  eventBus.subscribe('AgentPresenceChanged', async (event) => {
+    const agentId = (event as { agentId?: string }).agentId;
+    const status = parsePresenceStatus((event as { status?: string }).status);
+    if (!event.tenantId || !agentId || !status) {
+      return;
+    }
+
+    try {
+      const assigned = await conversations.listEscalationCandidates(event.tenantId, {
+        assignedAgentId: agentId,
+        limit: MAX_ESCALATION_CANDIDATES,
+      });
+      for (const conversation of assigned) {
+        await ephemeral.publish({
+          type: 'assignee_presence',
+          tenantId: event.tenantId,
+          conversationId: conversation.id,
+          agentId,
+          status,
+        });
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Assignee presence fanout failed';
+      logger.warn('Assignee presence fanout failed', { message, tenantId: event.tenantId, agentId });
     }
   });
 }

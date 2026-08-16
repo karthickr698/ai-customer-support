@@ -1,13 +1,15 @@
 import type { ConversationDto } from '@ai-customer-support/contracts';
 import { Permissions } from '../../../organizations/domain/permissions.js';
-import { toConversationDto } from '../dtos.js';
+import { toConversationDtoWithAssignee } from '../map-conversation-dto.js';
 import type { LoadAuthorizedConversationService } from '../load-authorized-conversation-service.js';
+import type { AgentAvailabilityPort } from '../ports/agent-availability-port.js';
 import type { UserDirectoryPort } from '../ports/user-directory-port.js';
 
 export class GetConversationUseCase {
   constructor(
     private readonly conversations: LoadAuthorizedConversationService,
     private readonly users: UserDirectoryPort,
+    private readonly availability: AgentAvailabilityPort,
   ) {}
 
   async execute(input: {
@@ -20,10 +22,8 @@ export class GetConversationUseCase {
       permission: Permissions.CONVERSATION_READ,
     });
 
-    const assignee = conversation.assignedAgentId
-      ? await this.users.findById(conversation.assignedAgentId)
-      : null;
-
-    return { conversation: toConversationDto(conversation, assignee) };
+    return {
+      conversation: await toConversationDtoWithAssignee(conversation, this.users, this.availability),
+    };
   }
 }

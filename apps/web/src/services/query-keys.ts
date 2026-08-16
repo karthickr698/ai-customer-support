@@ -15,6 +15,10 @@ export const queryKeys = {
     notes: (organizationId: string, id: string) =>
       [...queryKeys.conversations.all(), organizationId, id, 'notes'] as const,
   },
+  agents: {
+    all: () => ['agents'] as const,
+    presence: (organizationId: string) => [...queryKeys.agents.all(), organizationId, 'presence'] as const,
+  },
   tickets: {
     all: () => ['tickets'] as const,
     list: (filters?: Record<string, unknown>) => [...queryKeys.tickets.all(), 'list', filters] as const,
@@ -30,6 +34,14 @@ export const queryKeys = {
     list: (filters?: Record<string, unknown>) => [...queryKeys.knowledge.all(), 'list', filters] as const,
     documents: (organizationId: string) => [...queryKeys.knowledge.all(), organizationId, 'documents'] as const,
     detail: (id: string) => [...queryKeys.knowledge.all(), 'detail', id] as const,
+    articles: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.knowledge.all(), organizationId, 'articles', filters] as const,
+    article: (organizationId: string, articleId: string) =>
+      [...queryKeys.knowledge.all(), organizationId, 'article', articleId] as const,
+    articleVersions: (organizationId: string, articleId: string) =>
+      [...queryKeys.knowledge.all(), organizationId, 'article', articleId, 'versions'] as const,
+    categories: (organizationId: string) => [...queryKeys.knowledge.all(), organizationId, 'categories'] as const,
+    tags: (organizationId: string) => [...queryKeys.knowledge.all(), organizationId, 'tags'] as const,
   },
   organizations: {
     all: () => ['organizations'] as const,

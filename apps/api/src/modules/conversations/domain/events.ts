@@ -37,6 +37,7 @@ export class MessageSentEvent implements DomainEvent {
     readonly conversationId: string,
     readonly messageId: string,
     readonly authorId: string,
+    readonly authorType: string,
     readonly correlationId?: string,
   ) {}
 }

@@ -14,6 +14,13 @@ export const REALTIME_EVENT_NAMES = [
 ] as const;
 export type RealtimeEventName = (typeof REALTIME_EVENT_NAMES)[number];
 
+export const WIDGET_HIDDEN_REALTIME_EVENTS: ReadonlySet<RealtimeEventName> = new Set([
+  'conversation.note_added',
+]);
+
+export const TYPING_ACTOR_TYPES = ['agent', 'customer'] as const;
+export type TypingActorType = (typeof TYPING_ACTOR_TYPES)[number];
+
 export type RealtimeSupportEvent = {
   readonly eventId: string;
   readonly occurredAt: string;
@@ -34,7 +41,27 @@ export type RealtimeClientMessage =
   | { readonly type: 'resume'; readonly lastEventId: string }
   | { readonly type: 'presence.set'; readonly status: Exclude<AgentPresenceStatus, 'offline'> }
   | { readonly type: 'subscribe'; readonly conversationId?: string }
-  | { readonly type: 'unsubscribe' };
+  | { readonly type: 'unsubscribe' }
+  | { readonly type: 'typing.start'; readonly conversationId: string }
+  | { readonly type: 'typing.stop'; readonly conversationId: string };
+
+export type RealtimeTypingMessage = {
+  readonly type: 'typing';
+  readonly conversationId: string;
+  readonly actorId: string;
+  readonly actorType: TypingActorType;
+  readonly displayName: string;
+  readonly active: boolean;
+};
+
+export type RealtimeAssigneePresenceMessage = {
+  readonly type: 'assignee_presence';
+  readonly conversationId: string;
+  readonly agentId: string;
+  readonly status: AgentPresenceStatus;
+};
+
+export type RealtimeEphemeralMessage = RealtimeTypingMessage | RealtimeAssigneePresenceMessage;
 
 export type RealtimeServerMessage =
   | {
@@ -65,4 +92,6 @@ export type RealtimeServerMessage =
       readonly type: 'error';
       readonly code: string;
       readonly message: string;
-    };
+    }
+  | RealtimeTypingMessage
+  | RealtimeAssigneePresenceMessage;

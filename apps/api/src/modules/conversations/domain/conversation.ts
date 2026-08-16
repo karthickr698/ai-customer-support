@@ -191,7 +191,10 @@ export class Conversation {
   }
 
   canGenerateAiReply(): boolean {
-    return this.statusValue === 'open' || this.statusValue === 'pending';
+    return (
+      (this.statusValue === 'open' || this.statusValue === 'pending') &&
+      this.assignedAgentIdValue === undefined
+    );
   }
 
   identifyCustomer(customer: CustomerContact, now: Date): void {

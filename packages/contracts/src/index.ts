@@ -29,6 +29,25 @@ export {
   type RetrieveKnowledgeResponse,
 } from './knowledge.js';
 export {
+  isKnowledgeArticleStatus,
+  KNOWLEDGE_ARTICLE_STATUSES,
+  type CreateKnowledgeArticleRequest,
+  type CreateKnowledgeCategoryRequest,
+  type KnowledgeArticleDto,
+  type KnowledgeArticleListItemDto,
+  type KnowledgeArticleListResponse,
+  type KnowledgeArticleResponse,
+  type KnowledgeArticleStatus,
+  type KnowledgeArticleVersionDto,
+  type KnowledgeArticleVersionListResponse,
+  type KnowledgeCategoryDto,
+  type KnowledgeCategoryListResponse,
+  type KnowledgeCategoryResponse,
+  type KnowledgeTagListResponse,
+  type UpdateKnowledgeArticleRequest,
+  type UpdateKnowledgeCategoryRequest,
+} from './knowledge-articles.js';
+export {
   AGENT_SETTINGS_SCHEMA_VERSION,
   BUSINESS_PROFILE_SCHEMA_VERSION,
   isAgentSettingsDto,
@@ -78,11 +97,17 @@ export {
 } from './agents.js';
 export {
   REALTIME_EVENT_NAMES,
+  TYPING_ACTOR_TYPES,
+  WIDGET_HIDDEN_REALTIME_EVENTS,
+  type RealtimeAssigneePresenceMessage,
   type RealtimeClientMessage,
+  type RealtimeEphemeralMessage,
   type RealtimeEventListResponse,
   type RealtimeEventName,
   type RealtimeServerMessage,
   type RealtimeSupportEvent,
+  type RealtimeTypingMessage,
+  type TypingActorType,
 } from './realtime.js';
 export {
   isAuthUserDto,
@@ -101,6 +126,7 @@ export {
 } from './identity.js';
 export {
   CONVERSATION_CHANNELS,
+  CONVERSATION_HANDLED_BY,
   CONVERSATION_PRIORITIES,
   CONVERSATION_STATUSES,
   MESSAGE_AUTHOR_TYPES,
@@ -113,6 +139,7 @@ export {
   type ConversationAssigneeDto,
   type ConversationChannel,
   type ConversationDto,
+  type ConversationHandledBy,
   type ConversationListResponse,
   type ConversationNoteDto,
   type ConversationNoteListResponse,

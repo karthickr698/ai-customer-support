@@ -119,6 +119,7 @@ export class CreateConversationUseCase {
             conversation.id,
             initial.id,
             actor.actorId,
+            initial.authorType,
             command.security.correlationId,
           ),
         );

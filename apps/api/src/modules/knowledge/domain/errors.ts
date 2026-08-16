@@ -74,3 +74,83 @@ export class TooManyKnowledgeDocumentsError extends DomainError {
     super('This organization already has the maximum number of knowledge documents', 409);
   }
 }
+
+export class InvalidKnowledgeArticleError extends DomainError {
+  readonly code = 'INVALID_KNOWLEDGE_ARTICLE';
+
+  constructor(message: string) {
+    super(message, 400);
+  }
+}
+
+export class KnowledgeArticleNotFoundError extends DomainError {
+  readonly code = 'KNOWLEDGE_ARTICLE_NOT_FOUND';
+
+  constructor() {
+    super('Knowledge article not found', 404);
+  }
+}
+
+export class InvalidKnowledgeArticleStateError extends DomainError {
+  readonly code = 'INVALID_KNOWLEDGE_ARTICLE_STATE';
+
+  constructor(message = 'This article cannot be updated in its current state') {
+    super(message, 409);
+  }
+}
+
+export class KnowledgeArticleSlugConflictError extends DomainError {
+  readonly code = 'KNOWLEDGE_ARTICLE_SLUG_CONFLICT';
+
+  constructor() {
+    super('An article with this slug already exists', 409);
+  }
+}
+
+export class TooManyKnowledgeArticlesError extends DomainError {
+  readonly code = 'TOO_MANY_KNOWLEDGE_ARTICLES';
+
+  constructor() {
+    super('This organization already has the maximum number of knowledge articles', 409);
+  }
+}
+
+export class InvalidKnowledgeCategoryError extends DomainError {
+  readonly code = 'INVALID_KNOWLEDGE_CATEGORY';
+
+  constructor(message: string) {
+    super(message, 400);
+  }
+}
+
+export class KnowledgeCategoryNotFoundError extends DomainError {
+  readonly code = 'KNOWLEDGE_CATEGORY_NOT_FOUND';
+
+  constructor() {
+    super('Knowledge category not found', 404);
+  }
+}
+
+export class KnowledgeCategorySlugConflictError extends DomainError {
+  readonly code = 'KNOWLEDGE_CATEGORY_SLUG_CONFLICT';
+
+  constructor() {
+    super('A category with this slug already exists', 409);
+  }
+}
+
+export class TooManyKnowledgeCategoriesError extends DomainError {
+  readonly code = 'TOO_MANY_KNOWLEDGE_CATEGORIES';
+
+  constructor() {
+    super('This organization already has the maximum number of knowledge categories', 409);
+  }
+}
+
+export class KnowledgeArticleVersionNotFoundError extends DomainError {
+  readonly code = 'KNOWLEDGE_ARTICLE_VERSION_NOT_FOUND';
+
+  constructor() {
+    super('Article version not found', 404);
+  }
+}

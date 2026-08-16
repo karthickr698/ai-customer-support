@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type {
+  AgentPresenceDto,
   ConversationDto,
   ConversationListResponse,
   ConversationNoteListResponse,
@@ -25,6 +26,7 @@ import { ConversationDetails } from '../components/conversation-details';
 import { ConversationFilters, type InboxFilters } from '../components/conversation-filters';
 import { ConversationList } from '../components/conversation-list';
 import { TranscriptPane } from '../components/transcript-pane';
+import { useInboxRealtime } from '../realtime/realtime-context';
 
 export function InboxPage() {
   return (
@@ -45,6 +47,11 @@ function InboxWorkspace() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const realtime = useInboxRealtime();
+  const presenceByAgentId = useMemo(
+    () => new Map(realtime.presence.map((item) => [item.agentId, item])),
+    [realtime.presence],
+  );
 
   const canWrite = hasPermission(permissions, 'conversation.write');
   const canAssign = hasPermission(permissions, 'conversation.assign');
@@ -74,7 +81,7 @@ function InboxWorkspace() {
     queryKey: queryKeys.conversations.list(organizationId, listParams),
     path: `/api/organizations/${organizationId}/conversations`,
     params: listParams,
-    refetchInterval: 10_000,
+    refetchInterval: realtime.connected ? false : 10_000,
   });
 
   const detail = useApiQuery<ConversationResponse>({
@@ -88,7 +95,7 @@ function InboxWorkspace() {
     path: `/api/organizations/${organizationId}/conversations/${conversationId ?? ''}/messages`,
     params: { page: 1, pageSize: 100 },
     enabled: Boolean(conversationId),
-    refetchInterval: conversationId ? 8_000 : false,
+    refetchInterval: conversationId && !realtime.connected ? 8_000 : false,
   });
 
   const notes = useApiQuery<ConversationNoteListResponse>({
@@ -121,7 +128,12 @@ function InboxWorkspace() {
   const unassign = useApiMutation({
     mutationFn: () => conversationsApi.unassign(organizationId, conversationId ?? ''),
     invalidateKeys: conversationKeys,
-    successMessage: 'Conversation unassigned',
+    successMessage: 'Returned to the AI assistant',
+  });
+  const takeOver = useApiMutation({
+    mutationFn: () => conversationsApi.takeOver(organizationId, conversationId ?? ''),
+    invalidateKeys: conversationKeys,
+    successMessage: 'You joined the conversation',
   });
   const assignAvailable = useApiMutation({
     mutationFn: () => conversationsApi.assignAvailable(organizationId, conversationId ?? ''),
@@ -160,12 +172,16 @@ function InboxWorkspace() {
     changePriority.isPending ||
     assign.isPending ||
     unassign.isPending ||
+    takeOver.isPending ||
     assignAvailable.isPending ||
     escalate.isPending ||
     addTag.isPending ||
     removeTag.isPending;
 
-  const conversation = selectedConversation(conversationId, list.data, detail.data?.conversation);
+  const conversation = withLivePresence(
+    selectedConversation(conversationId, list.data, detail.data?.conversation),
+    presenceByAgentId,
+  );
   const memberItems = useMemo(() => members.data?.members ?? [], [members.data?.members]);
 
   const assignmentOptions = useMemo(
@@ -235,6 +251,7 @@ function InboxWorkspace() {
       canWrite={canWrite}
       conversation={conversation}
       members={memberItems}
+      presenceByAgentId={presenceByAgentId}
       notes={notes.data}
       notesPending={notes.isPending}
       onAddNote={async (body) => {
@@ -290,6 +307,7 @@ function InboxWorkspace() {
           <ConversationList
             data={list.data}
             isPending={list.isPending}
+            presenceByAgentId={presenceByAgentId}
             onPageChange={(nextPage) => {
               const next = new URLSearchParams(searchParams);
               if (nextPage <= 1) {
@@ -306,7 +324,9 @@ function InboxWorkspace() {
         <section className={cn('min-w-0 flex-1 flex-col', conversationId ? 'flex' : 'hidden md:flex')}>
           <TranscriptPane
             canReply={canWrite}
+            canTakeOver={canAssign}
             conversation={conversation}
+            currentUserId={user?.id}
             notFound={Boolean(conversationId) && !detail.isPending && !conversation}
             messages={messages.data}
             messagesPending={Boolean(conversationId) && messages.isPending}
@@ -318,7 +338,17 @@ function InboxWorkspace() {
             onReply={async (body) => {
               await sendMessage.mutateAsync(body);
             }}
+            onTakeOver={() => {
+              takeOver.mutate();
+            }}
+            onTyping={(active) => {
+              if (conversationId) {
+                realtime.sendTyping(conversationId, active);
+              }
+            }}
             replyPending={sendMessage.isPending}
+            takeoverPending={takeOver.isPending}
+            typing={conversationId ? realtime.typingFor(conversationId) : []}
           />
         </section>
         <aside className="hidden w-80 shrink-0 border-l border-border xl:flex xl:flex-col">
@@ -378,4 +408,23 @@ function selectedConversation(
     return undefined;
   }
   return detail ?? list?.items.find((item) => item.id === conversationId);
+}
+
+function withLivePresence(
+  conversation: ConversationDto | undefined,
+  presenceByAgentId: ReadonlyMap<string, AgentPresenceDto>,
+): ConversationDto | undefined {
+  if (!conversation?.assignedAgent) {
+    return conversation;
+  }
+
+  const live = presenceByAgentId.get(conversation.assignedAgent.id)?.status;
+  if (!live || live === conversation.assignedAgent.presence) {
+    return conversation;
+  }
+
+  return {
+    ...conversation,
+    assignedAgent: { ...conversation.assignedAgent, presence: live },
+  };
 }

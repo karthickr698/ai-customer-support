@@ -1,3 +1,4 @@
+import type { ConversationHandoffPort } from '../../../conversations/index.js';
 import type { BusinessDataLookupPort } from '../../../customers/application/ports/repositories.js';
 import type { TicketToolPort } from '../../../tickets/application/ports.js';
 import type { PlatformToolHandlerPort, PlatformToolRequest } from '../../application/ports.js';
@@ -10,6 +11,7 @@ export class InProcessPlatformToolHandler implements PlatformToolHandlerPort {
   constructor(
     private readonly businessData?: BusinessDataLookupPort,
     private readonly tickets?: TicketToolPort,
+    private readonly conversations?: ConversationHandoffPort,
   ) {}
 
   async execute(request: PlatformToolRequest): Promise<Record<string, unknown>> {
@@ -97,6 +99,19 @@ export class InProcessPlatformToolHandler implements PlatformToolHandlerPort {
           noteRecorded: Boolean(request.arguments.note),
         };
       case 'handoffToAgent':
+        if (this.conversations) {
+          const conversationId = asOptionalString(request.arguments.conversationId);
+          if (!conversationId) {
+            return { handedOff: false, reason: 'conversationId is required' };
+          }
+
+          return this.conversations.handoffToHuman({
+            tenantId: request.tenantId,
+            actorId: request.actorId,
+            conversationId,
+            reason: asOptionalString(request.arguments.reason),
+          });
+        }
         return {
           handedOff: true,
           conversationId: request.arguments.conversationId,

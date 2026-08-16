@@ -43,3 +43,47 @@ export const uploadKnowledgeDocumentFieldsSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
   sourceId: z.string().uuid().optional(),
 });
+
+const emptyToUndefined = (value: unknown): unknown =>
+  typeof value === 'string' && value.trim() === '' ? undefined : value;
+
+const uuidSchema = z.string().uuid('Enter a valid id');
+
+export const knowledgeArticleListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  q: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
+  status: z.preprocess(emptyToUndefined, z.enum(['draft', 'published', 'archived']).optional()),
+  categoryId: z.preprocess(emptyToUndefined, uuidSchema.optional()),
+  tag: z.preprocess(emptyToUndefined, z.string().trim().max(32).optional()),
+});
+
+export const createKnowledgeCategoryBodySchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(80),
+  slug: z.string().trim().min(1).max(80).optional(),
+  description: z.string().trim().min(1).max(400).optional(),
+});
+
+export const updateKnowledgeCategoryBodySchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  slug: z.string().trim().min(1).max(80).optional(),
+  description: z.string().trim().max(400).nullable().optional(),
+});
+
+export const createKnowledgeArticleBodySchema = z.object({
+  title: z.string().trim().min(1, 'Title is required').max(200),
+  slug: z.string().trim().min(1).max(80).optional(),
+  summary: z.string().trim().max(400).optional(),
+  body: z.string().max(200_000).optional(),
+  categoryId: uuidSchema.optional(),
+  tags: z.array(z.string().trim().min(1).max(32)).max(12).optional(),
+});
+
+export const updateKnowledgeArticleBodySchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  slug: z.string().trim().min(1).max(80).optional(),
+  summary: z.string().trim().max(400).nullable().optional(),
+  body: z.string().max(200_000).optional(),
+  categoryId: uuidSchema.nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(32)).max(12).optional(),
+});

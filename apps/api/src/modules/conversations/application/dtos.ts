@@ -1,4 +1,5 @@
 import type {
+  AgentPresenceStatus,
   ConversationAssigneeDto,
   ConversationDto,
   ConversationNoteDto,
@@ -25,6 +26,7 @@ export type RequestSecurityContext = {
 export function toConversationDto(
   conversation: Conversation,
   assignee: DirectoryUser | null,
+  presence: AgentPresenceStatus | null = null,
 ): ConversationDto {
   const snapshot = conversation.toSnapshot();
 
@@ -38,7 +40,8 @@ export function toConversationDto(
     status: snapshot.status,
     priority: snapshot.priority,
     assignedAgentId: snapshot.assignedAgentId ?? null,
-    assignedAgent: assignee ? toAssigneeDto(assignee) : null,
+    assignedAgent: assignee ? toAssigneeDto(assignee, presence) : null,
+    handledBy: snapshot.assignedAgentId ? 'agent' : 'ai',
     channel: snapshot.channel,
     widgetSessionId: snapshot.widgetSessionId ?? null,
     tags: snapshot.tags,
@@ -102,10 +105,11 @@ export function toNoteDto(note: ConversationNote): ConversationNoteDto {
   };
 }
 
-function toAssigneeDto(user: DirectoryUser): ConversationAssigneeDto {
+function toAssigneeDto(user: DirectoryUser, presence: AgentPresenceStatus | null): ConversationAssigneeDto {
   return {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
+    presence,
   };
 }

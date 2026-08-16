@@ -39,7 +39,7 @@ export function WorkspaceNav({ onNavigate }: WorkspaceNavProps) {
       end: true,
     },
     { to: workspacePath(organizationId, 'roles'), label: 'Roles & permissions', icon: Shield, visible: true, end: true },
-    { to: workspacePath(organizationId, 'knowledge'), label: 'Knowledge', icon: BookOpen, visible: true, end: true },
+    { to: workspacePath(organizationId, 'knowledge'), label: 'Knowledge', icon: BookOpen, visible: true, end: false },
     { to: workspacePath(organizationId, 'onboarding'), label: 'AI setup', icon: Sparkles, visible: true, end: true },
     { to: workspacePath(organizationId, 'widget'), label: 'Chat widget', icon: MessageCircle, visible: true, end: true },
     {

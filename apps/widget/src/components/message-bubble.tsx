@@ -18,7 +18,9 @@ export function MessageBubble({
 
   return (
     <article
-      aria-label={isCustomer ? 'Your message' : 'Assistant message'}
+      aria-label={
+        isCustomer ? 'Your message' : message.authorType === 'system' ? 'System message' : 'Support message'
+      }
       className={isCustomer ? 'ml-8 flex flex-col items-end' : 'mr-8 flex flex-col items-start'}
     >
       <p className="mb-1 text-[11px] font-medium text-muted-foreground">
@@ -54,7 +56,7 @@ function authorLabel(authorType: MessageDto['authorType']): string {
     case 'agent':
       return 'Agent';
     case 'system':
-      return 'System';
+      return 'Update';
     default:
       return 'Assistant';
   }

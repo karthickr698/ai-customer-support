@@ -4,6 +4,7 @@ import type { AppDependencies } from './dependencies.js';
 import { PythonAIServiceAdapter } from '../modules/ai/adapters/outbound/python-ai/python-ai-service-adapter.js';
 import { composeAgents } from '../modules/agents/compose-agents.js';
 import { composeConversations } from '../modules/conversations/compose-conversations.js';
+import type { ConversationHandoffPort } from '../modules/conversations/index.js';
 import { composeKnowledge } from '../modules/knowledge/compose-knowledge.js';
 import { composeOnboarding } from '../modules/onboarding/compose-onboarding.js';
 import { composeCustomers } from '../modules/customers/compose-customers.js';
@@ -219,6 +220,23 @@ export async function initializeInfrastructure(
   });
   observabilityPlaceholder.telemetry = observability.telemetry;
 
+  const conversationHandoffPlaceholder: { current?: ConversationHandoffPort } = {};
+  const conversationHandoff: ConversationHandoffPort = {
+    handoffToHuman: (input) => {
+      if (!conversationHandoffPlaceholder.current) {
+        return Promise.resolve({
+          handedOff: false,
+          conversationId: input.conversationId,
+          assignedAgentId: null,
+          status: 'open',
+          reason: input.reason,
+        });
+      }
+
+      return conversationHandoffPlaceholder.current.handoffToHuman(input);
+    },
+  };
+
   const integrations = composeIntegrations({
     prisma: database.forRepositoryAdapter(),
     redis: redis.forAdapter(),
@@ -230,6 +248,7 @@ export async function initializeInfrastructure(
     resolveTenantAccess: organizations.resolveTenantAccess,
     businessDataLookup: customers.lookup,
     ticketTools: tickets.ticketTools,
+    conversationHandoff,
   });
 
   const conversations = composeConversations({
@@ -254,6 +273,7 @@ export async function initializeInfrastructure(
     attachmentStorageDir: config.ATTACHMENT_STORAGE_DIR,
     ticketIntake: tickets.openFromConversation,
   });
+  conversationHandoffPlaceholder.current = conversations.handoffToHuman;
 
   return {
     config,

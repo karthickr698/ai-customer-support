@@ -69,7 +69,14 @@ export function readWidgetSessionToken(request: FastifyRequest): string | undefi
     return header.trim();
   }
 
-  return readBearerToken(request.headers.authorization);
+  const bearer = readBearerToken(request.headers.authorization);
+  if (bearer) {
+    return bearer;
+  }
+
+  const query = request.query as Record<string, unknown>;
+  const token = typeof query.session_token === 'string' ? query.session_token : undefined;
+  return token?.trim() || undefined;
 }
 
 export function requestOrigin(request: FastifyRequest): string | undefined {

@@ -1,3 +1,5 @@
+import type { AgentPresenceStatus } from './agents.js';
+
 export const CONVERSATION_STATUSES = [
   'open',
   'pending',
@@ -16,6 +18,9 @@ export type ConversationPriority = (typeof CONVERSATION_PRIORITIES)[number];
 export const MESSAGE_AUTHOR_TYPES = ['customer', 'agent', 'system', 'ai'] as const;
 export type MessageAuthorType = (typeof MESSAGE_AUTHOR_TYPES)[number];
 
+export const CONVERSATION_HANDLED_BY = ['ai', 'agent'] as const;
+export type ConversationHandledBy = (typeof CONVERSATION_HANDLED_BY)[number];
+
 export const MESSAGE_FEEDBACK_RATINGS = ['helpful', 'not_helpful'] as const;
 export type MessageFeedbackRating = (typeof MESSAGE_FEEDBACK_RATINGS)[number];
 
@@ -30,6 +35,7 @@ export type ConversationAssigneeDto = {
   readonly id: string;
   readonly email: string;
   readonly displayName: string;
+  readonly presence: AgentPresenceStatus | null;
 };
 
 export type ConversationDto = {
@@ -43,6 +49,7 @@ export type ConversationDto = {
   readonly priority: ConversationPriority;
   readonly assignedAgentId: string | null;
   readonly assignedAgent: ConversationAssigneeDto | null;
+  readonly handledBy: ConversationHandledBy;
   readonly channel: ConversationChannel;
   readonly widgetSessionId: string | null;
   readonly tags: readonly string[];

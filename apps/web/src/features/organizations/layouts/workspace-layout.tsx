@@ -14,6 +14,7 @@ import { CreateWorkspaceDialog } from '../components/create-workspace-dialog';
 import { WorkspaceSidebar } from '../components/workspace-sidebar';
 import { useTenantScope } from '../use-tenant-scope';
 import { WorkspaceProvider } from '../workspace-context';
+import { WorkspaceRealtimeProvider } from '@/features/conversations/realtime/realtime-context';
 
 export function WorkspaceLayout() {
   return (
@@ -92,6 +93,7 @@ function WorkspaceShell() {
 
   return (
     <WorkspaceProvider value={contextValue}>
+      <WorkspaceRealtimeProvider>
       <div className="flex min-h-screen">
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-sidebar-border lg:block">
           <WorkspaceSidebar onCreateWorkspace={openCreateWorkspace} />
@@ -128,6 +130,7 @@ function WorkspaceShell() {
         </div>
       </div>
       <CreateWorkspaceDialog onOpenChange={setCreateOpen} open={createOpen} />
+      </WorkspaceRealtimeProvider>
     </WorkspaceProvider>
   );
 }

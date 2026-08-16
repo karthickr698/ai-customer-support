@@ -4,6 +4,7 @@ import type {
   MessageAttachmentDto,
   MessageDto,
   PublicWidgetConfigurationDto,
+  RealtimeServerMessage,
   WidgetSessionDto,
 } from '@ai-customer-support/contracts';
 import { WidgetApi } from '../api/client';
@@ -45,6 +46,7 @@ export type WidgetController = {
   readonly messages: readonly MessageDto[];
   readonly streamingText: string;
   readonly typing: boolean;
+  readonly typingLabel: string;
   readonly sending: boolean;
   readonly error: string | null;
   readonly pendingFiles: readonly PendingAttachment[];
@@ -75,10 +77,11 @@ export function useWidget(boot: WidgetBootConfig): WidgetController {
   const [messages, setMessages] = useState<MessageDto[]>([]);
   const [streamingText, setStreamingText] = useState('');
   const [typing, setTyping] = useState(false);
+  const [typingLabel, setTypingLabel] = useState('Assistant is typing');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<PendingAttachment[]>([]);
-  const [composer, setComposer] = useState('');
+  const [composer, setComposerState] = useState('');
   const [identifyName, setIdentifyName] = useState('');
   const [identifyEmail, setIdentifyEmail] = useState('');
   const [reducedMotion, setReducedMotion] = useState(
@@ -88,6 +91,8 @@ export function useWidget(boot: WidgetBootConfig): WidgetController {
   const tokenRef = useRef<string | null>(readStoredSession(boot.publicKey)?.sessionToken ?? null);
   const conversationIdRef = useRef<string | null>(readStoredSession(boot.publicKey)?.conversationId ?? null);
   const blobUrls = useRef<string[]>([]);
+  const typingActiveRef = useRef(false);
+  const socketRef = useRef<WebSocket | null>(null);
   const api = useMemo(
     () => new WidgetApi(boot.apiBase, () => tokenRef.current),
     [boot.apiBase],
@@ -106,6 +111,20 @@ export function useWidget(boot: WidgetBootConfig): WidgetController {
 
   const setOpen = useCallback((next: boolean) => {
     setOpenState(next);
+  }, []);
+
+  const setComposer = useCallback((value: string) => {
+    setComposerState(value);
+    const active = value.trim().length > 0;
+    if (typingActiveRef.current === active) {
+      return;
+    }
+
+    typingActiveRef.current = active;
+    const socket = socketRef.current;
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: active ? 'typing.start' : 'typing.stop' }));
+    }
   }, []);
 
   const applyTheme = useCallback(
@@ -337,8 +356,12 @@ export function useWidget(boot: WidgetBootConfig): WidgetController {
 
     setSending(true);
     setError(null);
-    setTyping(config?.aiEnabled ?? true);
+    setTyping(false);
     setStreamingText('');
+    typingActiveRef.current = false;
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: 'typing.stop' }));
+    }
 
     try {
       const active = await ensureConversation();
@@ -348,7 +371,7 @@ export function useWidget(boot: WidgetBootConfig): WidgetController {
         attachmentIds.push(uploaded.attachment.id);
       }
 
-      setComposer('');
+      setComposerState('');
       setPendingFiles([]);
 
       for await (const event of api.streamReply(active.id, {
@@ -362,6 +385,7 @@ export function useWidget(boot: WidgetBootConfig): WidgetController {
         }
 
         if (event.type === 'typing') {
+          setTypingLabel('Assistant is typing');
           setTyping(event.active);
           continue;
         }
@@ -436,6 +460,101 @@ export function useWidget(boot: WidgetBootConfig): WidgetController {
     persist();
   }, [api, persist]);
 
+  useEffect(() => {
+    if (!conversation?.id || phase !== 'ready' || !tokenRef.current) {
+      return;
+    }
+
+    const conversationId = conversation.id;
+
+    let closed = false;
+    let heartbeat: number | undefined;
+    let reconnect: number | undefined;
+
+    function connect(): void {
+      if (closed) {
+        return;
+      }
+
+      const socket = api.openRealtime(conversationId);
+      socketRef.current = socket;
+
+      socket.addEventListener('message', (event) => {
+        const message = parseRealtimeMessage(event.data);
+        if (!message) {
+          return;
+        }
+
+        if (message.type === 'connected') {
+          window.clearInterval(heartbeat);
+          heartbeat = window.setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ type: 'heartbeat' }));
+            }
+          }, message.heartbeatIntervalMs);
+          return;
+        }
+
+        if (message.type === 'typing' && message.actorType === 'agent') {
+          setTypingLabel(`${message.displayName} is typing`);
+          setTyping(message.active);
+          return;
+        }
+
+        if (message.type === 'assignee_presence') {
+          setConversation((current) => {
+            if (!current?.assignedAgent || current.assignedAgent.id !== message.agentId) {
+              return current;
+            }
+
+            return {
+              ...current,
+              assignedAgent: { ...current.assignedAgent, presence: message.status },
+            };
+          });
+          return;
+        }
+
+        if (message.type === 'event') {
+          const name = message.event.name;
+          if (name === 'conversation.note_added') {
+            return;
+          }
+
+          void (async () => {
+            try {
+              const [latest, history] = await Promise.all([
+                api.getConversation(conversationId),
+                api.listMessages(conversationId),
+              ]);
+              setConversation(latest.conversation);
+              setMessages([...history.items]);
+            } catch {
+              // Keep the current transcript if a live refresh fails.
+            }
+          })();
+        }
+      });
+
+      socket.addEventListener('close', () => {
+        window.clearInterval(heartbeat);
+        if (!closed) {
+          reconnect = window.setTimeout(connect, 2000);
+        }
+      });
+    }
+
+    connect();
+
+    return () => {
+      closed = true;
+      window.clearTimeout(reconnect);
+      window.clearInterval(heartbeat);
+      socketRef.current?.close();
+      socketRef.current = null;
+    };
+  }, [api, conversation?.id, phase]);
+
   return {
     phase,
     open,
@@ -446,6 +565,7 @@ export function useWidget(boot: WidgetBootConfig): WidgetController {
     messages,
     streamingText,
     typing,
+    typingLabel,
     sending,
     error,
     pendingFiles,
@@ -473,6 +593,19 @@ function mergeMessage(messages: readonly MessageDto[], incoming: MessageDto): Me
   }
 
   return [...messages, incoming];
+}
+
+function parseRealtimeMessage(raw: unknown): RealtimeServerMessage | undefined {
+  if (typeof raw !== 'string') {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as RealtimeServerMessage;
+    return parsed && typeof parsed === 'object' && 'type' in parsed ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function visitorId(publicKey: string): string {

@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react';
 import type { ConversationDto, MessageAttachmentDto, MessageDto, MessageListResponse } from '@ai-customer-support/contracts';
 import { ArrowLeft, Paperclip } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,7 +10,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { conversationTitle, formatRelativeTime } from '../format';
-import { AUTHOR_LABELS } from '../labels';
+import { AUTHOR_LABELS, PRESENCE_LABELS } from '../labels';
+import type { ConversationTyping } from '../realtime/use-workspace-realtime';
+import { PresenceDot } from './presence-dot';
 import { PriorityBadge, StatusBadge } from './conversation-badges';
 
 export function TranscriptPane({
@@ -18,10 +21,16 @@ export function TranscriptPane({
   messages,
   messagesPending,
   canReply,
+  canTakeOver,
+  currentUserId,
   replyPending,
+  takeoverPending,
+  typing,
   onBack,
   onOpenDetails,
   onReply,
+  onTakeOver,
+  onTyping,
   onOpenAttachment,
 }: {
   readonly conversation: ConversationDto | undefined;
@@ -29,10 +38,16 @@ export function TranscriptPane({
   readonly messages: MessageListResponse | undefined;
   readonly messagesPending: boolean;
   readonly canReply: boolean;
+  readonly canTakeOver: boolean;
+  readonly currentUserId: string | undefined;
   readonly replyPending: boolean;
+  readonly takeoverPending: boolean;
+  readonly typing: readonly ConversationTyping[];
   readonly onBack?: () => void;
   readonly onOpenDetails?: () => void;
   readonly onReply: (body: string) => Promise<void>;
+  readonly onTakeOver: () => void;
+  readonly onTyping: (active: boolean) => void;
   readonly onOpenAttachment: (attachment: MessageAttachmentDto) => void;
 }) {
   if (notFound) {
@@ -59,6 +74,9 @@ export function TranscriptPane({
 
   const closed = conversation.status === 'closed';
   const items = messages?.items ?? [];
+  const customerTyping = typing.find((item) => item.actorType === 'customer');
+  const assignedToMe = Boolean(currentUserId && conversation.assignedAgentId === currentUserId);
+  const showTakeOver = canTakeOver && !assignedToMe && conversation.status !== 'closed';
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -76,13 +94,31 @@ export function TranscriptPane({
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <StatusBadge status={conversation.status} />
             <PriorityBadge priority={conversation.priority} />
+            {conversation.handledBy === 'agent' && conversation.assignedAgent ? (
+              <Badge className="gap-1.5" variant="secondary">
+                <PresenceDot status={conversation.assignedAgent.presence ?? 'offline'} />
+                {conversation.assignedAgent.displayName}
+                {conversation.assignedAgent.presence
+                  ? ` · ${PRESENCE_LABELS[conversation.assignedAgent.presence]}`
+                  : ''}
+              </Badge>
+            ) : (
+              <Badge variant="outline">AI assistant</Badge>
+            )}
           </div>
         </div>
-        {onOpenDetails ? (
-          <Button className="xl:hidden" onClick={onOpenDetails} size="sm" type="button" variant="outline">
-            Details
-          </Button>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {showTakeOver ? (
+            <Button disabled={takeoverPending} onClick={onTakeOver} size="sm" type="button">
+              Take over
+            </Button>
+          ) : null}
+          {onOpenDetails ? (
+            <Button className="xl:hidden" onClick={onOpenDetails} size="sm" type="button" variant="outline">
+              Details
+            </Button>
+          ) : null}
+        </div>
       </header>
       <ScrollArea className="min-h-0 flex-1">
         <div className="flex flex-col gap-4 px-4 py-4">
@@ -103,6 +139,9 @@ export function TranscriptPane({
               />
             ))
           )}
+          {customerTyping ? (
+            <p className="text-xs text-muted-foreground">{customerTyping.displayName} is typing…</p>
+          ) : null}
         </div>
       </ScrollArea>
       <footer className="border-t border-border p-3">
@@ -113,7 +152,7 @@ export function TranscriptPane({
             </AlertDescription>
           </Alert>
         ) : (
-          <ReplyComposer canReply={canReply} pending={replyPending} onReply={onReply} />
+          <ReplyComposer canReply={canReply} pending={replyPending} onReply={onReply} onTyping={onTyping} />
         )}
       </footer>
     </div>
@@ -177,17 +216,36 @@ function ReplyComposer({
   canReply,
   pending,
   onReply,
+  onTyping,
 }: {
   readonly canReply: boolean;
   readonly pending: boolean;
   readonly onReply: (body: string) => Promise<void>;
+  readonly onTyping: (active: boolean) => void;
 }) {
   const [body, setBody] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const typingRef = useRef(false);
 
   useEffect(() => {
     textareaRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (typingRef.current) {
+        onTyping(false);
+      }
+    };
+  }, [onTyping]);
+
+  function setTyping(active: boolean): void {
+    if (typingRef.current === active) {
+      return;
+    }
+    typingRef.current = active;
+    onTyping(active);
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -195,6 +253,7 @@ function ReplyComposer({
     if (!next || !canReply) {
       return;
     }
+    setTyping(false);
     await onReply(next);
     setBody('');
   }
@@ -203,8 +262,13 @@ function ReplyComposer({
     <form className="flex flex-col gap-2" onSubmit={(event) => void onSubmit(event)}>
       <Textarea
         disabled={!canReply || pending}
+        onBlur={() => {
+          setTyping(false);
+        }}
         onChange={(event) => {
-          setBody(event.target.value);
+          const value = event.target.value;
+          setBody(value);
+          setTyping(value.trim().length > 0);
         }}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {

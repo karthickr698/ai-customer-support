@@ -8,6 +8,7 @@ export function MessageList({
   messages,
   streamingText,
   typing,
+  typingLabel,
   onFeedback,
   onOpenAttachment,
 }: {
@@ -15,6 +16,7 @@ export function MessageList({
   readonly messages: readonly MessageDto[];
   readonly streamingText: string;
   readonly typing: boolean;
+  readonly typingLabel: string;
   readonly onFeedback: (messageId: string, rating: 'helpful' | 'not_helpful') => void;
   readonly onOpenAttachment: (attachment: MessageAttachmentDto) => void;
 }) {
@@ -66,7 +68,7 @@ export function MessageList({
           streaming
         />
       ) : null}
-      {typing && !streamingText ? <TypingIndicator label="Assistant is typing" /> : null}
+      {typing && !streamingText ? <TypingIndicator label={typingLabel} /> : null}
       <div ref={endRef} />
     </div>
   );
