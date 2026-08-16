@@ -1,3 +1,4 @@
+import type { AiAgentRuntimeConfigDto } from './agent-configuration.js';
 import type { KnowledgeCitationDto, KnowledgeRetrievalFilterDto } from './knowledge.js';
 import { isKnowledgeCitationDto } from './knowledge.js';
 import type { SupportChatMessageDto, SupportReplyAgentSettingsDto } from './support-reply.js';
@@ -46,6 +47,7 @@ export type OrchestrateSupportTurnRequest = {
   readonly history: readonly SupportChatMessageDto[];
   readonly widgetGreeting?: string;
   readonly agentSettings?: SupportReplyAgentSettingsDto;
+  readonly agentConfiguration?: AiAgentRuntimeConfigDto;
   readonly topK?: number;
   readonly retrieval?: KnowledgeRetrievalFilterDto;
 };

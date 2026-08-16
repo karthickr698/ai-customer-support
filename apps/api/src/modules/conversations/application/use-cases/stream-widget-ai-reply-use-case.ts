@@ -12,6 +12,7 @@ import { toConversationDto, toMessageDto, type RequestSecurityContext } from '..
 import type { LoadWidgetConversationService } from '../load-widget-conversation-service.js';
 import { persistMessageAttachments } from '../persist-message-attachments.js';
 import type { AgentSettingsQueryPort } from '../ports/agent-settings-query-port.js';
+import type { AgentConfigurationQueryPort } from '../ports/agent-configuration-query-port.js';
 import type { ClockPort } from '../ports/clock-port.js';
 import type { ConversationRepository } from '../ports/conversation-repository.js';
 import type { MessageAttachmentRepository } from '../ports/message-attachment-repository.js';
@@ -24,6 +25,7 @@ export class StreamWidgetAiReplyUseCase {
     private readonly messages: MessageRepository,
     private readonly attachments: MessageAttachmentRepository,
     private readonly agentSettings: AgentSettingsQueryPort,
+    private readonly agentConfiguration: AgentConfigurationQueryPort,
     private readonly ai: AIServicePort,
     private readonly clock: ClockPort,
     private readonly eventBus: EventBus,
@@ -95,6 +97,7 @@ export class StreamWidgetAiReplyUseCase {
       history: history.map(toChatMessage),
       widgetGreeting: settings.greeting,
       agentSettings: toReplySettings(await this.agentSettings.findByTenant(actor.tenantId)),
+      agentConfiguration: (await this.agentConfiguration.findByTenant(actor.tenantId)) ?? undefined,
     };
 
     let complete = '';

@@ -48,6 +48,8 @@ class OpenAILLMAdapter(LLMPort):
         }
         if request.json_mode:
             payload["response_format"] = {"type": "json_object"}
+        if request.max_tokens is not None:
+            payload["max_tokens"] = request.max_tokens
 
         headers = {
             "Authorization": f"Bearer {self._api_key}",
@@ -115,6 +117,8 @@ class OpenAILLMAdapter(LLMPort):
             "stream": True,
             "stream_options": {"include_usage": True},
         }
+        if request.max_tokens is not None:
+            payload["max_tokens"] = request.max_tokens
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",

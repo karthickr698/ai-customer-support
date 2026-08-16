@@ -1,6 +1,7 @@
 import type { EventBus, Logger } from '@ai-customer-support/shared';
 import type { AIServicePort } from '../ai/application/ports/ai-service-port.js';
 import type { AgentSettingsQuery } from '../onboarding/application/agent-settings-query.js';
+import type { AiAgentConfigurationQuery } from '../agent-configuration/application/ai-agent-configuration-query.js';
 import type { WidgetSessionContextPort } from './application/ports/widget-session-context-port.js';
 import type { TicketIntakePort } from './application/ports/ticket-intake-port.js';
 import { registerWidgetConversationRoutes, type WidgetAuthenticatePreHandler } from './adapters/inbound/http/widget-conversation-routes.js';
@@ -39,6 +40,7 @@ import { PostgresMessageAttachmentRepository } from './adapters/outbound/persist
 import { PostgresMessageFeedbackRepository } from './adapters/outbound/persistence/postgres-message-feedback-repository.js';
 import { LocalAttachmentStorageAdapter } from './adapters/outbound/storage/local-attachment-storage-adapter.js';
 import { OnboardingAgentSettingsAdapter } from './adapters/outbound/onboarding/onboarding-agent-settings-adapter.js';
+import { AgentConfigurationQueryAdapter } from './adapters/outbound/agent-configuration/agent-configuration-query-adapter.js';
 import { RedisAssignmentCursorAdapter } from './adapters/outbound/redis/redis-assignment-cursor-adapter.js';
 import {
   FANOUT_CHANNEL,
@@ -135,6 +137,7 @@ export function composeConversations(input: {
   readonly setPresence: SetAgentPresenceStatusUseCase;
   readonly aiService: AIServicePort;
   readonly agentSettingsQuery: AgentSettingsQuery;
+  readonly agentConfigurationQuery: AiAgentConfigurationQuery;
   readonly widgetSessionContext: WidgetSessionContextPort;
   readonly authenticateWidgetSession: WidgetAuthenticatePreHandler;
   readonly attachmentStorageDir: string;
@@ -148,6 +151,7 @@ export function composeConversations(input: {
   const feedbacks = new PostgresMessageFeedbackRepository(input.prisma);
   const storage = new LocalAttachmentStorageAdapter(input.attachmentStorageDir);
   const agentSettings = new OnboardingAgentSettingsAdapter(input.agentSettingsQuery);
+  const agentConfiguration = new AgentConfigurationQueryAdapter(input.agentConfigurationQuery);
   const clock = new SystemClock();
   const tenantAccess = new OrganizationsTenantAccessAdapter(input.resolveTenantAccess);
   const members = new OrganizationsMemberDirectoryAdapter(input.memberQuery);
@@ -336,6 +340,7 @@ export function composeConversations(input: {
       messages,
       attachments,
       agentSettings,
+      agentConfiguration,
       input.aiService,
       clock,
       input.eventBus,

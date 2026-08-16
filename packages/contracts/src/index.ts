@@ -104,6 +104,25 @@ export {
   type SetAgentPresenceRequest,
 } from './agents.js';
 export {
+  AI_AGENT_CITATION_POLICIES,
+  AI_AGENT_CONFIGURATION_SCHEMA_VERSION,
+  AI_AGENT_FALLBACK_MODES,
+  AI_AGENT_MODELS,
+  DEFAULT_AI_AGENT_ENABLED_TOOLS,
+  isAiAgentCitationPolicy,
+  isAiAgentFallbackMode,
+  isAiAgentModelId,
+  isAiAgentRuntimeConfigDto,
+  type AiAgentCitationPolicy,
+  type AiAgentConfigurationCatalogDto,
+  type AiAgentConfigurationDto,
+  type AiAgentConfigurationResponse,
+  type AiAgentFallbackMode,
+  type AiAgentModelId,
+  type AiAgentRuntimeConfigDto,
+  type UpdateAiAgentConfigurationRequest,
+} from './agent-configuration.js';
+export {
   REALTIME_EVENT_NAMES,
   TYPING_ACTOR_TYPES,
   WIDGET_HIDDEN_REALTIME_EVENTS,

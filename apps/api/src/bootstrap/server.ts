@@ -120,6 +120,10 @@ export async function buildServer(
     await deps.widget.register(app);
   }
 
+  if (deps.agentConfiguration) {
+    await deps.agentConfiguration.register(app);
+  }
+
   if (deps.integrations) {
     await deps.integrations.register(app);
   }

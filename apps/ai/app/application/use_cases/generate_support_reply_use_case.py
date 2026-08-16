@@ -12,6 +12,7 @@ from app.application.use_cases.retrieve_knowledge_use_case import (
     RetrieveKnowledgeUseCase,
     RetrievalResult,
 )
+from app.domain.agent_configuration import AgentRuntimeConfig, UNKNOWN_REPLY
 from app.domain.errors import AIError, InvalidAIOutputError, TenantContextRequiredError
 from app.evaluation import record_evaluation, score_evaluation
 from app.domain.onboarding import require_tenant_id
@@ -43,6 +44,7 @@ class GenerateSupportReplyCommand:
     escalate_when: tuple[str, ...] = ()
     top_k: int | None = None
     retrieval_filters: RetrievalFilter | None = None
+    runtime: AgentRuntimeConfig | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,18 +113,36 @@ class GenerateSupportReplyUseCase:
             quality_model=self._quality_model,
             json_mode=False,
         )
+        if command.runtime is not None:
+            route = command.runtime.apply_route(route)
         retrieved = await self._retrieve_knowledge(command, tenant_id, visitor_message, route.retrieve)
+        if (
+            command.runtime is not None
+            and command.runtime.citation_policy == "required"
+            and command.runtime.refuse_unknown
+            and route.retrieve
+            and not retrieved.citations
+        ):
+            async for chunk in self._static_stream(UNKNOWN_REPLY, "policy"):
+                yield chunk
+            return
+        instructions = command.system_instructions
+        policy = ""
+        if command.runtime is not None:
+            instructions = command.runtime.merged_instructions(instructions)
+            policy = command.runtime.policy_instructions()
         system = render_support_system_prompt(
             intent=detection.intent,
             json_mode=False,
             assistant_name=command.assistant_name,
             greeting=command.widget_greeting or command.greeting,
-            instructions=command.system_instructions,
+            instructions=instructions,
             language=command.language,
             allowed_topics=command.allowed_topics,
             forbidden_topics=command.forbidden_topics,
             escalate_when=command.escalate_when,
             knowledge_context=retrieved.context,
+            policy_instructions=policy,
         )
         request = LLMCompletionRequest(
             messages=assemble_support_messages(
@@ -134,9 +154,25 @@ class GenerateSupportReplyUseCase:
             tenant_id=tenant_id,
             temperature=route.temperature,
             model=route.model,
+            max_tokens=command.runtime.max_output_tokens if command.runtime else None,
         )
-        async for chunk in self._stream(request, tenant_id, command.conversation_id, retrieved.citations):
-            yield chunk
+        try:
+            async for chunk in self._stream(
+                request,
+                tenant_id,
+                command.conversation_id,
+                retrieved.citations,
+                command.runtime,
+            ):
+                yield chunk
+        except AIError:
+            if command.runtime is None or command.runtime.fallback_mode == "provider_then_heuristic":
+                raise
+            async for chunk in self._static_stream(
+                command.runtime.safe_reply(reason="model_unavailable"),
+                "fallback",
+            ):
+                yield chunk
 
     async def _retrieve_knowledge(
         self,
@@ -177,14 +213,19 @@ class GenerateSupportReplyUseCase:
         tenant_id: str,
         conversation_id: str,
         citations: tuple[Citation, ...],
+        runtime: AgentRuntimeConfig | None,
     ) -> AsyncIterator[SupportReplyStreamChunk]:
         assembled: list[str] = []
-        async for chunk in self._executor.stream(request):
+        allow_fallback = runtime is None or runtime.fallback_mode == "provider_then_heuristic"
+        async for chunk in self._executor.stream(request, allow_provider_fallback=allow_fallback):
             if chunk.delta:
                 assembled.append(chunk.delta)
                 yield SupportReplyStreamChunk(delta=chunk.delta)
             if chunk.done and chunk.result is not None:
-                content = sanitize_support_reply("".join(assembled) or chunk.result.content)
+                content = sanitize_support_reply(
+                    "".join(assembled) or chunk.result.content,
+                    redact_pii=runtime.redact_pii if runtime else False,
+                )
                 self._logger.info(
                     "Support reply generated",
                     extra={
@@ -219,20 +260,24 @@ class GenerateSupportReplyUseCase:
 
     async def _blocked_stream(self, reason: str) -> AsyncIterator[SupportReplyStreamChunk]:
         del reason
+        async for chunk in self._static_stream(BLOCKED_INPUT_REPLY, "guardrail"):
+            yield chunk
+
+    async def _static_stream(self, content: str, model: str) -> AsyncIterator[SupportReplyStreamChunk]:
         record_evaluation(
             score_evaluation(
                 operation="generate_support_reply",
-                input_guardrail="blocked",
-                model="guardrail",
+                input_guardrail="blocked" if model == "guardrail" else None,
+                model=model,
             )
         )
-        yield SupportReplyStreamChunk(delta=BLOCKED_INPUT_REPLY)
+        yield SupportReplyStreamChunk(delta=content)
         yield SupportReplyStreamChunk(
             delta="",
             done=True,
             result=LLMCompletionResult(
-                content=BLOCKED_INPUT_REPLY,
-                model="guardrail",
+                content=content,
+                model=model,
                 prompt_tokens=0,
                 completion_tokens=0,
             ),

@@ -11,6 +11,7 @@ from app.application.use_cases.generate_support_reply_use_case import (
     SupportChatMessage,
 )
 from app.context import get_request_context
+from app.domain.agent_configuration import parse_agent_runtime_config
 from app.domain.errors import TenantContextRequiredError
 from app.domain.onboarding import require_tenant_id
 from app.domain.retrieval import MAX_TOP_K, MIN_TOP_K, normalize_retrieval_filter
@@ -41,12 +42,31 @@ class SupportRetrievalFilterBody(BaseModel):
     sourceUri: str | None = Field(default=None, max_length=2000)
 
 
+class AgentRuntimeConfigBody(BaseModel):
+    model: str | None = Field(default=None, max_length=80)
+    qualityModel: str | None = Field(default=None, max_length=80)
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    maxOutputTokens: int | None = Field(default=None, ge=64, le=4096)
+    maxInputTokens: int | None = Field(default=None, ge=512, le=32_000)
+    systemPrompt: str | None = Field(default=None, max_length=8000)
+    enabledTools: list[str] | None = None
+    fallbackMode: Literal["provider_then_heuristic", "canned_reply", "handoff"] | None = None
+    fallbackReply: str | None = Field(default=None, max_length=500)
+    fallbackMaxRetries: int | None = Field(default=None, ge=1, le=5)
+    citationPolicy: Literal["required", "preferred", "off"] | None = None
+    refuseUnknown: bool | None = None
+    refuseOffTopic: bool | None = None
+    languageLock: bool | None = None
+    redactPii: bool | None = None
+
+
 class GenerateSupportReplyBody(BaseModel):
     conversationId: str = Field(min_length=1, max_length=80)
     visitorMessage: str = Field(min_length=1, max_length=10_000)
     history: list[SupportChatMessageBody] = Field(default_factory=list)
     widgetGreeting: str | None = Field(default=None, max_length=280)
     agentSettings: SupportReplyAgentSettingsBody | None = None
+    agentConfiguration: AgentRuntimeConfigBody | None = None
     topK: int | None = Field(default=None, ge=MIN_TOP_K, le=MAX_TOP_K)
     retrieval: SupportRetrievalFilterBody | None = None
 
@@ -94,6 +114,9 @@ def build_support_reply_command(body: GenerateSupportReplyBody) -> GenerateSuppo
         escalate_when=tuple(settings.escalateWhen) if settings else (),
         top_k=body.topK,
         retrieval_filters=filters,
+        runtime=parse_agent_runtime_config(
+            body.agentConfiguration.model_dump() if body.agentConfiguration is not None else None
+        ),
     )
 
 

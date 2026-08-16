@@ -20,6 +20,7 @@ import { composeIdentity } from '../modules/identity/compose-identity.js';
 import { composeOrganizations } from '../modules/organizations/compose-organizations.js';
 import { composeIntegrations } from '../modules/integrations/compose-integrations.js';
 import { composeWidget } from '../modules/widget/compose-widget.js';
+import { composeAgentConfiguration } from '../modules/agent-configuration/compose-agent-configuration.js';
 import { IdentifyWidgetVisitorUseCase } from '../modules/conversations/application/use-cases/identify-widget-visitor-use-case.js';
 import { ConversationTicketSourceQuery } from '../modules/conversations/application/conversation-ticket-source-query.js';
 import { PostgresConversationRepository } from '../modules/conversations/adapters/outbound/persistence/postgres-conversation-repository.js';
@@ -111,6 +112,13 @@ export async function initializeInfrastructure(
       new SystemClock(),
     ),
     sessionTtlSeconds: config.WIDGET_SESSION_TTL_SECONDS,
+  });
+
+  const agentConfiguration = composeAgentConfiguration({
+    prisma: database.forRepositoryAdapter(),
+    eventBus,
+    authenticate: identity.authenticate,
+    resolveTenantAccess: organizations.resolveTenantAccess,
   });
 
   const customers = composeCustomers({
@@ -268,6 +276,7 @@ export async function initializeInfrastructure(
     setPresence: agents.setPresence,
     aiService,
     agentSettingsQuery: onboarding.agentSettingsQuery,
+    agentConfigurationQuery: agentConfiguration.configurationQuery,
     widgetSessionContext: widget.sessionContext,
     authenticateWidgetSession: widget.authenticateSession,
     attachmentStorageDir: config.ATTACHMENT_STORAGE_DIR,
@@ -300,6 +309,7 @@ export async function initializeInfrastructure(
     knowledge,
     onboarding,
     widget,
+    agentConfiguration,
     integrations,
   };
 }

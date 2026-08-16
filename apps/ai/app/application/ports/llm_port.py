@@ -17,6 +17,7 @@ class LLMCompletionRequest:
     json_mode: bool = False
     temperature: float = 0.2
     model: str | None = None
+    max_tokens: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

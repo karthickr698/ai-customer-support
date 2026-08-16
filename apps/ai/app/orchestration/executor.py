@@ -38,9 +38,16 @@ class CompletionExecutor:
         self._max_attempts = max(1, max_attempts)
         self._logger = logger
 
-    async def complete(self, request: LLMCompletionRequest) -> ExecutedCompletion:
+    async def complete(
+        self,
+        request: LLMCompletionRequest,
+        *,
+        max_attempts: int | None = None,
+        allow_provider_fallback: bool = True,
+    ) -> ExecutedCompletion:
         last_error: Exception | None = None
-        for attempt in range(1, self._max_attempts + 1):
+        attempts = max(1, max_attempts or self._max_attempts)
+        for attempt in range(1, attempts + 1):
             try:
                 result = await self._primary.complete(request)
                 return ExecutedCompletion(result=result, retry_count=attempt - 1, used_fallback=False)
@@ -51,15 +58,15 @@ class CompletionExecutor:
                     extra={
                         "tenantId": request.tenant_id,
                         "attempt": attempt,
-                        "maxAttempts": self._max_attempts,
+                        "maxAttempts": attempts,
                         "code": exc.code,
                     },
                 )
-        if self._fallback is not None:
+        if allow_provider_fallback and self._fallback is not None:
             result = await self._fallback.complete(request)
             return ExecutedCompletion(
                 result=result,
-                retry_count=self._max_attempts,
+                retry_count=attempts,
                 used_fallback=True,
             )
         if last_error is not None:
@@ -70,16 +77,34 @@ class CompletionExecutor:
         self,
         request: LLMCompletionRequest,
         parse: Callable[[dict[str, object]], T],
+        *,
+        max_attempts: int | None = None,
+        allow_provider_fallback: bool = True,
     ) -> tuple[T, ExecutedCompletion]:
-        executed = await self.complete(request)
+        executed = await self.complete(
+            request,
+            max_attempts=max_attempts,
+            allow_provider_fallback=allow_provider_fallback,
+        )
         try:
             parsed = parse(parse_json_object(executed.result.content))
             return parsed, executed
         except InvalidAIOutputError as exc:
-            repaired = await self._repair(request, executed, str(exc), parse)
+            repaired = await self._repair(
+                request,
+                executed,
+                str(exc),
+                parse,
+                allow_provider_fallback=allow_provider_fallback,
+            )
             return repaired
 
-    async def stream(self, request: LLMCompletionRequest) -> AsyncIterator[LLMStreamChunk]:
+    async def stream(
+        self,
+        request: LLMCompletionRequest,
+        *,
+        allow_provider_fallback: bool = True,
+    ) -> AsyncIterator[LLMStreamChunk]:
         yielded = False
         try:
             async for chunk in self._primary.stream(request):
@@ -87,7 +112,7 @@ class CompletionExecutor:
                 yield chunk
             return
         except _RETRYABLE:
-            if yielded or self._fallback is None:
+            if yielded or not allow_provider_fallback or self._fallback is None:
                 raise
             self._logger.warning(
                 "LLM stream failed before tokens; using fallback",
@@ -102,6 +127,8 @@ class CompletionExecutor:
         executed: ExecutedCompletion,
         error: str,
         parse: Callable[[dict[str, object]], T],
+        *,
+        allow_provider_fallback: bool = True,
     ) -> tuple[T, ExecutedCompletion]:
         repair_request = LLMCompletionRequest(
             messages=(
@@ -114,6 +141,7 @@ class CompletionExecutor:
             json_mode=True,
             temperature=0,
             model=request.model,
+            max_tokens=request.max_tokens,
         )
         try:
             result = await self._primary.complete(repair_request)
@@ -124,7 +152,7 @@ class CompletionExecutor:
                 used_fallback=executed.used_fallback,
             )
         except (InvalidAIOutputError, *_RETRYABLE):
-            if self._fallback is not None and not executed.used_fallback:
+            if allow_provider_fallback and self._fallback is not None and not executed.used_fallback:
                 result = await self._fallback.complete(request)
                 parsed = parse(parse_json_object(result.content))
                 return parsed, ExecutedCompletion(

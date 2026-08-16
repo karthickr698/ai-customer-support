@@ -15,9 +15,10 @@ def screen_output(
     content: str,
     *,
     forbidden_topics: tuple[str, ...] = (),
+    redact_pii: bool = False,
 ) -> OutputGuardrailResult:
     try:
-        text = sanitize_support_reply(content)
+        text = sanitize_support_reply(content, redact_pii=redact_pii)
     except InvalidAIOutputError:
         return OutputGuardrailResult(
             verdict="blocked",

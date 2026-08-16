@@ -18,6 +18,7 @@ import type { PlatformModule } from '../modules/platform/compose-platform.js';
 import type { ObservabilityModule } from '../modules/observability/compose-observability.js';
 import type { TicketsModule } from '../modules/tickets/compose-tickets.js';
 import type { WidgetModule } from '../modules/widget/compose-widget.js';
+import type { AgentConfigurationModule } from '../modules/agent-configuration/compose-agent-configuration.js';
 import type { DatabasePort } from '../shared/application/ports/database-port.js';
 import type { QueuePort } from '../shared/application/ports/queue-port.js';
 import type { RedisPort } from '../shared/application/ports/redis-port.js';
@@ -48,5 +49,6 @@ export interface AppDependencies {
   readonly knowledge?: KnowledgeModule;
   readonly onboarding?: OnboardingModule;
   readonly widget?: WidgetModule;
+  readonly agentConfiguration?: AgentConfigurationModule;
   readonly integrations?: IntegrationsModule;
 }

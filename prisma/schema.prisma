@@ -44,6 +44,7 @@ model Organization {
   knowledgeArticles KnowledgeArticle[]
   knowledgeArticleVersions KnowledgeArticleVersion[]
   widgetConfiguration WidgetConfiguration?
+  aiAgentConfiguration AiAgentConfiguration?
   widgetSessions  WidgetSession[]
   messageAttachments MessageAttachment[]
   messageFeedbacks MessageFeedback[]
@@ -450,6 +451,32 @@ model KnowledgeArticleVersion {
   @@unique([articleId, version])
   @@index([organizationId, articleId, createdAt])
   @@map("knowledge_article_versions")
+}
+
+model AiAgentConfiguration {
+  id                 String   @id @db.Uuid
+  organizationId     String   @unique @map("organization_id") @db.Uuid
+  model              String
+  qualityModel       String   @map("quality_model")
+  temperature        Float
+  maxOutputTokens    Int      @map("max_output_tokens")
+  maxInputTokens     Int      @map("max_input_tokens")
+  systemPrompt       String   @default("") @map("system_prompt")
+  enabledTools       String[] @default([]) @map("enabled_tools")
+  fallbackMode       String   @map("fallback_mode")
+  fallbackReply      String?  @map("fallback_reply")
+  fallbackMaxRetries Int      @map("fallback_max_retries")
+  citationPolicy     String   @map("citation_policy")
+  refuseUnknown      Boolean  @map("refuse_unknown")
+  refuseOffTopic     Boolean  @map("refuse_off_topic")
+  languageLock       Boolean  @map("language_lock")
+  redactPii          Boolean  @map("redact_pii")
+  createdAt          DateTime @map("created_at")
+  updatedAt          DateTime @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("ai_agent_configurations")
 }
 
 model WidgetConfiguration {

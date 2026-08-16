@@ -60,4 +60,8 @@ export const queryKeys = {
     all: () => ['widget'] as const,
     detail: (organizationId: string) => [...queryKeys.widget.all(), organizationId] as const,
   },
+  agentConfiguration: {
+    all: () => ['agent-configuration'] as const,
+    detail: (organizationId: string) => [...queryKeys.agentConfiguration.all(), organizationId] as const,
+  },
 } as const;

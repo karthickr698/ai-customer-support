@@ -92,6 +92,7 @@ async def orchestrate_support_turn(
             escalate_when=support.escalate_when,
             top_k=support.top_k,
             retrieval_filters=support.retrieval_filters,
+            runtime=support.runtime,
         )
     )
     return result.to_dict()

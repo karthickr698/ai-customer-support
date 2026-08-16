@@ -51,7 +51,7 @@ Configuration is read from the environment (and the repository-root `.env` when 
 | `RAG_CANDIDATE_K` | Hybrid candidate pool before rerank |
 | `RAG_RERANK_ENABLED` | Heuristic rerank after keyword + vector fusion |
 
-Do not put LLM keys in source. The TypeScript API calls `POST /v1/onboarding/setup` (and the granular generate endpoints). Knowledge retrieval is `POST /v1/knowledge/retrieve`; the admin RAG playground is `POST /v1/knowledge/playground` (chunks, scores, sources, filters, optional generated reply). Support replies stream citations from `POST /v1/support/reply/stream`. Orchestration is `POST /v1/orchestration/intent` and `POST /v1/orchestration/run` (structured intent, routing, guardrails, retries, fallbacks). Tool calling is `POST /v1/tools/propose` and `POST /v1/tools/apply-results` — Python never executes mutating tools.
+Do not put LLM keys in source. The TypeScript API calls `POST /v1/onboarding/setup` (and the granular generate endpoints). Knowledge retrieval is `POST /v1/knowledge/retrieve`; the admin RAG playground is `POST /v1/knowledge/playground` (chunks, scores, sources, filters, optional generated reply). Support replies stream citations from `POST /v1/support/reply/stream`. Orchestration is `POST /v1/orchestration/intent` and `POST /v1/orchestration/run` (structured intent, routing, guardrails, retries, fallbacks). Tool calling is `POST /v1/tools/propose` and `POST /v1/tools/apply-results` — Python never executes mutating tools. Tenant AI agent configuration (model, prompt, temperature, token limits, tools, fallback, response policies) is stored by TypeScript and sent as `agentConfiguration` on support/orchestration requests.
 
 ## Run
 

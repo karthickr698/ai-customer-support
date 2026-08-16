@@ -7,6 +7,8 @@ from app.application.use_cases.retrieve_knowledge_use_case import (
     RetrieveKnowledgeUseCase,
     RetrievalResult,
 )
+from app.domain.agent_configuration import AgentRuntimeConfig, UNKNOWN_REPLY
+from app.domain.errors import AIError, InvalidOrchestrationInputError, TenantContextRequiredError
 from app.evaluation import record_evaluation, score_evaluation
 from app.domain.onboarding import require_tenant_id
 from app.domain.orchestration import (
@@ -47,6 +49,7 @@ class OrchestrateSupportTurnCommand:
     escalate_when: tuple[str, ...] = ()
     top_k: int | None = None
     retrieval_filters: RetrievalFilter | None = None
+    runtime: AgentRuntimeConfig | None = None
 
 
 class OrchestrateSupportTurnUseCase:
@@ -106,18 +109,54 @@ class OrchestrateSupportTurnUseCase:
             quality_model=self._quality_model,
             json_mode=True,
         )
+        if command.runtime is not None:
+            route = command.runtime.apply_route(route)
         retrieved = await self._retrieve_knowledge(command, tenant_id, visitor_message, route.retrieve)
+        if (
+            command.runtime is not None
+            and command.runtime.citation_policy == "required"
+            and command.runtime.refuse_unknown
+            and route.retrieve
+            and not retrieved.citations
+        ):
+            payload = OrchestratedTurnPayload(
+                reply=UNKNOWN_REPLY,
+                should_escalate=True,
+                escalation_reason="missing_citations",
+                confidence=0.0,
+            )
+            return self._result(
+                command=command,
+                intent=detection.intent,
+                intent_confidence=detection.confidence,
+                route_name=route.name,
+                model="policy",
+                payload=payload,
+                used_fallback=True,
+                retry_count=0,
+                prompt_tokens=0,
+                completion_tokens=0,
+                citations=(),
+                input_guardrail=screened.verdict,
+                output_guardrail="passed",
+            )
+        instructions = command.system_instructions
+        policy = ""
+        if command.runtime is not None:
+            instructions = command.runtime.merged_instructions(instructions)
+            policy = command.runtime.policy_instructions()
         system = render_support_system_prompt(
             intent=detection.intent,
             json_mode=True,
             assistant_name=command.assistant_name,
             greeting=command.widget_greeting or command.greeting,
-            instructions=command.system_instructions,
+            instructions=instructions,
             language=command.language,
             allowed_topics=command.allowed_topics,
             forbidden_topics=command.forbidden_topics,
             escalate_when=command.escalate_when,
             knowledge_context=retrieved.context,
+            policy_instructions=policy,
         )
         request = LLMCompletionRequest(
             messages=assemble_support_messages(
@@ -130,9 +169,16 @@ class OrchestrateSupportTurnUseCase:
             json_mode=True,
             temperature=route.temperature,
             model=route.model,
+            max_tokens=command.runtime.max_output_tokens if command.runtime else None,
         )
+        allow_fallback = command.runtime is None or command.runtime.fallback_mode == "provider_then_heuristic"
         try:
-            payload, executed = await self._executor.complete_json(request, parse_orchestrated_turn)
+            payload, executed = await self._executor.complete_json(
+                request,
+                parse_orchestrated_turn,
+                max_attempts=command.runtime.fallback_max_retries if command.runtime else None,
+                allow_provider_fallback=allow_fallback,
+            )
         except AIError as exc:
             self._logger.warning(
                 "Orchestration completion failed; using safe fallback",
@@ -143,10 +189,22 @@ class OrchestrateSupportTurnUseCase:
                     "correlationId": command.correlation_id,
                 },
             )
+            reply = command.runtime.safe_reply(reason="model_unavailable") if command.runtime else None
             payload = fallback_turn(reason="model_unavailable")
+            if reply:
+                payload = OrchestratedTurnPayload(
+                    reply=reply,
+                    should_escalate=True,
+                    escalation_reason="model_unavailable",
+                    confidence=0.0,
+                )
             executed = None
 
-        output = screen_output(payload.reply, forbidden_topics=command.forbidden_topics)
+        output = screen_output(
+            payload.reply,
+            forbidden_topics=command.forbidden_topics,
+            redact_pii=command.runtime.redact_pii if command.runtime else False,
+        )
         if output.verdict == "blocked":
             payload = fallback_turn(reason=output.reason or "output_guardrail")
             reply = payload.reply
