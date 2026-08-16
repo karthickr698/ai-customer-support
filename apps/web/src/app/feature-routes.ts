@@ -1,10 +1,12 @@
 import type { RouteObject } from 'react-router-dom';
 import { identityRoutes } from '@/features/identity/routes';
 import { organizationRoutes } from '@/features/organizations/routes';
+import { platformRoutes } from '@/features/platform/routes';
 
 export const featureRoutes: RouteObject[] = [
   ...identityRoutes,
   ...organizationRoutes,
+  ...platformRoutes,
   {
     path: 'dev/ui',
     lazy: async () => {

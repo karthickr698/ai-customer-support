@@ -66,9 +66,14 @@ function OrganizationsWorkspace() {
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-10">
       <PageHeader
         actions={
-          <Button onClick={() => void logout()} type="button" variant="outline">
-            Sign out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline">
+              <Link to="/platform">Platform</Link>
+            </Button>
+            <Button onClick={() => void logout()} type="button" variant="outline">
+              Sign out
+            </Button>
+          </div>
         }
         description="Create a workspace or switch into one you already belong to. Tenant isolation is enforced on the server."
         title="Workspaces"

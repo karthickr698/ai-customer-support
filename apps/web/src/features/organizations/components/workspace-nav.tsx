@@ -1,8 +1,15 @@
 import { NavLink } from 'react-router-dom';
 import {
+  Activity,
+  BarChart3,
   Bot,
+  Bell,
   BookOpen,
+  Code2,
+  CreditCard,
+  GitBranch,
   Inbox,
+  Lock,
   Mail,
   MessageCircle,
   Plug,
@@ -10,6 +17,7 @@ import {
   Settings,
   Shield,
   Sparkles,
+  Ticket,
   Users,
   Wrench,
 } from 'lucide-react';
@@ -33,6 +41,50 @@ export function WorkspaceNav({ onNavigate }: WorkspaceNavProps) {
       visible: hasPermission(permissions, 'conversation.read'),
       end: false,
     },
+    {
+      to: workspacePath(organizationId, 'tickets'),
+      label: 'Tickets',
+      icon: Ticket,
+      visible: hasPermission(permissions, 'ticket.manage'),
+      end: false,
+    },
+    {
+      to: workspacePath(organizationId, 'automations'),
+      label: 'Workflows',
+      icon: GitBranch,
+      visible:
+        hasPermission(permissions, 'automation.read') || hasPermission(permissions, 'automation.manage'),
+      end: false,
+    },
+    {
+      to: workspacePath(organizationId, 'analytics'),
+      label: 'Analytics',
+      icon: BarChart3,
+      visible: hasPermission(permissions, 'analytics.view'),
+      end: false,
+    },
+    {
+      to: workspacePath(organizationId, 'observability'),
+      label: 'Observability',
+      icon: Activity,
+      visible:
+        hasPermission(permissions, 'observability.view') || hasPermission(permissions, 'observability.manage'),
+      end: false,
+    },
+    {
+      to: workspacePath(organizationId, 'notifications'),
+      label: 'Notifications',
+      icon: Bell,
+      visible: hasPermission(permissions, 'notification.read'),
+      end: false,
+    },
+    {
+      to: workspacePath(organizationId, 'billing'),
+      label: 'Billing',
+      icon: CreditCard,
+      visible: hasPermission(permissions, 'billing.read') || hasPermission(permissions, 'billing.manage'),
+      end: true,
+    },
     { to: workspacePath(organizationId, 'members'), label: 'Members', icon: Users, visible: true, end: true },
     {
       to: workspacePath(organizationId, 'invitations'),
@@ -53,7 +105,20 @@ export function WorkspaceNav({ onNavigate }: WorkspaceNavProps) {
         hasPermission(permissions, 'integration.manage') || hasPermission(permissions, 'customer.read'),
       end: false,
     },
-    { to: workspacePath(organizationId, 'tools'), label: 'Tools', icon: Wrench, visible: true, end: false },
+    {
+      to: workspacePath(organizationId, 'tools'),
+      label: 'Tools',
+      icon: Wrench,
+      visible: true,
+      end: false,
+    },
+    {
+      to: workspacePath(organizationId, 'developers'),
+      label: 'Developers',
+      icon: Code2,
+      visible: hasPermission(permissions, 'integration.manage'),
+      end: false,
+    },
     { to: workspacePath(organizationId, 'widget'), label: 'Chat widget', icon: MessageCircle, visible: true, end: true },
     {
       to: workspacePath(organizationId, 'audit'),
@@ -63,6 +128,13 @@ export function WorkspaceNav({ onNavigate }: WorkspaceNavProps) {
       end: true,
     },
     { to: workspacePath(organizationId, 'settings'), label: 'Settings', icon: Settings, visible: true, end: true },
+    {
+      to: workspacePath(organizationId, 'security'),
+      label: 'Security',
+      icon: Lock,
+      visible: hasPermission(permissions, 'security.read') || hasPermission(permissions, 'security.manage'),
+      end: true,
+    },
   ] as const;
 
   return (

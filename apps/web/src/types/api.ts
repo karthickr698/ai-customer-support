@@ -16,6 +16,7 @@ export type ApiRequestOptions = {
   readonly signal?: AbortSignal;
   readonly params?: Record<string, QueryParamValue>;
   readonly timeoutMs?: number;
+  readonly validateStatus?: (status: number) => boolean;
 };
 
 export type PaginatedResponse<T> = {

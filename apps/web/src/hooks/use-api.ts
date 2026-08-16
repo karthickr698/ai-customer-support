@@ -7,11 +7,12 @@ import type { ApiRequestOptions } from '@/types/api';
 type ApiQueryOptions<TData> = Omit<UseQueryOptions<TData, ApiError>, 'queryFn'> & {
   readonly path: string;
   readonly params?: ApiRequestOptions['params'];
+  readonly validateStatus?: ApiRequestOptions['validateStatus'];
 };
 
-export function useApiQuery<TData>({ path, params, ...options }: ApiQueryOptions<TData>) {
+export function useApiQuery<TData>({ path, params, validateStatus, ...options }: ApiQueryOptions<TData>) {
   return useQuery({
-    queryFn: ({ signal }) => apiClient.get<TData>(path, { signal, params }),
+    queryFn: ({ signal }) => apiClient.get<TData>(path, { signal, params, validateStatus }),
     ...options,
   });
 }

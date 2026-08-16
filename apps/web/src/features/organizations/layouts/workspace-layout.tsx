@@ -15,6 +15,7 @@ import { WorkspaceSidebar } from '../components/workspace-sidebar';
 import { useTenantScope } from '../use-tenant-scope';
 import { WorkspaceProvider } from '../workspace-context';
 import { WorkspaceRealtimeProvider } from '@/features/conversations/realtime/realtime-context';
+import { NotificationBell } from '@/features/notifications/components/notification-bell';
 
 export function WorkspaceLayout() {
   return (
@@ -111,7 +112,8 @@ function WorkspaceShell() {
             >
               <Menu />
             </Button>
-            <p className="truncate text-sm font-medium">{current.name}</p>
+            <p className="min-w-0 flex-1 truncate text-sm font-medium">{current.name}</p>
+            <NotificationBell />
           </header>
           <Dialog onOpenChange={setMobileOpen} open={mobileOpen}>
             <DialogContent className="fixed inset-y-0 left-0 top-0 h-full w-72 max-w-none translate-x-0 translate-y-0 rounded-none border-y-0 border-l-0 p-0">

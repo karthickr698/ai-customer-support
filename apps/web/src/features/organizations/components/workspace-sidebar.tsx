@@ -7,6 +7,7 @@ import { PresenceDot } from '@/features/conversations/components/presence-dot';
 import { PRESENCE_LABELS } from '@/features/conversations/labels';
 import { useInboxRealtime } from '@/features/conversations/realtime/realtime-context';
 import { useAuthStore } from '@/features/identity/auth-store';
+import { NotificationBell } from '@/features/notifications/components/notification-bell';
 import { MemberAvatar } from './member-avatar';
 import { OrganizationSwitcher } from './organization-switcher';
 import { WorkspaceNav } from './workspace-nav';
@@ -25,13 +26,16 @@ export function WorkspaceSidebar({ onNavigate, onCreateWorkspace }: WorkspaceSid
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-      <div className="p-3">
-        <OrganizationSwitcher
-          current={organization}
-          onCreateWorkspace={onCreateWorkspace}
-          onNavigate={onNavigate}
-          organizations={organizations}
-        />
+      <div className="flex items-start justify-between gap-2 p-3">
+        <div className="min-w-0 flex-1">
+          <OrganizationSwitcher
+            current={organization}
+            onCreateWorkspace={onCreateWorkspace}
+            onNavigate={onNavigate}
+            organizations={organizations}
+          />
+        </div>
+        <NotificationBell />
       </div>
       <Separator />
       <div className="flex-1 overflow-y-auto py-3">

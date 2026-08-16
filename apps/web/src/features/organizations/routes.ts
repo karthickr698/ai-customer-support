@@ -4,6 +4,14 @@ import { conversationsChildRoute } from '@/features/conversations/routes';
 import { onboardingChildRoute } from '@/features/onboarding/routes';
 import { agentConfigurationChildRoute } from '@/features/agent-configuration/routes';
 import { integrationsChildRoute } from '@/features/integrations/routes';
+import { ticketsChildRoute } from '@/features/tickets/routes';
+import { automationsChildRoute } from '@/features/automations/routes';
+import { analyticsChildRoute } from '@/features/analytics/routes';
+import { notificationsChildRoute } from '@/features/notifications/routes';
+import { billingChildRoute } from '@/features/billing/routes';
+import { securityChildRoute } from '@/features/security/routes';
+import { developerChildRoute } from '@/features/developer/routes';
+import { observabilityChildRoute } from '@/features/observability/routes';
 import { toolsChildRoute } from '@/features/tools/routes';
 import { widgetChildRoute } from '@/features/widget/routes';
 
@@ -65,6 +73,14 @@ export const organizationRoutes: RouteObject[] = [
         },
       },
       conversationsChildRoute,
+      ticketsChildRoute,
+      automationsChildRoute,
+      analyticsChildRoute,
+      notificationsChildRoute,
+      billingChildRoute,
+      securityChildRoute,
+      developerChildRoute,
+      observabilityChildRoute,
       knowledgeChildRoute,
       onboardingChildRoute,
       agentConfigurationChildRoute,

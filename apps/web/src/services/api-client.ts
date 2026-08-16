@@ -206,6 +206,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       params: compactParams(options.params),
       signal: options.signal,
       timeout: options.timeoutMs,
+      validateStatus: options.validateStatus,
       headers: {
         ...headerRecord(options.headers),
         [REQUEST_ID_HEADER]: requestId,

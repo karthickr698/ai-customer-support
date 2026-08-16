@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { ErrorFallback } from '@/components/error-fallback';
+import { reportFrontendIssue } from '@/hooks/use-frontend-observability';
 
 type AppErrorBoundaryProps = {
   readonly children: ReactNode;
@@ -17,7 +18,7 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
   }
 
   public override componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error('Unhandled UI error', { name: error.name, componentStack: info.componentStack });
+    reportFrontendIssue(error, { route: info.componentStack ?? undefined });
   }
 
   public override render(): ReactNode {

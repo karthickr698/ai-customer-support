@@ -21,8 +21,16 @@ export const queryKeys = {
   },
   tickets: {
     all: () => ['tickets'] as const,
-    list: (filters?: Record<string, unknown>) => [...queryKeys.tickets.all(), 'list', filters] as const,
-    detail: (id: string) => [...queryKeys.tickets.all(), 'detail', id] as const,
+    list: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.tickets.all(), organizationId, 'list', filters] as const,
+    detail: (organizationId: string, id: string) =>
+      [...queryKeys.tickets.all(), organizationId, 'detail', id] as const,
+    notes: (organizationId: string, id: string) =>
+      [...queryKeys.tickets.all(), organizationId, id, 'notes'] as const,
+    slaPolicies: (organizationId: string) =>
+      [...queryKeys.tickets.all(), organizationId, 'sla-policies'] as const,
+    escalationPolicies: (organizationId: string) =>
+      [...queryKeys.tickets.all(), organizationId, 'escalation-policies'] as const,
   },
   customers: {
     all: () => ['customers'] as const,
@@ -104,6 +112,16 @@ export const queryKeys = {
     invocations: (organizationId: string, page: number) =>
       [...queryKeys.tools.all(), organizationId, 'invocations', page] as const,
   },
+  automations: {
+    all: () => ['automations'] as const,
+    rules: (organizationId: string) => [...queryKeys.automations.all(), organizationId, 'rules'] as const,
+    rule: (organizationId: string, ruleId: string) =>
+      [...queryKeys.automations.all(), organizationId, 'rule', ruleId] as const,
+    jobs: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.automations.all(), organizationId, 'jobs', filters] as const,
+    logs: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.automations.all(), organizationId, 'logs', filters] as const,
+  },
   integrations: {
     all: () => ['integrations'] as const,
     catalog: (organizationId: string, filters?: Record<string, unknown>) =>
@@ -114,5 +132,91 @@ export const queryKeys = {
       [...queryKeys.integrations.all(), organizationId, 'connections', filters] as const,
     connection: (organizationId: string, connectionId: string) =>
       [...queryKeys.integrations.all(), organizationId, 'connection', connectionId] as const,
+  },
+  analytics: {
+    all: () => ['analytics'] as const,
+    overview: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.analytics.all(), organizationId, 'overview', filters] as const,
+    timeseries: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.analytics.all(), organizationId, 'timeseries', filters] as const,
+    conversations: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.analytics.all(), organizationId, 'conversations', filters] as const,
+    tickets: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.analytics.all(), organizationId, 'tickets', filters] as const,
+    agents: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.analytics.all(), organizationId, 'agents', filters] as const,
+    customers: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.analytics.all(), organizationId, 'customers', filters] as const,
+  },
+  notifications: {
+    all: () => ['notifications'] as const,
+    inbox: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.notifications.all(), organizationId, 'inbox', filters] as const,
+    preferences: (organizationId: string) =>
+      [...queryKeys.notifications.all(), organizationId, 'preferences'] as const,
+  },
+  billing: {
+    all: () => ['billing'] as const,
+    plans: () => [...queryKeys.billing.all(), 'plans'] as const,
+    subscription: (organizationId: string) =>
+      [...queryKeys.billing.all(), organizationId, 'subscription'] as const,
+    usage: (organizationId: string) => [...queryKeys.billing.all(), organizationId, 'usage'] as const,
+    invoices: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.billing.all(), organizationId, 'invoices', filters] as const,
+    paymentMethods: (organizationId: string) =>
+      [...queryKeys.billing.all(), organizationId, 'payment-methods'] as const,
+  },
+  security: {
+    all: () => ['security'] as const,
+    policy: (organizationId: string) => [...queryKeys.security.all(), organizationId, 'policy'] as const,
+    rateLimits: (organizationId: string) => [...queryKeys.security.all(), organizationId, 'rate-limits'] as const,
+    ipAllowlist: (organizationId: string) => [...queryKeys.security.all(), organizationId, 'ip-allowlist'] as const,
+    secrets: (organizationId: string) => [...queryKeys.security.all(), organizationId, 'secrets'] as const,
+    apiKeys: (organizationId: string) => [...queryKeys.security.all(), organizationId, 'api-keys'] as const,
+    oauthApps: (organizationId: string) => [...queryKeys.security.all(), organizationId, 'oauth-apps'] as const,
+    audit: (organizationId: string, page: number) =>
+      [...queryKeys.security.all(), organizationId, 'audit', page] as const,
+  },
+  developer: {
+    all: () => ['developer'] as const,
+    version: () => [...queryKeys.developer.all(), 'version'] as const,
+    session: (organizationId: string) => [...queryKeys.developer.all(), organizationId, 'session'] as const,
+    keys: (organizationId: string) => [...queryKeys.developer.all(), organizationId, 'keys'] as const,
+    webhooks: (organizationId: string) => [...queryKeys.developer.all(), organizationId, 'webhooks'] as const,
+    deliveries: (organizationId: string, webhookId: string) =>
+      [...queryKeys.developer.all(), organizationId, 'deliveries', webhookId] as const,
+    usage: (organizationId: string) => [...queryKeys.developer.all(), organizationId, 'usage'] as const,
+  },
+  platform: {
+    all: () => ['platform'] as const,
+    me: () => [...queryKeys.platform.all(), 'me'] as const,
+    operators: () => [...queryKeys.platform.all(), 'operators'] as const,
+    tenants: (filters?: Record<string, unknown>) => [...queryKeys.platform.all(), 'tenants', filters] as const,
+    flags: () => [...queryKeys.platform.all(), 'flags'] as const,
+    health: () => [...queryKeys.platform.all(), 'health'] as const,
+    audit: (filters?: Record<string, unknown>) => [...queryKeys.platform.all(), 'audit', filters] as const,
+    incidents: (filters?: Record<string, unknown>) => [...queryKeys.platform.all(), 'incidents', filters] as const,
+    usage: () => [...queryKeys.platform.all(), 'usage'] as const,
+    plans: () => [...queryKeys.platform.all(), 'plans'] as const,
+  },
+  observability: {
+    all: () => ['observability'] as const,
+    overview: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.observability.all(), organizationId, 'overview', filters] as const,
+    logs: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.observability.all(), organizationId, 'logs', filters] as const,
+    traces: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.observability.all(), organizationId, 'traces', filters] as const,
+    metrics: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.observability.all(), organizationId, 'metrics', filters] as const,
+    incidents: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.observability.all(), organizationId, 'incidents', filters] as const,
+    evaluations: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.observability.all(), organizationId, 'evaluations', filters] as const,
+  },
+  featureFlags: {
+    all: () => ['feature-flags'] as const,
+    evaluation: (key: string, organizationId?: string) =>
+      [...queryKeys.featureFlags.all(), key, organizationId] as const,
   },
 } as const;
