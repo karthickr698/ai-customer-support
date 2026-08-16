@@ -49,8 +49,9 @@ export function WorkspaceNav({ onNavigate }: WorkspaceNavProps) {
       to: workspacePath(organizationId, 'integrations'),
       label: 'Integrations',
       icon: Plug,
-      visible: hasPermission(permissions, 'integration.manage'),
-      end: true,
+      visible:
+        hasPermission(permissions, 'integration.manage') || hasPermission(permissions, 'customer.read'),
+      end: false,
     },
     { to: workspacePath(organizationId, 'tools'), label: 'Tools', icon: Wrench, visible: true, end: false },
     { to: workspacePath(organizationId, 'widget'), label: 'Chat widget', icon: MessageCircle, visible: true, end: true },

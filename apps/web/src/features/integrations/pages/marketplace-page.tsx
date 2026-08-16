@@ -19,11 +19,11 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConnectionDetailDialog, SetupWizardDialog } from '@/features/integrations/components/setup-wizard';
-import { RequireWorkspacePermission } from '@/features/organizations/components/require-workspace-permission';
-import { WorkspacePage } from '@/features/organizations/components/workspace-page';
+import { hasPermission } from '@/features/organizations/permissions';
 import { useWorkspace } from '@/features/organizations/workspace-context';
 import { useApiQuery } from '@/hooks/use-api';
 import { queryKeys } from '@/services/query-keys';
+import { QueryErrorAlert } from '../components/query-error';
 import {
   connectorCategoryLabel,
   connectorKindLabel,
@@ -34,15 +34,19 @@ import {
 } from '../labels';
 
 export function IntegrationsMarketplacePage() {
-  return (
-    <RequireWorkspacePermission
-      description="You need integration.manage to browse the connector marketplace, run the setup wizard, and disconnect connectors."
-      permission="integration.manage"
-      title="Integrations are limited to admins"
-    >
-      <MarketplaceWorkspace />
-    </RequireWorkspacePermission>
-  );
+  const { permissions } = useWorkspace();
+  if (!hasPermission(permissions, 'integration.manage')) {
+    return (
+      <Alert variant="warning">
+        <AlertTitle>Marketplace is limited to admins</AlertTitle>
+        <AlertDescription>
+          You need integration.manage to browse the connector marketplace, run the setup wizard, and disconnect
+          connectors.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  return <MarketplaceWorkspace />;
 }
 
 function MarketplaceWorkspace() {
@@ -86,7 +90,7 @@ function MarketplaceWorkspace() {
   const installed = (connections.data?.items ?? []).filter((item) => item.status !== 'disconnected');
 
   return (
-    <WorkspacePage wide>
+    <>
       <PageHeader
         description="Search the connector catalog, run the setup wizard, complete OAuth, check connection health, manage permissions, and disconnect."
         title="Integrations"
@@ -142,10 +146,14 @@ function MarketplaceWorkspace() {
           <Skeleton className="h-40 w-full" />
         </div>
       ) : catalog.isError ? (
-        <Alert variant="destructive">
-          <AlertTitle>Unable to load the marketplace</AlertTitle>
-          <AlertDescription>{catalog.error.message}</AlertDescription>
-        </Alert>
+        <QueryErrorAlert
+          message={catalog.error.message}
+          onRetry={() => {
+            void catalog.refetch();
+          }}
+          pending={catalog.isFetching}
+          title="Unable to load the marketplace"
+        />
       ) : items.length === 0 ? (
         <EmptyState
           description="Try a different search or category."
@@ -219,10 +227,14 @@ function MarketplaceWorkspace() {
         {connections.isPending ? (
           <Skeleton className="h-24 w-full" />
         ) : connections.isError ? (
-          <Alert variant="destructive">
-            <AlertTitle>Unable to load connections</AlertTitle>
-            <AlertDescription>{connections.error.message}</AlertDescription>
-          </Alert>
+          <QueryErrorAlert
+            message={connections.error.message}
+            onRetry={() => {
+              void connections.refetch();
+            }}
+            pending={connections.isFetching}
+            title="Unable to load connections"
+          />
         ) : installed.length === 0 ? (
           <EmptyState
             description="Connect a catalog item to store encrypted credentials and run health checks."
@@ -283,6 +295,6 @@ function MarketplaceWorkspace() {
           organizationId={organizationId}
         />
       ) : null}
-    </WorkspacePage>
+    </>
   );
 }

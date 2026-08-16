@@ -26,8 +26,38 @@ export const queryKeys = {
   },
   customers: {
     all: () => ['customers'] as const,
-    list: (filters?: Record<string, unknown>) => [...queryKeys.customers.all(), 'list', filters] as const,
-    detail: (id: string) => [...queryKeys.customers.all(), 'detail', id] as const,
+    list: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.customers.all(), organizationId, 'list', filters] as const,
+    detail: (organizationId: string, id: string) =>
+      [...queryKeys.customers.all(), organizationId, 'detail', id] as const,
+  },
+  products: {
+    all: () => ['products'] as const,
+    list: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.products.all(), organizationId, 'list', filters] as const,
+    detail: (organizationId: string, id: string) =>
+      [...queryKeys.products.all(), organizationId, 'detail', id] as const,
+  },
+  orders: {
+    all: () => ['orders'] as const,
+    list: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.orders.all(), organizationId, 'list', filters] as const,
+    detail: (organizationId: string, id: string) =>
+      [...queryKeys.orders.all(), organizationId, 'detail', id] as const,
+  },
+  shipments: {
+    all: () => ['shipments'] as const,
+    list: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.shipments.all(), organizationId, 'list', filters] as const,
+    detail: (organizationId: string, id: string) =>
+      [...queryKeys.shipments.all(), organizationId, 'detail', id] as const,
+  },
+  returns: {
+    all: () => ['returns'] as const,
+    list: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.returns.all(), organizationId, 'list', filters] as const,
+    detail: (organizationId: string, id: string) =>
+      [...queryKeys.returns.all(), organizationId, 'detail', id] as const,
   },
   knowledge: {
     all: () => ['knowledge'] as const,
