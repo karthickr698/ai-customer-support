@@ -64,4 +64,14 @@ export const queryKeys = {
     all: () => ['agent-configuration'] as const,
     detail: (organizationId: string) => [...queryKeys.agentConfiguration.all(), organizationId] as const,
   },
+  tools: {
+    all: () => ['tools'] as const,
+    catalog: (organizationId: string) => [...queryKeys.tools.all(), organizationId, 'catalog'] as const,
+    credentials: (organizationId: string) => [...queryKeys.tools.all(), organizationId, 'credentials'] as const,
+    oauth: (organizationId: string) => [...queryKeys.tools.all(), organizationId, 'oauth'] as const,
+    connectorCatalog: (organizationId: string) =>
+      [...queryKeys.tools.all(), organizationId, 'connector-catalog'] as const,
+    invocations: (organizationId: string, page: number) =>
+      [...queryKeys.tools.all(), organizationId, 'invocations', page] as const,
+  },
 } as const;

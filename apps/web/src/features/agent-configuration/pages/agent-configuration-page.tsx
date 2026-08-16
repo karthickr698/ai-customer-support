@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type {
   AiAgentCitationPolicy,
   AiAgentConfigurationDto,
@@ -30,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { WorkspacePage } from '@/features/organizations/components/workspace-page';
 import { hasPermission } from '@/features/organizations/permissions';
 import { useWorkspace } from '@/features/organizations/workspace-context';
+import { workspacePath } from '@/features/organizations/workspace-paths';
 import { useApiMutation, useApiQuery } from '@/hooks/use-api';
 import { queryKeys } from '@/services/query-keys';
 import { agentConfigurationApi } from '../api';
@@ -344,7 +346,11 @@ export function AgentConfigurationPage() {
             <CardHeader>
               <CardTitle>Tools</CardTitle>
               <CardDescription>
-                Allowlisted tools the model may propose. TypeScript still authorizes and executes each call.
+                Allowlisted tools the model may propose. TypeScript still authorizes and executes each call.{' '}
+                <Link className="underline underline-offset-4" to={workspacePath(organizationId, 'tools')}>
+                  Manage credentials, schemas, and test calls
+                </Link>
+                .
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">

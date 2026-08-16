@@ -10,6 +10,7 @@ import {
   Shield,
   Sparkles,
   Users,
+  Wrench,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hasPermission } from '../permissions';
@@ -43,6 +44,7 @@ export function WorkspaceNav({ onNavigate }: WorkspaceNavProps) {
     { to: workspacePath(organizationId, 'knowledge'), label: 'Knowledge', icon: BookOpen, visible: true, end: false },
     { to: workspacePath(organizationId, 'onboarding'), label: 'AI setup', icon: Sparkles, visible: true, end: true },
     { to: workspacePath(organizationId, 'ai-agent'), label: 'AI agent', icon: Bot, visible: true, end: true },
+    { to: workspacePath(organizationId, 'tools'), label: 'Tools', icon: Wrench, visible: true, end: false },
     { to: workspacePath(organizationId, 'widget'), label: 'Chat widget', icon: MessageCircle, visible: true, end: true },
     {
       to: workspacePath(organizationId, 'audit'),

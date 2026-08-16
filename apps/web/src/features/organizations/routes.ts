@@ -3,6 +3,7 @@ import { knowledgeChildRoute } from '@/features/knowledge/routes';
 import { conversationsChildRoute } from '@/features/conversations/routes';
 import { onboardingChildRoute } from '@/features/onboarding/routes';
 import { agentConfigurationChildRoute } from '@/features/agent-configuration/routes';
+import { toolsChildRoute } from '@/features/tools/routes';
 import { widgetChildRoute } from '@/features/widget/routes';
 
 export const organizationRoutes: RouteObject[] = [
@@ -66,6 +67,7 @@ export const organizationRoutes: RouteObject[] = [
       knowledgeChildRoute,
       onboardingChildRoute,
       agentConfigurationChildRoute,
+      toolsChildRoute,
       widgetChildRoute,
     ],
   },
