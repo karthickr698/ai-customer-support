@@ -14,6 +14,10 @@ from app.application.use_cases.retrieve_knowledge_use_case import (
     RetrieveKnowledgeCommand,
     RetrieveKnowledgeUseCase,
 )
+from app.application.use_cases.run_rag_playground_use_case import (
+    RunRagPlaygroundCommand,
+    RunRagPlaygroundUseCase,
+)
 from app.context import get_request_context
 from app.domain.errors import InvalidIngestionInputError, TenantContextRequiredError
 from app.domain.ingestion import INGEST_SCHEMA_VERSION, MAX_BINARY_BYTES
@@ -58,6 +62,10 @@ class RetrieveKnowledgeBody(BaseModel):
     filters: RetrievalFilterBody | None = None
 
 
+class RagPlaygroundBody(RetrieveKnowledgeBody):
+    generate: bool = True
+
+
 def _tenant_id() -> str:
     context = get_request_context()
     if context is None or not context.tenant_id:
@@ -82,6 +90,10 @@ def delete_index_use_case(request: Request) -> DeleteIndexedDocumentUseCase:
 
 def retrieve_knowledge_use_case(request: Request) -> RetrieveKnowledgeUseCase:
     return request.app.state.retrieve_knowledge
+
+
+def rag_playground_use_case(request: Request) -> RunRagPlaygroundUseCase:
+    return request.app.state.run_rag_playground
 
 
 @router.post("/ingest")
@@ -148,6 +160,34 @@ async def retrieve_knowledge(
             top_k=body.topK,
             filters=filters,
             document_id=body.documentId,
+        )
+    )
+    return result.to_dict()
+
+
+@router.post("/playground")
+async def run_rag_playground(
+    body: RagPlaygroundBody,
+    use_case: Annotated[RunRagPlaygroundUseCase, Depends(rag_playground_use_case)],
+) -> dict[str, Any]:
+    filters = None
+    if body.filters is not None:
+        filters = normalize_retrieval_filter(
+            document_ids=tuple(body.filters.documentIds),
+            kinds=tuple(body.filters.kinds),
+            source_uri=body.filters.sourceUri,
+            title_contains=body.filters.titleContains,
+            document_id=body.documentId,
+        )
+    result = await use_case.execute(
+        RunRagPlaygroundCommand(
+            tenant_id=_tenant_id(),
+            correlation_id=_correlation_id(),
+            query=body.query,
+            top_k=body.topK,
+            filters=filters,
+            document_id=body.documentId,
+            generate=body.generate,
         )
     )
     return result.to_dict()

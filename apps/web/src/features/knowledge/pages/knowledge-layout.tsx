@@ -1,19 +1,32 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { BookOpen, FileText } from 'lucide-react';
+import { BookOpen, FileText, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WorkspacePage } from '@/features/organizations/components/workspace-page';
+import { hasPermission } from '@/features/organizations/permissions';
 import { useWorkspace } from '@/features/organizations/workspace-context';
 import { knowledgePath } from '../labels';
 
 export function KnowledgeLayout() {
-  const { organizationId } = useWorkspace();
+  const { organizationId, permissions } = useWorkspace();
   const location = useLocation();
   const onSources = location.pathname.includes('/knowledge/sources');
+  const onPlayground = location.pathname.includes('/knowledge/playground');
+  const canManage = hasPermission(permissions, 'knowledge.manage');
 
   const items = [
-    { to: knowledgePath(organizationId), label: 'Articles', icon: FileText, active: !onSources },
+    { to: knowledgePath(organizationId), label: 'Articles', icon: FileText, active: !onSources && !onPlayground },
     { to: knowledgePath(organizationId, 'sources'), label: 'Sources', icon: BookOpen, active: onSources },
-  ] as const;
+    ...(canManage
+      ? [
+          {
+            to: knowledgePath(organizationId, 'playground'),
+            label: 'Playground',
+            icon: FlaskConical,
+            active: onPlayground,
+          },
+        ]
+      : []),
+  ];
 
   return (
     <WorkspacePage wide>

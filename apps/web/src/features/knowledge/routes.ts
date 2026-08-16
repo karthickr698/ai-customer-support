@@ -35,5 +35,12 @@ export const knowledgeChildRoute: RouteObject = {
         return { Component: KnowledgeSourcesPage };
       },
     },
+    {
+      path: 'playground',
+      lazy: async () => {
+        const { KnowledgePlaygroundPage } = await import('./pages/playground-page');
+        return { Component: KnowledgePlaygroundPage };
+      },
+    },
   ],
 };

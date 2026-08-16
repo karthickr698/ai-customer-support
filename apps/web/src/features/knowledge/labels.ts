@@ -1,4 +1,4 @@
-import type { KnowledgeArticleStatus } from '@ai-customer-support/contracts';
+import type { KnowledgeArticleStatus, KnowledgeDocumentKind } from '@ai-customer-support/contracts';
 
 export function articleStatusLabel(status: KnowledgeArticleStatus): string {
   switch (status) {
@@ -29,4 +29,26 @@ export function formatKnowledgeDate(value: string): string {
 export function knowledgePath(organizationId: string, segment = ''): string {
   const base = `/organizations/${organizationId}/knowledge`;
   return segment ? `${base}/${segment}` : base;
+}
+
+export function documentKindLabel(kind: KnowledgeDocumentKind | string | null): string {
+  switch (kind) {
+    case 'article':
+      return 'Article';
+    case 'url':
+      return 'URL';
+    case 'pdf':
+      return 'PDF';
+    case 'docx':
+      return 'DOCX';
+    default:
+      return kind ?? 'Unknown';
+  }
+}
+
+export function formatRetrievalScore(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return '—';
+  }
+  return value.toFixed(4);
 }

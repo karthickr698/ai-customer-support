@@ -128,6 +128,8 @@ export type RetrievedKnowledgeChunkDto = {
   readonly chunkIndex: number | null;
   readonly content: string;
   readonly score: number;
+  readonly vectorScore: number | null;
+  readonly keywordScore: number | null;
   readonly title: string;
   readonly sourceUri: string | null;
   readonly kind: string | null;
@@ -138,6 +140,54 @@ export type RetrieveKnowledgeResponse = {
   readonly topK: number;
   readonly citations: readonly KnowledgeCitationDto[];
   readonly chunks: readonly RetrievedKnowledgeChunkDto[];
+};
+
+export const RAG_PLAYGROUND_SCHEMA_VERSION = 1 as const;
+
+export type RagPlaygroundRequest = {
+  readonly query: string;
+  readonly topK?: number;
+  readonly generate?: boolean;
+  readonly documentId?: string;
+  readonly filters?: KnowledgeRetrievalFilterDto;
+};
+
+export type RagPlaygroundAppliedFiltersDto = {
+  readonly documentIds: readonly string[];
+  readonly kinds: readonly string[];
+  readonly sourceUri: string | null;
+  readonly titleContains: string | null;
+};
+
+export type RagPlaygroundSourceDto = {
+  readonly documentId: string;
+  readonly title: string;
+  readonly sourceUri: string | null;
+  readonly kind: string | null;
+  readonly chunkCount: number;
+  readonly maxScore: number;
+};
+
+export type RagPlaygroundGenerationDto = {
+  readonly content: string;
+  readonly model: string;
+  readonly promptTokens: number;
+  readonly completionTokens: number;
+};
+
+export type RagPlaygroundResponse = {
+  readonly schemaVersion: typeof RAG_PLAYGROUND_SCHEMA_VERSION;
+  readonly query: string;
+  readonly topK: number;
+  readonly generate: boolean;
+  readonly latencyMs: number;
+  readonly retrieveMs: number;
+  readonly generateMs: number | null;
+  readonly filters: RagPlaygroundAppliedFiltersDto;
+  readonly chunks: readonly RetrievedKnowledgeChunkDto[];
+  readonly sources: readonly RagPlaygroundSourceDto[];
+  readonly citations: readonly KnowledgeCitationDto[];
+  readonly generation: RagPlaygroundGenerationDto | null;
 };
 
 export function isKnowledgeCitationDto(value: unknown): value is KnowledgeCitationDto {
@@ -157,6 +207,26 @@ export function isKnowledgeCitationDto(value: unknown): value is KnowledgeCitati
   );
 }
 
+export function isRetrievedKnowledgeChunkDto(value: unknown): value is RetrievedKnowledgeChunkDto {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.documentId) &&
+    (value.version === null || (typeof value.version === 'number' && Number.isInteger(value.version))) &&
+    (value.chunkIndex === null || (typeof value.chunkIndex === 'number' && Number.isInteger(value.chunkIndex))) &&
+    typeof value.content === 'string' &&
+    isFiniteNumber(value.score) &&
+    isNullableNumber(value.vectorScore) &&
+    isNullableNumber(value.keywordScore) &&
+    typeof value.title === 'string' &&
+    isNullableString(value.sourceUri) &&
+    isNullableString(value.kind)
+  );
+}
+
 export function isRetrieveKnowledgeResponse(value: unknown): value is RetrieveKnowledgeResponse {
   if (!isRecord(value)) {
     return false;
@@ -169,7 +239,80 @@ export function isRetrieveKnowledgeResponse(value: unknown): value is RetrieveKn
     value.topK >= 0 &&
     Array.isArray(value.citations) &&
     value.citations.every(isKnowledgeCitationDto) &&
-    Array.isArray(value.chunks)
+    Array.isArray(value.chunks) &&
+    value.chunks.every(isRetrievedKnowledgeChunkDto)
+  );
+}
+
+export function isRagPlaygroundAppliedFiltersDto(value: unknown): value is RagPlaygroundAppliedFiltersDto {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    Array.isArray(value.documentIds) &&
+    value.documentIds.every((item) => typeof item === 'string') &&
+    Array.isArray(value.kinds) &&
+    value.kinds.every((item) => typeof item === 'string') &&
+    isNullableString(value.sourceUri) &&
+    isNullableString(value.titleContains)
+  );
+}
+
+export function isRagPlaygroundSourceDto(value: unknown): value is RagPlaygroundSourceDto {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isNonEmptyString(value.documentId) &&
+    typeof value.title === 'string' &&
+    isNullableString(value.sourceUri) &&
+    isNullableString(value.kind) &&
+    typeof value.chunkCount === 'number' &&
+    Number.isInteger(value.chunkCount) &&
+    value.chunkCount >= 0 &&
+    isFiniteNumber(value.maxScore)
+  );
+}
+
+export function isRagPlaygroundGenerationDto(value: unknown): value is RagPlaygroundGenerationDto {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.content === 'string' &&
+    value.content.trim().length > 0 &&
+    typeof value.model === 'string' &&
+    typeof value.promptTokens === 'number' &&
+    typeof value.completionTokens === 'number'
+  );
+}
+
+export function isRagPlaygroundResponse(value: unknown): value is RagPlaygroundResponse {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    value.schemaVersion === RAG_PLAYGROUND_SCHEMA_VERSION &&
+    typeof value.query === 'string' &&
+    typeof value.topK === 'number' &&
+    Number.isInteger(value.topK) &&
+    value.topK >= 0 &&
+    typeof value.generate === 'boolean' &&
+    isFiniteNumber(value.latencyMs) &&
+    isFiniteNumber(value.retrieveMs) &&
+    (value.generateMs === null || isFiniteNumber(value.generateMs)) &&
+    isRagPlaygroundAppliedFiltersDto(value.filters) &&
+    Array.isArray(value.chunks) &&
+    value.chunks.every(isRetrievedKnowledgeChunkDto) &&
+    Array.isArray(value.sources) &&
+    value.sources.every(isRagPlaygroundSourceDto) &&
+    Array.isArray(value.citations) &&
+    value.citations.every(isKnowledgeCitationDto) &&
+    (value.generation === null || isRagPlaygroundGenerationDto(value.generation))
   );
 }
 
@@ -246,4 +389,12 @@ function isNonEmptyString(value: unknown): value is string {
 
 function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === 'string';
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isNullableNumber(value: unknown): value is number | null {
+  return value === null || isFiniteNumber(value);
 }

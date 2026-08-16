@@ -10,6 +10,7 @@ import {
   isOrchestrateSupportTurnResponse,
   isProposeToolCallsResponse,
   isApplyToolResultsResponse,
+  isRagPlaygroundResponse,
   isSupportReplyStreamEvent,
   isSupportToneId,
   isSupportTonePresetList,
@@ -32,6 +33,8 @@ import {
   type ProposeToolCallsResponse,
   type ApplyToolResultsRequest,
   type ApplyToolResultsResponse,
+  type RagPlaygroundRequest,
+  type RagPlaygroundResponse,
   type RunOnboardingSetupRequest,
   type SupportReplyStreamEvent,
 } from '@ai-customer-support/contracts';
@@ -292,6 +295,14 @@ export class PythonAIServiceAdapter implements AIServicePort {
     return body;
   }
 
+  async runRagPlayground(context: AICallContext, input: RagPlaygroundRequest): Promise<RagPlaygroundResponse> {
+    const body = await this.postJson('/v1/knowledge/playground', context, input, GENERATE_TIMEOUT_MS);
+    if (!isRagPlaygroundResponse(body)) {
+      throw new InvalidAIPayloadError('RAG playground payload failed validation');
+    }
+    return body;
+  }
+
   private async postJson(
     path: string,
     context: AICallContext,
@@ -467,6 +478,8 @@ function operationFromPath(path: string): string {
       return 'propose_tool_calls';
     case '/v1/tools/apply-results':
       return 'apply_tool_results';
+    case '/v1/knowledge/playground':
+      return 'run_rag_playground';
     default:
       return path.replace(/^\//, '').replace(/\//g, '_');
   }

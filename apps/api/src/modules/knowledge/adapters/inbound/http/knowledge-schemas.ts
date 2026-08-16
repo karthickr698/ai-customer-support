@@ -1,4 +1,4 @@
-import { KNOWLEDGE_SOURCE_TYPES } from '@ai-customer-support/contracts';
+import { KNOWLEDGE_DOCUMENT_KINDS, KNOWLEDGE_SOURCE_TYPES } from '@ai-customer-support/contracts';
 import { z } from 'zod';
 
 export const registerKnowledgeSourceBodySchema = z
@@ -86,4 +86,19 @@ export const updateKnowledgeArticleBodySchema = z.object({
   body: z.string().max(200_000).optional(),
   categoryId: uuidSchema.nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(32)).max(12).optional(),
+});
+
+export const ragPlaygroundBodySchema = z.object({
+  query: z.string().trim().min(1, 'Query is required').max(10_000),
+  topK: z.number().int().min(1).max(20).optional(),
+  generate: z.boolean().optional(),
+  documentId: z.string().trim().min(1).max(80).optional(),
+  filters: z
+    .object({
+      documentIds: z.array(z.string().trim().min(1).max(80)).max(50).optional(),
+      kinds: z.array(z.enum(KNOWLEDGE_DOCUMENT_KINDS)).optional(),
+      sourceUri: z.string().trim().min(1).max(2000).optional(),
+      titleContains: z.string().trim().min(1).max(200).optional(),
+    })
+    .optional(),
 });

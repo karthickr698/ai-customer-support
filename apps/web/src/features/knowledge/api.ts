@@ -9,6 +9,8 @@ import type {
   KnowledgeDocumentListResponse,
   KnowledgeDocumentResponse,
   KnowledgeTagListResponse,
+  RagPlaygroundRequest,
+  RagPlaygroundResponse,
   RegisterKnowledgeDocumentRequest,
   UpdateKnowledgeArticleRequest,
   UpdateKnowledgeCategoryRequest,
@@ -112,4 +114,9 @@ export const knowledgeApi = {
     apiClient.post<KnowledgeArticleResponse>(
       `/api/organizations/${organizationId}/knowledge/articles/${articleId}/versions/${String(version)}/restore`,
     ),
+
+  runPlayground: (organizationId: string, body: RagPlaygroundRequest) =>
+    apiClient.post<RagPlaygroundResponse>(`/api/organizations/${organizationId}/knowledge/playground`, body, {
+      timeoutMs: 60_000,
+    }),
 };

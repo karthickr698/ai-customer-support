@@ -34,6 +34,7 @@ from app.application.use_cases.orchestrate_support_turn_use_case import Orchestr
 from app.application.use_cases.propose_tool_calls_use_case import ProposeToolCallsUseCase
 from app.application.use_cases.apply_tool_results_use_case import ApplyToolResultsUseCase
 from app.application.use_cases.retrieve_knowledge_use_case import RetrieveKnowledgeUseCase
+from app.application.use_cases.run_rag_playground_use_case import RunRagPlaygroundUseCase
 from app.config import Settings, get_settings, override_settings
 from app.domain.retrieval import RetrievalPolicy
 from app.logging import configure_logging, get_logger
@@ -171,4 +172,10 @@ def _wire_orchestration(application: FastAPI, settings: Settings) -> None:
     application.state.apply_tool_results = ApplyToolResultsUseCase(
         application.state.llm,
         get_logger("tools"),
+    )
+    application.state.run_rag_playground = RunRagPlaygroundUseCase(
+        retrieve,
+        executor,
+        get_logger("rag-playground"),
+        settings.llm_model,
     )

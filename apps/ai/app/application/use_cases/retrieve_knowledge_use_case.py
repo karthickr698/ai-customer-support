@@ -47,20 +47,7 @@ class RetrievalResult:
             "query": self.query,
             "topK": self.top_k,
             "citations": [citation.to_dict() for citation in self.citations],
-            "chunks": [
-                {
-                    "id": chunk.id,
-                    "documentId": chunk.document_id,
-                    "version": chunk.version,
-                    "chunkIndex": chunk.chunk_index,
-                    "content": chunk.content,
-                    "score": chunk.score,
-                    "title": chunk.title,
-                    "sourceUri": chunk.source_uri,
-                    "kind": chunk.kind,
-                }
-                for chunk in self.chunks
-            ],
+            "chunks": [chunk.to_dict() for chunk in self.chunks],
         }
 
 

@@ -13,9 +13,11 @@ import type { ListKnowledgeSourcesUseCase } from '../../../application/use-cases
 import type { RegisterKnowledgeDocumentUseCase } from '../../../application/use-cases/register-knowledge-document-use-case.js';
 import type { RegisterKnowledgeSourceUseCase } from '../../../application/use-cases/register-knowledge-source-use-case.js';
 import type { ReindexKnowledgeDocumentUseCase } from '../../../application/use-cases/reindex-knowledge-document-use-case.js';
+import type { RunRagPlaygroundUseCase } from '../../../application/use-cases/run-rag-playground-use-case.js';
 import type { UploadKnowledgeDocumentUseCase } from '../../../application/use-cases/upload-knowledge-document-use-case.js';
 import { UnauthorizedError } from '../../../domain/errors.js';
 import {
+  ragPlaygroundBodySchema,
   registerKnowledgeDocumentBodySchema,
   registerKnowledgeSourceBodySchema,
   uploadKnowledgeDocumentFieldsSchema,
@@ -36,6 +38,7 @@ export type KnowledgeHttpUseCases = {
   readonly listKnowledgeDocuments: ListKnowledgeDocumentsUseCase;
   readonly reindexKnowledgeDocument: ReindexKnowledgeDocumentUseCase;
   readonly deleteKnowledgeDocument: DeleteKnowledgeDocumentUseCase;
+  readonly runRagPlayground: RunRagPlaygroundUseCase;
 } & KnowledgeArticleHttpUseCases;
 
 export type AuthenticatePreHandler = (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
@@ -174,6 +177,25 @@ export async function registerKnowledgeRoutes(
         security: securityContext(request),
       });
       return reply.status(204).send();
+    },
+  );
+
+  app.post(
+    '/api/organizations/:organizationId/knowledge/playground',
+    { preHandler: [...tenantAuth, requireManage] },
+    async (request, reply) => {
+      const body = parseBody(ragPlaygroundBodySchema, request.body);
+      const result = await useCases.runRagPlayground.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        query: body.query,
+        topK: body.topK,
+        generate: body.generate,
+        documentId: body.documentId,
+        filters: body.filters,
+        security: securityContext(request),
+      });
+      return reply.status(200).send(result);
     },
   );
 

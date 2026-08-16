@@ -18,6 +18,8 @@ import type {
   ApplyToolResultsResponse,
   ProposeToolCallsRequest,
   ProposeToolCallsResponse,
+  RagPlaygroundRequest,
+  RagPlaygroundResponse,
   RunOnboardingSetupRequest,
   SupportReplyStreamEvent,
   SupportToneId,
@@ -105,4 +107,5 @@ export interface AIServicePort {
   ): Promise<OrchestrateSupportTurnResponse>;
   proposeToolCalls(context: AICallContext, input: ProposeToolCallsRequest): Promise<ProposeToolCallsResponse>;
   applyToolResults(context: AICallContext, input: ApplyToolResultsRequest): Promise<ApplyToolResultsResponse>;
+  runRagPlayground(context: AICallContext, input: RagPlaygroundRequest): Promise<RagPlaygroundResponse>;
 }

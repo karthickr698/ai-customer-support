@@ -148,4 +148,20 @@ describe('PythonAIServiceAdapter', () => {
       ),
     ).rejects.toMatchObject({ code: 'INVALID_AI_PAYLOAD' });
   });
+
+  it('rejects RAG playground payloads that omit chunks', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ schemaVersion: 1, query: 'refunds' }));
+    const adapter = new PythonAIServiceAdapter('http://localhost:8000', silentLogger, fetchImpl);
+
+    await expect(
+      adapter.runRagPlayground(
+        { tenantId: 'tenant-1', requestId: 'req-1', correlationId: 'corr-1' },
+        { query: 'How long do refunds take?', generate: true },
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_AI_PAYLOAD' });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'http://localhost:8000/v1/knowledge/playground',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
 });

@@ -84,6 +84,8 @@ class HeuristicLLMAdapter(LLMPort):
             tone = selected if selected in SUPPORT_TONE_IDS else recommended_tone_id(_tones_for(profile))
             settings = seed_agent_settings(profile, tone)  # type: ignore[arg-type]
             content = json.dumps(_with_knowledge(settings, payload))
+        elif task == "support_reply" or "TASK=support_reply" in system:
+            content = _support_reply(user, system)
         else:
             content = json.dumps(_profile_from_payload(payload).to_dict())
 

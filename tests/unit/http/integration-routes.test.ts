@@ -129,6 +129,9 @@ class FakeAIService implements AIServicePort {
       completionTokens: 1,
     };
   }
+  async runRagPlayground(): Promise<never> {
+    throw new Error('not implemented');
+  }
 }
 
 class MapTokenIssuer implements TokenIssuerPort {

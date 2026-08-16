@@ -81,3 +81,49 @@ def test_support_reply_includes_citations(client: TestClient) -> None:
     assert isinstance(reply["content"], str) and reply["content"]
     assert reply["citations"]
     assert reply["citations"][0]["documentId"] == "doc-1"
+
+
+def test_playground_returns_chunks_scores_sources_and_generation(client: TestClient) -> None:
+    _ingest(client, "doc-1", "Refund policy", "Refunds are issued within five business days.")
+    response = client.post(
+        "/v1/knowledge/playground",
+        headers={"x-tenant-id": "tenant-1", "x-correlation-id": "corr-1"},
+        json={"query": "How long do refunds take?", "topK": 3, "generate": True, "filters": {"kinds": ["article"]}},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["schemaVersion"] == 1
+    assert body["query"] == "How long do refunds take?"
+    assert body["topK"] == 3
+    assert body["generate"] is True
+    assert body["filters"]["kinds"] == ["article"]
+    assert body["chunks"]
+    assert body["chunks"][0]["documentId"] == "doc-1"
+    assert isinstance(body["chunks"][0]["score"], float)
+    assert "vectorScore" in body["chunks"][0]
+    assert "keywordScore" in body["chunks"][0]
+    assert body["sources"][0]["documentId"] == "doc-1"
+    assert body["sources"][0]["title"] == "Refund policy"
+    assert body["generation"]["content"]
+    assert body["generation"]["model"]
+
+
+def test_playground_can_skip_generation(client: TestClient) -> None:
+    _ingest(client, "doc-1", "Refund policy", "Refunds are issued within five business days.")
+    response = client.post(
+        "/v1/knowledge/playground",
+        headers={"x-tenant-id": "tenant-1"},
+        json={"query": "refunds", "generate": False},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["generate"] is False
+    assert body["generateMs"] is None
+    assert body["generation"] is None
+    assert body["chunks"]
+
+
+def test_playground_requires_tenant_context(client: TestClient) -> None:
+    response = client.post("/v1/knowledge/playground", json={"query": "refunds"})
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "TENANT_CONTEXT_REQUIRED"

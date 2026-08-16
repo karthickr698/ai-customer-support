@@ -1,7 +1,7 @@
 """Citation construction from retrieved hits. No provider SDKs."""
 
 from app.application.ports.vector_search_port import VectorSearchHit
-from app.domain.retrieval import Citation, DEFAULT_SNIPPET_CHARS, RetrievedChunk
+from app.domain.retrieval import Citation, DEFAULT_SNIPPET_CHARS, RagPlaygroundSource, RetrievedChunk
 
 
 def citations_from_hits(
@@ -39,9 +39,32 @@ def chunks_from_hits(hits: tuple[VectorSearchHit, ...]) -> tuple[RetrievedChunk,
                 source_uri=str(source) if isinstance(source, str) and source else None,
                 kind=str(kind) if isinstance(kind, str) and kind else None,
                 metadata=hit.metadata,
+                vector_score=hit.vector_score,
+                keyword_score=hit.keyword_score,
             )
         )
     return tuple(chunks)
+
+
+def sources_from_chunks(chunks: tuple[RetrievedChunk, ...]) -> tuple[RagPlaygroundSource, ...]:
+    grouped: dict[str, list[RetrievedChunk]] = {}
+    for chunk in chunks:
+        if not chunk.document_id.strip():
+            continue
+        grouped.setdefault(chunk.document_id, []).append(chunk)
+    sources = [
+        RagPlaygroundSource(
+            document_id=document_id,
+            title=items[0].title,
+            source_uri=items[0].source_uri,
+            kind=items[0].kind,
+            chunk_count=len(items),
+            max_score=max(item.score for item in items),
+        )
+        for document_id, items in grouped.items()
+    ]
+    sources.sort(key=lambda source: source.max_score, reverse=True)
+    return tuple(sources)
 
 
 def _citation_from_chunk(chunk: RetrievedChunk, *, snippet_chars: int) -> Citation:

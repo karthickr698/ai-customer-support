@@ -39,6 +39,10 @@ from app.application.use_cases.retrieve_knowledge_use_case import (
     RetrieveKnowledgeUseCase,
     RetrievalResult,
 )
+from app.application.use_cases.run_rag_playground_use_case import (
+    RunRagPlaygroundCommand,
+    RunRagPlaygroundUseCase,
+)
 
 __all__ = [
     "ApplyToolResultsCommand",
@@ -66,4 +70,6 @@ __all__ = [
     "RetrieveKnowledgeUseCase",
     "RunOnboardingSetupCommand",
     "RunOnboardingSetupUseCase",
+    "RunRagPlaygroundCommand",
+    "RunRagPlaygroundUseCase",
 ]

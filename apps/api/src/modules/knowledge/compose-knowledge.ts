@@ -33,6 +33,7 @@ import { ListKnowledgeSourcesUseCase } from './application/use-cases/list-knowle
 import { RegisterKnowledgeDocumentUseCase } from './application/use-cases/register-knowledge-document-use-case.js';
 import { RegisterKnowledgeSourceUseCase } from './application/use-cases/register-knowledge-source-use-case.js';
 import { ReindexKnowledgeDocumentUseCase } from './application/use-cases/reindex-knowledge-document-use-case.js';
+import { RunRagPlaygroundUseCase } from './application/use-cases/run-rag-playground-use-case.js';
 import { UploadKnowledgeDocumentUseCase } from './application/use-cases/upload-knowledge-document-use-case.js';
 import { CreateKnowledgeArticleUseCase } from './application/use-cases/create-knowledge-article-use-case.js';
 import { DeleteKnowledgeArticleUseCase } from './application/use-cases/delete-knowledge-article-use-case.js';
@@ -190,6 +191,7 @@ export function composeKnowledge(input: {
     clock,
     publishedIndex,
   );
+  const runRagPlayground = new RunRagPlaygroundUseCase(tenantAccess, input.aiService);
   const processor = new ProcessKnowledgeDocumentIngestion(
     documents,
     storage,
@@ -244,6 +246,7 @@ export function composeKnowledge(input: {
           listKnowledgeArticleVersions,
           restoreKnowledgeArticleVersion,
           listKnowledgeTags,
+          runRagPlayground,
         },
         input.authenticate,
         input.resolveTenantAccess,

@@ -83,6 +83,10 @@ class FakeAIService implements AIServicePort {
   async applyToolResults(): Promise<never> {
     throw new Error('not implemented');
   }
+
+  async runRagPlayground(): Promise<never> {
+    throw new Error('not implemented');
+  }
 }
 
 class FakeEventBus implements EventBus {

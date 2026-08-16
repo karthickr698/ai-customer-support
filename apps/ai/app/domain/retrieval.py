@@ -25,6 +25,14 @@ class RetrievalFilter:
     title_contains: str | None = None
     metadata_equals: Mapping[str, str] = field(default_factory=dict)
 
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "documentIds": list(self.document_ids),
+            "kinds": list(self.kinds),
+            "sourceUri": self.source_uri,
+            "titleContains": self.title_contains,
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class RetrievalPolicy:
@@ -68,6 +76,26 @@ class Citation:
 
 
 @dataclass(frozen=True, slots=True)
+class RagPlaygroundSource:
+    document_id: str
+    title: str
+    source_uri: str | None
+    kind: str | None
+    chunk_count: int
+    max_score: float
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "documentId": self.document_id,
+            "title": self.title,
+            "sourceUri": self.source_uri,
+            "kind": self.kind,
+            "chunkCount": self.chunk_count,
+            "maxScore": round(self.max_score, 6),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class RetrievedChunk:
     id: str
     document_id: str
@@ -79,6 +107,23 @@ class RetrievedChunk:
     source_uri: str | None
     kind: str | None
     metadata: Mapping[str, str | int | None]
+    vector_score: float | None = None
+    keyword_score: float | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id,
+            "documentId": self.document_id,
+            "version": self.version,
+            "chunkIndex": self.chunk_index,
+            "content": self.content,
+            "score": round(float(self.score), 6),
+            "vectorScore": None if self.vector_score is None else round(float(self.vector_score), 6),
+            "keywordScore": None if self.keyword_score is None else round(float(self.keyword_score), 6),
+            "title": self.title,
+            "sourceUri": self.source_uri,
+            "kind": self.kind,
+        }
 
 
 def clamp_top_k(value: int, *, max_value: int = MAX_TOP_K, min_value: int = MIN_TOP_K) -> int:
