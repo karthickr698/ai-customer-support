@@ -11,11 +11,21 @@ import type {
 } from '../../../application/use-cases/api-key-use-cases.js';
 import type {
   CreateOAuthApplicationUseCase,
-  ListConnectorCatalogUseCase,
-  ListConnectorConnectionsUseCase,
   ListOAuthApplicationsUseCase,
   RevokeOAuthApplicationUseCase,
 } from '../../../application/use-cases/oauth-application-use-cases.js';
+import type {
+  CompleteConnectorOAuthUseCase,
+  DisconnectConnectorUseCase,
+  GetConnectorCatalogItemUseCase,
+  GetConnectorConnectionUseCase,
+  ListConnectorCatalogUseCase,
+  ListConnectorConnectionsUseCase,
+  ProbeConnectorHealthUseCase,
+  SetupConnectorUseCase,
+  StartConnectorOAuthUseCase,
+  UpdateConnectorPermissionsUseCase,
+} from '../../../application/use-cases/connector-marketplace-use-cases.js';
 import type {
   ApproveOAuthAuthorizationUseCase,
   DescribeOAuthAuthorizationUseCase,
@@ -52,12 +62,17 @@ import {
   approveOAuthBodySchema,
   apiUsageQuerySchema,
   apiUsageSummaryQuerySchema,
+  completeConnectorOAuthBodySchema,
+  connectorCatalogQuerySchema,
+  connectorConnectionQuerySchema,
   createApiKeyBodySchema,
   createOAuthApplicationBodySchema,
   createWebhookBodySchema,
   deliveryQuerySchema,
   exchangeOAuthTokenBodySchema,
   oauthAuthorizeQuerySchema,
+  setupConnectorBodySchema,
+  updateConnectorPermissionsBodySchema,
   updateWebhookBodySchema,
   verifyWebhookSignatureBodySchema,
 } from './public-api-schemas.js';
@@ -83,7 +98,15 @@ export type PublicApiHttpUseCases = {
   readonly getApiUsageSummary: GetApiUsageSummaryUseCase;
   readonly listApiUsage: ListApiUsageUseCase;
   readonly listConnectorCatalog: ListConnectorCatalogUseCase;
+  readonly getConnectorCatalogItem: GetConnectorCatalogItemUseCase;
   readonly listConnectorConnections: ListConnectorConnectionsUseCase;
+  readonly getConnectorConnection: GetConnectorConnectionUseCase;
+  readonly setupConnector: SetupConnectorUseCase;
+  readonly startConnectorOAuth: StartConnectorOAuthUseCase;
+  readonly completeConnectorOAuth: CompleteConnectorOAuthUseCase;
+  readonly updateConnectorPermissions: UpdateConnectorPermissionsUseCase;
+  readonly probeConnectorHealth: ProbeConnectorHealthUseCase;
+  readonly disconnectConnector: DisconnectConnectorUseCase;
   readonly createOAuthApplication: CreateOAuthApplicationUseCase;
   readonly listOAuthApplications: ListOAuthApplicationsUseCase;
   readonly revokeOAuthApplication: RevokeOAuthApplicationUseCase;
@@ -340,19 +363,107 @@ export async function registerPublicApiRoutes(
     });
 
     app.get(`${org}/connectors/catalog`, { preHandler: tenantAuth }, async (request, reply) => {
+      const query = parseBody(connectorCatalogQuerySchema, request.query);
       const result = await useCases.listConnectorCatalog.execute({
         tenantId: requireTenantId(request),
         actorId: requireUserId(request),
+        q: query.q,
+        kind: query.kind,
+        category: query.category,
+      });
+      return reply.status(200).send(result);
+    });
+
+    app.get(`${org}/connectors/catalog/:catalogId`, { preHandler: tenantAuth }, async (request, reply) => {
+      const result = await useCases.getConnectorCatalogItem.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        catalogId: routeParam(request, 'catalogId'),
       });
       return reply.status(200).send(result);
     });
 
     app.get(`${org}/connectors`, { preHandler: tenantAuth }, async (request, reply) => {
+      const query = parseBody(connectorConnectionQuerySchema, request.query);
       const result = await useCases.listConnectorConnections.execute({
         tenantId: requireTenantId(request),
         actorId: requireUserId(request),
+        q: query.q,
+        kind: query.kind,
+        status: query.status,
       });
       return reply.status(200).send(result);
+    });
+
+    app.post(`${org}/connectors/setup`, { preHandler: tenantAuth }, async (request, reply) => {
+      const body = parseBody(setupConnectorBodySchema, request.body);
+      const result = await useCases.setupConnector.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        body,
+        security: securityContext(request),
+      });
+      return reply.status(201).send(result);
+    });
+
+    app.get(`${org}/connectors/:connectionId`, { preHandler: tenantAuth }, async (request, reply) => {
+      const result = await useCases.getConnectorConnection.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        connectionId: routeParam(request, 'connectionId'),
+      });
+      return reply.status(200).send(result);
+    });
+
+    app.post(`${org}/connectors/:connectionId/oauth/authorize`, { preHandler: tenantAuth }, async (request, reply) => {
+      const result = await useCases.startConnectorOAuth.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        connectionId: routeParam(request, 'connectionId'),
+      });
+      return reply.status(200).send(result);
+    });
+
+    app.post(`${org}/connectors/:connectionId/oauth/complete`, { preHandler: tenantAuth }, async (request, reply) => {
+      const body = parseBody(completeConnectorOAuthBodySchema, request.body);
+      const result = await useCases.completeConnectorOAuth.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        connectionId: routeParam(request, 'connectionId'),
+        body,
+        security: securityContext(request),
+      });
+      return reply.status(200).send(result);
+    });
+
+    app.post(`${org}/connectors/:connectionId/health`, { preHandler: tenantAuth }, async (request, reply) => {
+      const result = await useCases.probeConnectorHealth.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        connectionId: routeParam(request, 'connectionId'),
+      });
+      return reply.status(200).send(result);
+    });
+
+    app.patch(`${org}/connectors/:connectionId/permissions`, { preHandler: tenantAuth }, async (request, reply) => {
+      const body = parseBody(updateConnectorPermissionsBodySchema, request.body);
+      const result = await useCases.updateConnectorPermissions.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        connectionId: routeParam(request, 'connectionId'),
+        permissions: body.permissions,
+      });
+      return reply.status(200).send(result);
+    });
+
+    app.delete(`${org}/connectors/:connectionId`, { preHandler: tenantAuth }, async (request, reply) => {
+      await useCases.disconnectConnector.execute({
+        tenantId: requireTenantId(request),
+        actorId: requireUserId(request),
+        connectionId: routeParam(request, 'connectionId'),
+        security: securityContext(request),
+      });
+      return reply.status(204).send();
     });
 
     app.post(`${org}/oauth/applications`, { preHandler: tenantAuth }, async (request, reply) => {

@@ -28,6 +28,7 @@ import { HmacWebhookSigner } from './adapters/outbound/hmac-webhook-signer.js';
 import { InProcessPlatformToolHandler } from './adapters/outbound/in-process-platform-tool-handler.js';
 import { OrganizationsTenantAccessAdapter } from './adapters/outbound/organizations-tenant-access-adapter.js';
 import { FetchOAuthTokenExchangeAdapter } from './adapters/outbound/oauth-token-exchange-adapter.js';
+import { FetchConnectorHealthProbe } from './adapters/outbound/connector-health-probe.js';
 import {
   PostgresApiUsageRepository,
   PostgresOAuthApplicationRepository,
@@ -70,11 +71,21 @@ import { ListToolInvocationsUseCase } from './application/use-cases/list-tool-in
 import { ListToolsUseCase } from './application/use-cases/list-tools-use-case.js';
 import {
   CreateOAuthApplicationUseCase,
-  ListConnectorCatalogUseCase,
-  ListConnectorConnectionsUseCase,
   ListOAuthApplicationsUseCase,
   RevokeOAuthApplicationUseCase,
 } from './application/use-cases/oauth-application-use-cases.js';
+import {
+  CompleteConnectorOAuthUseCase,
+  DisconnectConnectorUseCase,
+  GetConnectorCatalogItemUseCase,
+  GetConnectorConnectionUseCase,
+  ListConnectorCatalogUseCase,
+  ListConnectorConnectionsUseCase,
+  ProbeConnectorHealthUseCase,
+  SetupConnectorUseCase,
+  StartConnectorOAuthUseCase,
+  UpdateConnectorPermissionsUseCase,
+} from './application/use-cases/connector-marketplace-use-cases.js';
 import {
   CompleteOAuthConnectorUseCase,
   DisconnectOAuthConnectorUseCase,
@@ -291,7 +302,55 @@ export function composeIntegrations(input: {
   const listApiUsage = new ListApiUsageUseCase(tenantAccess, apiUsage);
   const getApiUsageSummary = new GetApiUsageSummaryUseCase(tenantAccess, apiUsage, clock);
   const listConnectorCatalog = new ListConnectorCatalogUseCase(tenantAccess);
-  const listConnectorConnections = new ListConnectorConnectionsUseCase(tenantAccess, credentials, connectors);
+  const getConnectorCatalogItem = new GetConnectorCatalogItemUseCase(tenantAccess);
+  const listConnectorConnections = new ListConnectorConnectionsUseCase(
+    tenantAccess,
+    credentials,
+    connectors,
+    clock,
+  );
+  const getConnectorConnection = new GetConnectorConnectionUseCase(
+    tenantAccess,
+    credentials,
+    connectors,
+    clock,
+  );
+  const setupConnector = new SetupConnectorUseCase(
+    tenantAccess,
+    upsertOAuthConnector,
+    upsertCredential,
+    credentials,
+    connectors,
+    clock,
+  );
+  const startConnectorOAuth = new StartConnectorOAuthUseCase(startOAuthConnector, getConnectorConnection);
+  const completeConnectorOAuth = new CompleteConnectorOAuthUseCase(
+    completeOAuthConnector,
+    connectors,
+    clock,
+  );
+  const updateConnectorPermissions = new UpdateConnectorPermissionsUseCase(
+    tenantAccess,
+    credentials,
+    connectors,
+    clock,
+  );
+  const probeConnectorHealth = new ProbeConnectorHealthUseCase(
+    tenantAccess,
+    credentials,
+    connectors,
+    cipher,
+    oauthExchange,
+    new FetchConnectorHealthProbe(),
+    clock,
+  );
+  const disconnectConnector = new DisconnectConnectorUseCase(
+    tenantAccess,
+    credentials,
+    connectors,
+    disconnectOAuthConnector,
+    revokeCredential,
+  );
   const createOAuthApplication = new CreateOAuthApplicationUseCase(
     tenantAccess,
     oauthApps,
@@ -383,7 +442,15 @@ export function composeIntegrations(input: {
           getApiUsageSummary,
           listApiUsage,
           listConnectorCatalog,
+          getConnectorCatalogItem,
           listConnectorConnections,
+          getConnectorConnection,
+          setupConnector,
+          startConnectorOAuth,
+          completeConnectorOAuth,
+          updateConnectorPermissions,
+          probeConnectorHealth,
+          disconnectConnector,
           createOAuthApplication,
           listOAuthApplications,
           revokeOAuthApplication,

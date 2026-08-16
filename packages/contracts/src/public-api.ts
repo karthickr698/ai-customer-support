@@ -4,7 +4,7 @@
  */
 
 export const PUBLIC_API_VERSION = 'v1' as const;
-export const PUBLIC_API_SCHEMA_VERSION = 2 as const;
+export const PUBLIC_API_SCHEMA_VERSION = 3 as const;
 
 export const API_KEY_STATUSES = ['active', 'revoked', 'expired'] as const;
 export type ApiKeyStatus = (typeof API_KEY_STATUSES)[number];
@@ -47,6 +47,21 @@ export type ConnectorKind = (typeof CONNECTOR_KINDS)[number];
 
 export const CONNECTOR_AUTH_KINDS = ['api_key', 'oauth'] as const;
 export type ConnectorAuthKind = (typeof CONNECTOR_AUTH_KINDS)[number];
+
+export const CONNECTOR_CATEGORIES = ['commerce', 'payments', 'support', 'custom'] as const;
+export type ConnectorCategory = (typeof CONNECTOR_CATEGORIES)[number];
+
+export const CONNECTOR_HEALTH_STATUSES = [
+  'healthy',
+  'degraded',
+  'unhealthy',
+  'unknown',
+  'disconnected',
+] as const;
+export type ConnectorHealthStatus = (typeof CONNECTOR_HEALTH_STATUSES)[number];
+
+export const CONNECTOR_HEALTH_SOURCES = ['derived', 'probe'] as const;
+export type ConnectorHealthSource = (typeof CONNECTOR_HEALTH_SOURCES)[number];
 
 export const CONNECTOR_CONNECTION_STATUSES = [
   'connected',
@@ -277,34 +292,115 @@ export type PublicApiUsageSummaryResponse = {
   readonly byDay: readonly PublicApiUsageDayCountDto[];
 };
 
+export type ConnectorPermissionDto = {
+  readonly id: string;
+  readonly label: string;
+  readonly description: string;
+  readonly required: boolean;
+};
+
+export type ConnectorSetupStepDto = {
+  readonly id: string;
+  readonly title: string;
+  readonly description: string;
+};
+
 export type ConnectorDefinitionDto = {
+  readonly id: string;
   readonly provider: string;
   readonly kind: ConnectorKind;
   readonly authKind: ConnectorAuthKind;
+  readonly category: ConnectorCategory;
   readonly name: string;
   readonly description: string;
+  readonly websiteUrl: string | null;
   readonly defaultAuthorizationUrl: string | null;
   readonly defaultTokenUrl: string | null;
+  readonly defaultScopes: readonly string[];
+  readonly permissions: readonly ConnectorPermissionDto[];
+  readonly setupSteps: readonly ConnectorSetupStepDto[];
+  readonly searchTerms: readonly string[];
 };
 
 export type ConnectorCatalogResponse = {
   readonly items: readonly ConnectorDefinitionDto[];
 };
 
+export type ConnectorCatalogItemResponse = {
+  readonly connector: ConnectorDefinitionDto;
+};
+
+export type ConnectorHealthDto = {
+  readonly status: ConnectorHealthStatus;
+  readonly source: ConnectorHealthSource;
+  readonly checkedAt: string | null;
+  readonly message: string;
+  readonly latencyMs: number | null;
+};
+
 export type ConnectorConnectionDto = {
   readonly id: string;
   readonly organizationId: string;
+  readonly catalogId: string;
   readonly kind: ConnectorKind;
   readonly provider: string;
   readonly name: string;
   readonly status: ConnectorConnectionStatus;
   readonly toolName: string | null;
+  readonly permissions: readonly string[];
+  readonly reconnectRequired: boolean;
+  readonly tokenExpiresAt: string | null;
+  readonly externalAccountId: string | null;
+  readonly health: ConnectorHealthDto;
   readonly createdAt: string;
   readonly updatedAt: string;
 };
 
 export type ConnectorConnectionListResponse = {
   readonly items: readonly ConnectorConnectionDto[];
+};
+
+export type ConnectorConnectionResponse = {
+  readonly connection: ConnectorConnectionDto;
+};
+
+export type SetupConnectorRequest = {
+  readonly catalogId: string;
+  readonly name?: string;
+  readonly permissions?: readonly string[];
+  readonly clientId?: string;
+  readonly clientSecret?: string;
+  readonly authorizationUrl?: string;
+  readonly tokenUrl?: string;
+  readonly toolName?: string;
+  readonly credentialKind?: 'api_key' | 'bearer';
+  readonly secret?: string;
+  readonly baseUrl?: string;
+  readonly headerName?: string;
+  readonly provider?: string;
+};
+
+export type SetupConnectorResponse = {
+  readonly connection: ConnectorConnectionDto;
+};
+
+export type StartConnectorOAuthResponse = {
+  readonly authorizationUrl: string;
+  readonly connection: ConnectorConnectionDto;
+};
+
+export type CompleteConnectorOAuthRequest = {
+  readonly code: string;
+  readonly state: string;
+};
+
+export type UpdateConnectorPermissionsRequest = {
+  readonly permissions: readonly string[];
+};
+
+export type ConnectorHealthResponse = {
+  readonly connection: ConnectorConnectionDto;
+  readonly health: ConnectorHealthDto;
 };
 
 export type OrganizationOAuthApplicationDto = {

@@ -243,6 +243,30 @@ export class InvalidOAuthGrantError extends DomainError {
   }
 }
 
+export class ConnectorCatalogNotFoundError extends DomainError {
+  readonly code = 'CONNECTOR_CATALOG_NOT_FOUND';
+
+  constructor() {
+    super('Connector is not in the marketplace catalog', 404);
+  }
+}
+
+export class ConnectorConnectionNotFoundError extends DomainError {
+  readonly code = 'CONNECTOR_CONNECTION_NOT_FOUND';
+
+  constructor() {
+    super('Connector connection not found', 404);
+  }
+}
+
+export class InvalidConnectorSetupError extends DomainError {
+  readonly code = 'INVALID_CONNECTOR_SETUP';
+
+  constructor(message: string) {
+    super(message, 400);
+  }
+}
+
 export class UnsupportedApiVersionError extends DomainError {
   readonly code = 'UNSUPPORTED_API_VERSION';
 

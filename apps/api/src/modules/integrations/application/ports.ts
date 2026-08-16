@@ -263,6 +263,23 @@ export type WebhookDispatchRequest = {
   readonly timeoutMs: number;
 };
 
+export type ConnectorHealthProbeRequest = {
+  readonly url: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly timeoutMs: number;
+};
+
+export type ConnectorHealthProbeResult = {
+  readonly ok: boolean;
+  readonly status: number | null;
+  readonly latencyMs: number;
+  readonly message: string;
+};
+
+export interface ConnectorHealthProbePort {
+  probe(request: ConnectorHealthProbeRequest): Promise<ConnectorHealthProbeResult>;
+}
+
 export type WebhookDispatchResult = {
   readonly status: number;
   readonly durationMs: number;

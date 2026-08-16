@@ -1,7 +1,5 @@
 import type { EventBus } from '@ai-customer-support/shared';
 import type {
-  ConnectorCatalogResponse,
-  ConnectorConnectionListResponse,
   OAuthApplicationCreatedResponse,
   OAuthApplicationListResponse,
 } from '@ai-customer-support/contracts';
@@ -10,11 +8,6 @@ import {
   OAUTH_CLIENT_ID_PREFIX,
   OAUTH_CLIENT_SECRET_PREFIX,
 } from '../../domain/api-version.js';
-import {
-  CONNECTOR_CATALOG,
-  toHttpConnectorConnection,
-  toOAuthConnectorConnection,
-} from '../../domain/connector-catalog.js';
 import {
   OAuthApplicationLimitExceededError,
   OAuthApplicationNotFoundError,
@@ -28,52 +21,11 @@ import { PUBLIC_API_RATE_LIMITS } from '../rate-limits.js';
 import type {
   ClockPort,
   DigestHasherPort,
-  IntegrationCredentialRepository,
   OAuthApplicationRepository,
-  OAuthConnectorRepository,
   RateLimiterPort,
   SecureTokenGeneratorPort,
   TenantAccessPort,
 } from '../ports.js';
-
-export class ListConnectorCatalogUseCase {
-  constructor(private readonly tenantAccess: TenantAccessPort) {}
-
-  async execute(input: {
-    readonly tenantId: string;
-    readonly actorId: string;
-  }): Promise<ConnectorCatalogResponse> {
-    const actor = await this.tenantAccess.loadActor(input.tenantId, input.actorId);
-    IntegrationPolicy.assertCanManage(actor.permissions);
-    return { items: CONNECTOR_CATALOG };
-  }
-}
-
-export class ListConnectorConnectionsUseCase {
-  constructor(
-    private readonly tenantAccess: TenantAccessPort,
-    private readonly credentials: IntegrationCredentialRepository,
-    private readonly connectors: OAuthConnectorRepository,
-  ) {}
-
-  async execute(input: {
-    readonly tenantId: string;
-    readonly actorId: string;
-  }): Promise<ConnectorConnectionListResponse> {
-    const actor = await this.tenantAccess.loadActor(input.tenantId, input.actorId);
-    IntegrationPolicy.assertCanManage(actor.permissions);
-    const [http, oauth] = await Promise.all([
-      this.credentials.listActiveByTenant(actor.tenantId),
-      this.connectors.listByTenant(actor.tenantId),
-    ]);
-    return {
-      items: [
-        ...http.map(toHttpConnectorConnection),
-        ...oauth.map(toOAuthConnectorConnection),
-      ],
-    };
-  }
-}
 
 export class CreateOAuthApplicationUseCase {
   constructor(

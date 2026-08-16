@@ -206,6 +206,29 @@ export class OAuthConnector {
     );
   }
 
+  updateScopes(scopes: readonly string[], now: Date): OAuthConnector {
+    return new OAuthConnector(
+      this.id,
+      this.organizationId,
+      this.provider,
+      this.name,
+      this.status,
+      this.authorizationUrl,
+      this.tokenUrl,
+      this.clientId,
+      this.clientSecret,
+      normalizeScopes(scopes),
+      this.accessToken,
+      this.refreshToken,
+      this.tokenExpiresAt,
+      this.externalAccountId,
+      this.createdByUserId,
+      this.createdAt,
+      now,
+      this.disconnectedAt,
+    );
+  }
+
   disconnect(now: Date): OAuthConnector {
     return new OAuthConnector(
       this.id,

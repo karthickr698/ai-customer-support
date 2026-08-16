@@ -13,7 +13,7 @@ export function buildPublicApiOpenApiDocument(): Record<string, unknown> {
       title: 'AI Customer Support Public API',
       version: PUBLIC_API_VERSION,
       description:
-        'Versioned REST API (`/api/v1`) for tenant API keys, HMAC-signed webhooks with delivery logs and retries, API usage tracking, OAuth applications, and connector abstractions. Session cookies, `Authorization: Bearer acs_live_…`, or `X-API-Key` authenticate tenant-scoped routes. Responses include `X-API-Version: v1`. Rate limits apply per API key and OAuth access token. Webhook signatures: `X-Webhook-Signature: t=<unix>,v1=<hex>` is HMAC-SHA256 of `{timestamp}.{rawBody}`. Failed deliveries retry with exponential backoff (1m, 5m, 30m, 2h, 8h) up to 5 attempts.',
+        'Versioned REST API (`/api/v1`) for tenant API keys, HMAC-signed webhooks with delivery logs and retries, API usage tracking, OAuth applications, and a searchable connector marketplace (setup wizard, outbound OAuth, connection health, permissions, and disconnect). Session cookies, `Authorization: Bearer acs_live_…`, or `X-API-Key` authenticate tenant-scoped routes. Responses include `X-API-Version: v1`. Rate limits apply per API key and OAuth access token. Webhook signatures: `X-Webhook-Signature: t=<unix>,v1=<hex>` is HMAC-SHA256 of `{timestamp}.{rawBody}`. Failed deliveries retry with exponential backoff (1m, 5m, 30m, 2h, 8h) up to 5 attempts.',
     },
     servers: [{ url: '/', description: 'Current host' }],
     tags: [
@@ -299,17 +299,118 @@ export function buildPublicApiOpenApiDocument(): Record<string, unknown> {
       [`${org}/connectors/catalog`]: {
         get: {
           tags: ['Connectors'],
-          summary: 'List connector definitions',
-          parameters: [{ $ref: '#/components/parameters/organizationId' }],
-          responses: { 200: { description: 'HTTP and OAuth connector catalog' } },
+          summary: 'Search the connector marketplace catalog',
+          parameters: [
+            { $ref: '#/components/parameters/organizationId' },
+            { name: 'q', in: 'query', schema: { type: 'string' }, description: 'Search name, provider, or category' },
+            { name: 'kind', in: 'query', schema: { type: 'string', enum: ['http', 'oauth'] } },
+            {
+              name: 'category',
+              in: 'query',
+              schema: { type: 'string', enum: ['commerce', 'payments', 'support', 'custom'] },
+            },
+          ],
+          responses: { 200: { description: 'HTTP and OAuth connector catalog with setup steps and permissions' } },
+        },
+      },
+      [`${org}/connectors/catalog/{catalogId}`]: {
+        get: {
+          tags: ['Connectors'],
+          summary: 'Get a connector catalog item',
+          parameters: [
+            { $ref: '#/components/parameters/organizationId' },
+            { name: 'catalogId', in: 'path', required: true, schema: { type: 'string', example: 'oauth-shopify' } },
+          ],
+          responses: { 200: { description: 'Catalog definition including wizard steps and permissions' } },
         },
       },
       [`${org}/connectors`]: {
         get: {
           tags: ['Connectors'],
           summary: 'List connected connectors',
+          parameters: [
+            { $ref: '#/components/parameters/organizationId' },
+            { name: 'q', in: 'query', schema: { type: 'string' } },
+            { name: 'kind', in: 'query', schema: { type: 'string', enum: ['http', 'oauth'] } },
+            {
+              name: 'status',
+              in: 'query',
+              schema: { type: 'string', enum: ['connected', 'pending', 'expired', 'disconnected'] },
+            },
+          ],
+          responses: { 200: { description: 'Unified HTTP credential and OAuth connector connections with health' } },
+        },
+      },
+      [`${org}/connectors/setup`]: {
+        post: {
+          tags: ['Connectors'],
+          summary: 'Start connector setup wizard',
           parameters: [{ $ref: '#/components/parameters/organizationId' }],
-          responses: { 200: { description: 'Unified HTTP credential and OAuth connector connections' } },
+          responses: { 201: { description: 'Pending or connected marketplace connection' } },
+        },
+      },
+      [`${org}/connectors/{connectionId}`]: {
+        get: {
+          tags: ['Connectors'],
+          summary: 'Get a connector connection',
+          parameters: [
+            { $ref: '#/components/parameters/organizationId' },
+            { name: 'connectionId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+          responses: { 200: { description: 'Connection with health, permissions, and status' } },
+        },
+        delete: {
+          tags: ['Connectors'],
+          summary: 'Disconnect a connector',
+          parameters: [
+            { $ref: '#/components/parameters/organizationId' },
+            { name: 'connectionId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+          responses: { 204: { description: 'OAuth tokens dropped or HTTP credential revoked' } },
+        },
+      },
+      [`${org}/connectors/{connectionId}/oauth/authorize`]: {
+        post: {
+          tags: ['Connectors'],
+          summary: 'Start connector OAuth authorization',
+          parameters: [
+            { $ref: '#/components/parameters/organizationId' },
+            { name: 'connectionId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+          responses: { 200: { description: 'PKCE authorization URL' } },
+        },
+      },
+      [`${org}/connectors/{connectionId}/oauth/complete`]: {
+        post: {
+          tags: ['Connectors'],
+          summary: 'Complete connector OAuth authorization',
+          parameters: [
+            { $ref: '#/components/parameters/organizationId' },
+            { name: 'connectionId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+          responses: { 200: { description: 'Connected OAuth connector' } },
+        },
+      },
+      [`${org}/connectors/{connectionId}/health`]: {
+        post: {
+          tags: ['Connectors'],
+          summary: 'Probe connector connection health',
+          parameters: [
+            { $ref: '#/components/parameters/organizationId' },
+            { name: 'connectionId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+          responses: { 200: { description: 'Live health probe result' } },
+        },
+      },
+      [`${org}/connectors/{connectionId}/permissions`]: {
+        patch: {
+          tags: ['Connectors'],
+          summary: 'Update connector permissions',
+          parameters: [
+            { $ref: '#/components/parameters/organizationId' },
+            { name: 'connectionId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          ],
+          responses: { 200: { description: 'Updated granted scopes or HTTP tool permission' } },
         },
       },
       [`${org}/oauth/applications`]: {

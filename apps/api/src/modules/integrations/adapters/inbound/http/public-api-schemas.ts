@@ -1,4 +1,11 @@
-import { WEBHOOK_EVENT_NAMES } from '@ai-customer-support/contracts';
+import {
+  CONNECTOR_CATEGORIES,
+  CONNECTOR_CONNECTION_STATUSES,
+  CONNECTOR_KINDS,
+  INTEGRATION_CREDENTIAL_KINDS,
+  TOOL_NAMES,
+  WEBHOOK_EVENT_NAMES,
+} from '@ai-customer-support/contracts';
 import { z } from 'zod';
 
 export const createApiKeyBodySchema = z.object({
@@ -80,4 +87,41 @@ export const apiUsageQuerySchema = z.object({
 export const apiUsageSummaryQuerySchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
+});
+
+export const connectorCatalogQuerySchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  kind: z.enum(CONNECTOR_KINDS).optional(),
+  category: z.enum(CONNECTOR_CATEGORIES).optional(),
+});
+
+export const connectorConnectionQuerySchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  kind: z.enum(CONNECTOR_KINDS).optional(),
+  status: z.enum(CONNECTOR_CONNECTION_STATUSES).optional(),
+});
+
+export const setupConnectorBodySchema = z.object({
+  catalogId: z.string().trim().min(3).max(80),
+  name: z.string().trim().min(1).max(120).optional(),
+  permissions: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+  clientId: z.string().trim().min(1).max(200).optional(),
+  clientSecret: z.string().min(8).max(8_000).optional(),
+  authorizationUrl: z.string().trim().url().optional(),
+  tokenUrl: z.string().trim().url().optional(),
+  toolName: z.enum(TOOL_NAMES).optional(),
+  credentialKind: z.enum(INTEGRATION_CREDENTIAL_KINDS).optional(),
+  secret: z.string().min(8).max(8_000).optional(),
+  baseUrl: z.string().trim().url().optional(),
+  headerName: z.string().trim().min(1).max(80).optional(),
+  provider: z.string().trim().min(1).max(40).optional(),
+});
+
+export const completeConnectorOAuthBodySchema = z.object({
+  code: z.string().min(1).max(4_000),
+  state: z.string().min(1).max(500),
+});
+
+export const updateConnectorPermissionsBodySchema = z.object({
+  permissions: z.array(z.string().trim().min(1).max(80)).max(20),
 });

@@ -74,4 +74,15 @@ export const queryKeys = {
     invocations: (organizationId: string, page: number) =>
       [...queryKeys.tools.all(), organizationId, 'invocations', page] as const,
   },
+  integrations: {
+    all: () => ['integrations'] as const,
+    catalog: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.integrations.all(), organizationId, 'catalog', filters] as const,
+    catalogItem: (organizationId: string, catalogId: string) =>
+      [...queryKeys.integrations.all(), organizationId, 'catalog', catalogId] as const,
+    connections: (organizationId: string, filters?: Record<string, unknown>) =>
+      [...queryKeys.integrations.all(), organizationId, 'connections', filters] as const,
+    connection: (organizationId: string, connectionId: string) =>
+      [...queryKeys.integrations.all(), organizationId, 'connection', connectionId] as const,
+  },
 } as const;
