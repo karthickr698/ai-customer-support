@@ -6,7 +6,7 @@ This repository currently contains the **project foundation only**. Business fea
 
 ## Architecture
 
-- **Apps:** `apps/api` (Fastify + TypeScript), `apps/ai` (Python AI service), and `apps/web` (React + Vite)
+- **Apps:** `apps/api` (TypeScript), `apps/ai` (Python AI service), and `apps/web` (React + Vite)
 - **Modules (TypeScript):** identity, organizations, customers, conversations, tickets, agents, knowledge, notifications, analytics, integrations
 - **AI (Python):** LLM, RAG, embeddings, prompts, tool calling, guardrails — hexagonal `domain/` → `application/` → `adapters/`
 - **TypeScript AI module:** integration only (`AIServicePort` + `PythonAIServiceAdapter`)
