@@ -2,7 +2,7 @@
 
 Modular monolith for AI-assisted customer support. Hexagonal (ports and adapters) modules, event-driven workflows, and a **Python AI service** (`apps/ai`) for LLM, RAG, and embeddings. The TypeScript API (`apps/api`) never talks to LLM providers directly.
 
-This repository currently contains the **project foundation only**. Business features (auth, conversations, tickets, RAG, and so on) are added through feature-wise commands.
+This repository currently contains the **project foundation only**. Business features (auth, conversations, tickets, RAG, Human Agent and so on) are added through feature-wise commands.
 
 ## Architecture
 
